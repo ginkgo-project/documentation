@@ -1,0 +1,2 @@
+# documentation
+Ginkgo documentation pages
