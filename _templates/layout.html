@@ -1,0 +1,95 @@
+{%- extends "pydata_sphinx_theme/layout.html" %}
+
+{# Inject the hero only on the homepage #}
+{%- block docs_main %}
+  {%- if pagename == "index" %}
+    <div class="ginkgo-hero">
+      <img src="{{ pathto('_static/ginkgo-theme/leaf.png', 1) }}" class="ginkgo-hero-watermark" aria-hidden="true" alt="">
+      <div class="ginkgo-hero-inner">
+        <div class="ginkgo-hero-eyebrow">Sparse linear algebra · for modern accelerators</div>
+        <h1 class="ginkgo-hero-headline">
+          High-performance numerical linear algebra,
+          <em>built for accelerators.</em>
+        </h1>
+      </div>
+    </div>
+
+    <div class="ginkgo-feature-strip">
+      <div class="ginkgo-feature">
+        <div class="ginkgo-feature-rule"></div>
+        <h3>One executor, every device</h3>
+        <p>CUDA, HIP, SYCL, OpenMP, and reference CPU — kernels dispatched through a single interface.</p>
+      </div>
+      <div class="ginkgo-feature">
+        <div class="ginkgo-feature-rule"></div>
+        <h3>Composable solvers</h3>
+        <p>Build CG, GMRES, IR, and BiCGSTAB on top of any preconditioner via the LinOp interface.</p>
+      </div>
+      <div class="ginkgo-feature">
+        <div class="ginkgo-feature-rule"></div>
+        <h3>Distributed &amp; batched</h3>
+        <p>First-class MPI distributed primitives and batched Krylov for many small systems.</p>
+      </div>
+      <div class="ginkgo-feature">
+        <div class="ginkgo-feature-rule"></div>
+        <h3>Used in the field</h3>
+        <p>Backend for deal.II, MFEM, NekRS, SUNDIALS — and your code next.</p>
+      </div>
+    </div>
+
+    <section class="ginkgo-news" aria-labelledby="ginkgo-news-heading">
+      <div class="ginkgo-section-inner">
+        <div class="ginkgo-section-header">
+          <h2 id="ginkgo-news-heading">Recent news</h2>
+          <a class="ginkgo-section-link" href="https://github.com/ginkgo-project/ginkgo/releases">All releases &rarr;</a>
+        </div>
+        <ul class="ginkgo-news-list">
+          <li class="ginkgo-news-item">
+            <time datetime="2024-01-01">YYYY-MM-DD</time>
+            <span class="ginkgo-news-title">Placeholder — Ginkgo 1.X release</span>
+            <span class="ginkgo-news-summary">Replace with the most recent release headline.</span>
+          </li>
+          <li class="ginkgo-news-item">
+            <time datetime="2024-01-01">YYYY-MM-DD</time>
+            <span class="ginkgo-news-title">Placeholder — paper / talk / event</span>
+            <span class="ginkgo-news-summary">Replace with a recent publication, talk, or workshop.</span>
+          </li>
+          <li class="ginkgo-news-item">
+            <time datetime="2024-01-01">YYYY-MM-DD</time>
+            <span class="ginkgo-news-title">Placeholder — feature highlight</span>
+            <span class="ginkgo-news-summary">Replace with a notable recent feature or integration.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="ginkgo-cite" aria-labelledby="ginkgo-cite-heading">
+      <div class="ginkgo-section-inner">
+        <div class="ginkgo-section-header">
+          <h2 id="ginkgo-cite-heading">Citing Ginkgo</h2>
+          <a class="ginkgo-section-link" href="{{ pathto('community/citing') }}">Full citation list &rarr;</a>
+        </div>
+        <p class="ginkgo-cite-intro">If you use Ginkgo in your research, please cite the canonical reference:</p>
+        <div class="ginkgo-cite-block">
+          <button type="button" class="ginkgo-cite-copy" data-target="#ginkgo-cite-bibtex" aria-label="Copy BibTeX to clipboard">Copy</button>
+{% raw %}<pre id="ginkgo-cite-bibtex"><code>@article{ginkgo-toms-2022,
+  title   = {{Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing}},
+  author  = {Anzt, Hartwig and Cojean, Terry and Flegar, Goran and G\"{o}bel, Fritz and
+             Gr\"{u}tzmacher, Thomas and Nayak, Pratik and Ribizel, Tobias and
+             Tsai, Yuhsiang Mike and Quintana-Ort{\'\i}, Enrique S.},
+  journal = {ACM Transactions on Mathematical Software},
+  volume  = {48},
+  number  = {1},
+  year    = {2022},
+  pages   = {1--33},
+  doi     = {10.1145/3480935}
+}</code></pre>{% endraw %}
+        </div>
+      </div>
+    </section>
+  {%- endif %}
+
+  {%- if pagename != "index" %}
+    {{ super() }}
+  {%- endif %}
+{%- endblock %}

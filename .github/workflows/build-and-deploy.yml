@@ -1,0 +1,81 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (stable)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: stable-src
+
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: develop-src
+        continue-on-error: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies (stable)
+        working-directory: stable-src
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build stable
+        working-directory: stable-src
+        env:
+          GINKGO_DOC_VERSION: stable
+        run: sphinx-build -b html . ../_site
+
+      - name: Install dependencies (develop)
+        if: hashFiles('develop-src/requirements.txt') != ''
+        working-directory: develop-src
+        run: pip install -r requirements.txt
+
+      - name: Build develop
+        if: hashFiles('develop-src/conf.py') != ''
+        working-directory: develop-src
+        env:
+          GINKGO_DOC_VERSION: develop
+        run: sphinx-build -b html . ../_site/develop
+
+      - name: Copy CNAME
+        run: cp stable-src/CNAME _site/CNAME
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

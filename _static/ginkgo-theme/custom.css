@@ -1,0 +1,564 @@
+/* Self-hosted fonts — no Google Fonts dependency */
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/inter-variable.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Fraunces";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/fraunces-variable.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Fraunces";
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/fraunces-variable-italic.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/jetbrains-mono.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../fonts/inter-600.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Fraunces";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../fonts/fraunces-600.woff2") format("woff2");
+}
+
+/* Botanical palette — light mode */
+html[data-theme="light"] {
+    --pst-color-primary: #3a6b4a;        /* forest green */
+    --pst-color-primary-bg: #e6efe7;
+    --pst-color-secondary: #c9a14a;      /* warm gold */
+    --pst-color-accent: #c9a14a;
+    --pst-color-success: #3a6b4a;
+    --pst-color-info: #3a6b4a;
+    --pst-color-warning: #c9974a;
+
+    --pst-color-background: #fbfaf6;     /* warm ivory */
+    --pst-color-on-background: #ffffff;  /* card surface */
+    --pst-color-surface: #fbfaf6;
+    --pst-color-on-surface: #1f2a24;
+
+    --pst-color-text-base: #1f2a24;      /* near-black */
+    --pst-color-text-muted: #3a4a40;
+    --pst-color-border: #ece6d6;
+    --pst-color-border-muted: #f1ece0;
+    --pst-color-shadow: rgba(31, 42, 36, 0.06);
+
+    --pst-color-link: #3a6b4a;
+    --pst-color-link-hover: #c9a14a;
+
+    --pst-color-inline-code: #1f2a24;
+    --pst-color-inline-code-links: #3a6b4a;
+    --pst-color-target: #fff7e0;
+}
+
+/* Botanical palette — dark mode */
+html[data-theme="dark"] {
+    --pst-color-primary: #6b9d7a;        /* lifted forest green for contrast */
+    --pst-color-primary-bg: #1e2a23;
+    --pst-color-secondary: #d8b870;      /* lifted gold */
+    --pst-color-accent: #d8b870;
+    --pst-color-success: #6b9d7a;
+    --pst-color-info: #6b9d7a;
+
+    --pst-color-background: #11181c;     /* deep near-black */
+    --pst-color-on-background: #1a232a;
+    --pst-color-surface: #1a232a;
+    --pst-color-on-surface: #e9e0c8;
+
+    --pst-color-text-base: #e9e0c8;
+    --pst-color-text-muted: #b8b0a0;
+    --pst-color-border: #2a3a32;
+    --pst-color-border-muted: #1f2a24;
+    --pst-color-shadow: rgba(0, 0, 0, 0.4);
+
+    --pst-color-link: #d8b870;
+    --pst-color-link-hover: #6b9d7a;
+
+    --pst-color-inline-code: #e9e0c8;
+    --pst-color-inline-code-links: #d8b870;
+    --pst-color-target: #2a3a32;
+}
+
+/* Botanical typography */
+html {
+    --pst-font-family-base: "Inter", system-ui, -apple-system, sans-serif;
+    --pst-font-family-heading: "Fraunces", Georgia, serif;
+    --pst-font-family-monospace: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+    font-family: var(--pst-font-family-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .navbar-brand, .pst-navbar-icon {
+    font-family: var(--pst-font-family-heading);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+h1 {
+    font-size: 2.4rem;
+    line-height: 1.1;
+}
+
+h2 {
+    font-size: 1.6rem;
+    line-height: 1.2;
+    margin-top: 2rem;
+}
+
+h3 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+}
+
+code, pre, kbd, samp, tt {
+    font-family: var(--pst-font-family-monospace);
+}
+
+p, li {
+    line-height: 1.7;
+}
+
+/* Content max-width and rhythm */
+.bd-main .bd-content .bd-article-container {
+    max-width: 72ch;
+}
+
+/* Active sidebar item — gold accent bar */
+.bd-sidebar-primary .nav-link.active,
+nav.bd-links li > a.current {
+    border-left: 2px solid var(--pst-color-secondary);
+    padding-left: 0.6rem;
+    margin-left: -0.75rem;
+    color: var(--pst-color-text-base);
+    font-weight: 600;
+}
+
+/* Section dividers */
+.bd-content hr {
+    border: 0;
+    border-top: 1px solid var(--pst-color-border);
+    margin: 2rem 0;
+}
+
+/* Soft warm shadows on cards instead of hard borders */
+.sd-card,
+div.admonition,
+div.note,
+div.tip {
+    box-shadow: 0 1px 3px var(--pst-color-shadow);
+    border: none;
+    background: var(--pst-color-on-background);
+    border-radius: 6px;
+}
+
+/* Note callout — gold left border, Fraunces label */
+div.admonition.note,
+div.note {
+    border-left: 3px solid var(--pst-color-secondary);
+    border-radius: 0 4px 4px 0;
+    padding: 0.9rem 1.1rem;
+}
+
+div.admonition.note p.admonition-title,
+div.note p.admonition-title {
+    font-family: var(--pst-font-family-heading);
+    font-weight: 600;
+    color: var(--pst-color-text-base);
+    margin-bottom: 0.4rem;
+}
+
+/* Inline code — warm tinted background */
+.bd-content code.literal {
+    background: var(--pst-color-border-muted);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    border: none;
+    color: var(--pst-color-text-base);
+}
+
+/* Code block surface */
+.highlight pre {
+    background: #1f2a24;
+    color: #e9e0c8;
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+}
+
+/* Homepage hero */
+.ginkgo-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 2.4rem 1rem 2.4rem;
+    margin: -1rem -1rem 0;
+    background: var(--pst-color-background);
+    flex: 0 0 auto;
+}
+
+.ginkgo-hero-watermark {
+    position: absolute;
+    right: -2rem;
+    top: -2rem;
+    width: 14rem;
+    height: 14rem;
+    opacity: 0.07;
+    pointer-events: none;
+    user-select: none;
+}
+
+.ginkgo-hero-inner {
+    position: relative;
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+.ginkgo-hero-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--pst-color-primary);
+    font-weight: 600;
+}
+
+.ginkgo-hero-headline {
+    font-family: var(--pst-font-family-heading);
+    font-weight: 600;
+    font-size: 1.9rem;
+    line-height: 1.15;
+    margin: 0.5rem 0 1rem;
+    color: var(--pst-color-text-base);
+}
+
+.ginkgo-hero-headline em {
+    color: var(--pst-color-primary);
+    font-style: italic;
+}
+
+.ginkgo-hero-ctas {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ginkgo-cta {
+    display: inline-block;
+    padding: 0.65rem 1.15rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.ginkgo-cta-primary {
+    background: var(--pst-color-primary);
+    color: #fff;
+}
+
+.ginkgo-cta-primary:hover {
+    background: #2e5a3c;
+    color: #fff;
+}
+
+.ginkgo-cta-secondary {
+    background: transparent;
+    color: var(--pst-color-text-base);
+    border: 1px solid var(--pst-color-text-base);
+}
+
+.ginkgo-hero-install {
+    background: var(--pst-color-border-muted);
+    padding: 0.4rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--pst-color-text-muted);
+    font-family: var(--pst-font-family-monospace);
+}
+
+/* Feature strip */
+.ginkgo-feature-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1.5rem;
+    padding: 2.4rem 1rem 3rem;
+    background: var(--pst-color-on-background);
+    border-top: 1px solid var(--pst-color-border);
+    margin: 0 -1rem;
+    flex: 0 0 auto;
+}
+
+.ginkgo-feature h3 {
+    font-family: var(--pst-font-family-heading);
+    font-size: 1.05rem;
+    margin: 0 0 0.4rem;
+    color: var(--pst-color-text-base);
+}
+
+.ginkgo-feature p {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--pst-color-text-muted);
+    margin: 0;
+}
+
+.ginkgo-feature-rule {
+    width: 2rem;
+    height: 2px;
+    background: var(--pst-color-secondary);
+    margin-bottom: 0.7rem;
+}
+
+/* Shared section frame for homepage extras (news, cite) */
+.ginkgo-news,
+.ginkgo-cite {
+    flex: 0 0 auto;
+    padding: 2.4rem 1rem;
+    margin: 0 -1rem;
+    background: var(--pst-color-background);
+    border-top: 1px solid var(--pst-color-border);
+}
+
+.ginkgo-cite {
+    background: var(--pst-color-on-background);
+}
+
+.ginkgo-section-inner {
+    max-width: 60rem;
+    margin: 0 auto;
+}
+
+.ginkgo-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+}
+
+.ginkgo-section-header h2 {
+    font-family: var(--pst-font-family-heading);
+    font-weight: 600;
+    font-size: 1.4rem;
+    line-height: 1.2;
+    margin: 0;
+    color: var(--pst-color-text-base);
+}
+
+.ginkgo-section-link {
+    font-size: 0.85rem;
+    color: var(--pst-color-primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.ginkgo-section-link:hover {
+    color: var(--pst-color-secondary);
+}
+
+/* News list */
+.ginkgo-news-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+}
+
+.ginkgo-news-item {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.4rem 1.2rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--pst-color-border-muted);
+    align-items: baseline;
+}
+
+.ginkgo-news-item:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.ginkgo-news-item time {
+    font-family: var(--pst-font-family-monospace);
+    font-size: 0.78rem;
+    color: var(--pst-color-text-muted);
+    grid-column: 1;
+    grid-row: 1 / 3;
+    padding-top: 0.15rem;
+}
+
+.ginkgo-news-title {
+    font-weight: 600;
+    color: var(--pst-color-text-base);
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.ginkgo-news-summary {
+    font-size: 0.92rem;
+    color: var(--pst-color-text-muted);
+    grid-column: 2;
+    grid-row: 2;
+    line-height: 1.55;
+}
+
+@media (max-width: 540px) {
+    .ginkgo-news-item {
+        grid-template-columns: 1fr;
+    }
+    .ginkgo-news-item time {
+        grid-column: 1;
+        grid-row: auto;
+    }
+    .ginkgo-news-title {
+        grid-column: 1;
+        grid-row: auto;
+    }
+    .ginkgo-news-summary {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
+/* Citation block */
+.ginkgo-cite-intro {
+    font-size: 0.95rem;
+    color: var(--pst-color-text-muted);
+    margin: 0 0 0.8rem;
+    line-height: 1.55;
+}
+
+.ginkgo-cite-block {
+    position: relative;
+    background: #1f2a24;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.ginkgo-cite-block pre {
+    margin: 0;
+    padding: 1rem 1.1rem;
+    background: transparent;
+    color: #e9e0c8;
+    font-family: var(--pst-font-family-monospace);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    overflow-x: auto;
+}
+
+.ginkgo-cite-block code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.ginkgo-cite-copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    background: var(--pst-color-secondary);
+    color: #1f2a24;
+    border: none;
+    border-radius: 4px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+    font-family: var(--pst-font-family-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+}
+
+.ginkgo-cite-copy:hover {
+    background: #d8b870;
+}
+
+.ginkgo-cite-copy.is-copied {
+    background: var(--pst-color-primary);
+    color: #fff;
+}
+
+/* Version switcher */
+.ginkgo-version-switcher {
+    position: relative;
+    display: inline-block;
+    margin-right: 0.6rem;
+}
+
+.ginkgo-version-button {
+    background: var(--pst-color-on-background);
+    border: 1px solid var(--pst-color-secondary);
+    color: var(--pst-color-primary);
+    padding: 0.25rem 0.7rem;
+    border-radius: 14px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: var(--pst-font-family-base);
+}
+
+.ginkgo-version-menu {
+    display: none;
+    position: absolute;
+    top: 110%;
+    right: 0;
+    background: var(--pst-color-on-background);
+    border: 1px solid var(--pst-color-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px var(--pst-color-shadow);
+    min-width: 8rem;
+    z-index: 100;
+}
+
+.ginkgo-version-switcher:hover .ginkgo-version-menu,
+.ginkgo-version-switcher:focus-within .ginkgo-version-menu {
+    display: block;
+}
+
+.ginkgo-version-item {
+    display: block;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.85rem;
+    color: var(--pst-color-text-base);
+    text-decoration: none;
+}
+
+.ginkgo-version-item:hover {
+    background: var(--pst-color-primary-bg);
+}
+
+.ginkgo-version-item.is-current {
+    color: var(--pst-color-primary);
+    font-weight: 600;
+}

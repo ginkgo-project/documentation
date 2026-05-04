@@ -1,0 +1,36 @@
+name: PR Build
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Strict build (warnings as errors)
+        run: sphinx-build -W -b html . _build/html
+
+      - name: Link check (internal only on PR)
+        run: sphinx-build -b linkcheck . _build/linkcheck
+        continue-on-error: true
+
+      - name: Upload linkcheck output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkcheck-output
+          path: _build/linkcheck/
+          retention-days: 14
