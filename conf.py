@@ -23,6 +23,7 @@ else:
 
 extensions = [
     "myst_parser",
+    "sphinx.ext.extlinks",
 ]
 
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
@@ -41,6 +42,20 @@ html_css_files = [
 html_js_files = [
     "ginkgo-theme/citation-copy.js",
 ]
+
+# External link aliases. {gko-api}`gko::matrix::Csr` resolves to the standalone
+# Doxygen deploy. The Doxygen URL pattern is fragile; centralising it here
+# means a single edit if the deploy ever moves.
+extlinks = {
+    "gko-api": (
+        "https://ginkgo-project.github.io/ginkgo-generated-documentation/"
+        "doc/develop/classgko_1_1%s.html",
+        "%s",
+    ),
+}
+
+# MyST roles need to be allowed for inline use.
+myst_enable_extensions = ["colon_fence"]
 html_title = "Ginkgo"
 
 html_logo = "_static/ginkgo-theme/leaf.png"
