@@ -140,6 +140,19 @@ This design means you can reuse the same factory with different matrices — the
 6. **GPU and parallel ILU?** ParILU or ParILUT.
 7. **Maximise GPU parallelism on triangular solves?** ISAI instead of ILU.
 
+## Per-preconditioner pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Preconditioners
+
+preconditioners/jacobi
+preconditioners/ilu
+preconditioners/ic
+preconditioners/isai
+preconditioners/amg
+```
+
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
 - [Mixed-precision design](mixed-precision.md) — `AdaptivePrecisionJacobi` lives in this space.

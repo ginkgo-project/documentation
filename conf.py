@@ -24,11 +24,12 @@ else:
 extensions = [
     "myst_parser",
     "sphinx.ext.extlinks",
+    "sphinxcontrib.mermaid",
 ]
 
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 master_doc = "index"
-exclude_patterns = ["_build", ".venv", "Thumbs.db", ".DS_Store", "docs/superpowers", "README.md"]
+exclude_patterns = ["_build", ".venv", "Thumbs.db", ".DS_Store", "docs/superpowers", "README.md", "feedback.md"]
 
 # Treat warnings as errors during CI builds.
 nitpicky = False
@@ -64,6 +65,9 @@ html_favicon = "_static/ginkgo-theme/leaf.png"
 html_theme_options = {
     "show_prev_next": False,
     "navigation_with_keys": False,
+    # Light mode uses PyData's default "tango" (light bg, dark tokens).
+    # Dark mode uses "monokai" (dark bg, bright tokens).
+    "pygments_dark_style": "monokai",
     "logo": {
         "image_light": "_static/ginkgo-theme/leaf.png",
         "image_dark": "_static/ginkgo-theme/leaf.png",

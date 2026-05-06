@@ -1,4 +1,4 @@
-# Explanation
+# Concepts
 
 These pages explain Ginkgo's design and architecture. Pick them when you want
 to *understand* — for "how do I do X", see the How-To guides; for "walk me
@@ -17,21 +17,15 @@ views-zero-copy
 ## Matrix data and formats
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 matrix-data
 matrix-formats
-formats/csr
-formats/coo
-formats/ell
-formats/sellp
-formats/hybrid
-formats/fbcsr
 ```
 
 ## Solvers, preconditioners, criteria
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 solvers
 preconditioners
 stopping-criteria
@@ -41,20 +35,15 @@ mixed-precision
 ## Distributed
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 distributed
-distributed/partition-and-index-map
-distributed/communication-primitives
-distributed/solvers-and-preconditioners
-distributed/neighborhood-communicators
 ```
 
 ## Batched
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 batched
-batched/per-solver-design
 ```
 
 ## Cross-cutting features

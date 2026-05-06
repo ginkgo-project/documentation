@@ -1,6 +1,6 @@
 # Solvers — taxonomy
 
-Ginkgo provides three families of solvers — Krylov, direct, and multigrid — each implemented as a `LinOp` factory that produces a configured solver from a system matrix. This page surveys the families, the construction pattern, and selection guidance. Algorithm-specific detail belongs in the API reference and per-solver explanation pages.
+Ginkgo provides three families of solvers — Krylov, direct, and multigrid — each implemented as a `LinOp` factory that produces a configured solver from a system matrix. This page surveys the families, the construction pattern, and selection guidance. Algorithm-specific detail belongs in the API reference and per-solver concept pages.
 
 ## The three families
 
@@ -95,6 +95,23 @@ These rules cover the common cases; profiling and problem-specific knowledge alw
 4. **Small to medium dense systems, or repeated solves on the same matrix**: direct LU or Cholesky.
 5. **Large elliptic systems**: AMG as preconditioner inside CG or GMRES.
 6. **Mixed-precision acceleration**: IR wrapping a low-precision inner solver — see [Mixed-precision design](mixed-precision.md).
+
+## Per-solver pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Solvers
+
+solvers/cg
+solvers/gmres
+solvers/bicgstab
+solvers/fcg
+solvers/ir
+solvers/gcr
+solvers/cgs
+solvers/multigrid
+solvers/direct
+```
 
 :::{seealso}
 - [Preconditioners — taxonomy](preconditioners.md) — what plugs into Krylov solvers.

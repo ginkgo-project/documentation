@@ -120,6 +120,18 @@ The sub-pages cover the distributed machinery in depth:
 - [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
   solvers work automatically and how to configure the Schwarz preconditioner.
 
+## Distributed sub-pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Distributed
+
+distributed/partition-and-index-map
+distributed/communication-primitives
+distributed/solvers-and-preconditioners
+distributed/neighborhood-communicators
+```
+
 :::{seealso}
 - [The Executor model](executor-model.md) — distributed objects still bind to an executor per rank.
 - [Matrix data and assembly](matrix-data.md) — `matrix_data` for host-side assembly.

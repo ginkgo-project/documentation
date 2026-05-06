@@ -52,12 +52,22 @@ convert silently if given another format.
 
 Most format-to-format conversions route through CSR:
 
-```
-matrix_data ──► COO ──► CSR ──► ELL
-                         │ ──► Sellp
-                         │ ──► Hybrid
-                         │ ──► Fbcsr
-                         └──► Dense  (small matrices only)
+```{mermaid}
+flowchart LR
+    MD[matrix_data] --> COO
+    COO --> CSR
+    CSR --> ELL
+    CSR --> Sellp
+    CSR --> Hybrid
+    CSR --> Fbcsr
+    CSR --> Dense
+
+    classDef hub fill:#3a6b4a,stroke:#3a6b4a,color:#fbfaf6
+    classDef leaf fill:#fbfaf6,stroke:#c9a14a,color:#1f2a24
+    classDef src fill:#fbfaf6,stroke:#3a6b4a,color:#1f2a24,stroke-dasharray: 4 2
+    class CSR,COO hub
+    class ELL,Sellp,Hybrid,Fbcsr,Dense leaf
+    class MD src
 ```
 
 CSR ↔ COO conversion is cheap (both store one index per non-zero; the difference is
@@ -119,6 +129,20 @@ When choosing a format, work through these questions in order:
 6. **Dense is not a sparse format.** Use `gko::matrix::Dense` for multi-vectors (the
    right-hand side `b` and solution `x` in SpMV) and for small dense matrices. Do not
    use it to store a large sparse matrix.
+
+## Per-format pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Matrix formats
+
+formats/csr
+formats/coo
+formats/ell
+formats/sellp
+formats/hybrid
+formats/fbcsr
+```
 
 :::{seealso}
 - [Matrix data and assembly](matrix-data.md) — getting data into a format.

@@ -206,12 +206,18 @@ div.note p.admonition-title {
     color: var(--pst-color-text-base);
 }
 
-/* Code block surface */
+/* Code block surface — Pygments handles fg per mode; we tint the bg so the
+   block separates from the page surface. Light mode: warm sand. Dark mode:
+   keep monokai's #272822 (already distinct from the near-black page bg). */
 .highlight pre {
-    background: #1f2a24;
-    color: #e9e0c8;
     border-radius: 6px;
     padding: 0.9rem 1.1rem;
+}
+
+html[data-theme="light"] .highlight {
+    background: #ece2c8;
+    border: 1px solid #d8cdb0;
+    border-radius: 6px;
 }
 
 /* Homepage hero */

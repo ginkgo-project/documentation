@@ -125,6 +125,15 @@ accessible via `b::log::BatchConvergence`.
 - Not for batches of *different* matrices — the uniform-batch constraint rules that out.
 - Not currently for triangular factorisations or AMG (not implemented for batched).
 
+## Batched sub-pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Batched
+
+batched/per-solver-design
+```
+
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — single-system solvers; batched lives in parallel.
 - [Stopping criteria](stopping-criteria.md) — batched uses simpler compile-time criteria.

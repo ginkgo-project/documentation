@@ -42,7 +42,6 @@ current state:
 | Block Jacobi            | Works unchanged if blocks don't span ranks.     |
 | ILU / IC / ParILU       | Local-block-only via Schwarz wrapper.           |
 | Schwarz (one-level)     | Distributed-specific class.                     |
-| BDDC                    | Distributed-specific class.                     |
 | AMG                     | Partial — coarsening across ranks is evolving.  |
 
 ## Schwarz: the local-solver-per-rank pattern
@@ -77,19 +76,9 @@ locally. No MPI communication occurs during the preconditioner apply; each rank 
 applies its local preconditioner to its local residual.
 
 One-level Schwarz is robust and easy to configure, but its convergence degrades as the number of
-subdomains grows for elliptic problems. For better scalability, consider BDDC or AMG with
-coarse-grid correction across ranks.
-
-## BDDC and constraint-based methods
-
-`gko::experimental::distributed::preconditioner::Bddc` is a balancing-domain-decomposition
-preconditioner. It introduces coarse-grid corrections on top of local solves to recover
-mesh-independent convergence for elliptic problems. BDDC has higher setup cost than one-level
-Schwarz but significantly better convergence rates on stiff or nearly-singular systems.
-
-BDDC takes per-subdomain constraint information (which degrees of freedom are shared on subdomain
-interfaces) and a coarse solver. Configuration is more involved than Schwarz; the API reference
-covers the factory parameters in detail.
+subdomains grows for elliptic problems. For better scalability, the practical workaround today is
+to combine Schwarz with a stronger local solver (e.g., AMG applied per rank) or to use a
+multilevel approach when one becomes available.
 
 ## What does not work yet
 
