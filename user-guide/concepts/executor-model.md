@@ -9,16 +9,16 @@ An `Executor` represents a compute device: a thread pool on the host, a CUDA GPU
 1. **Memory allocation** — all memory acquired by a Ginkgo object lives in the address space the executor manages.
 2. **Kernel dispatch** — compute operations (matrix-vector products, solver iterations, preconditioner applications) execute on that device.
 
-The executor abstraction is *runtime*, not compile-time. A single binary can create a `CudaExecutor` or a `ReferenceExecutor` depending on a command-line argument or a configuration file, and every Ginkgo type adapts automatically. This matters in practice: you can debug numerical issues on CPU with the `ReferenceExecutor`, then switch to `CudaExecutor` for production without changing any algorithmic code.
+The executor abstraction is *runtime*, not compile-time. A single binary can create a `CudaExecutor` or a `ReferenceExecutor` depending on a command-line argument or a configuration file, and every Ginkgo type adapts automatically. This matters in practice: you can debug numerical issues on CPU with the `ReferenceExecutor`, then switch to `CudaExecutor` for production without changing any core algorithmic code.
 
-## The five backends
+## Execution backends
 
 | Backend            | Class                    | Use case                                                            |
 | ------------------ | ------------------------ | ------------------------------------------------------------------- |
 | Reference (CPU)    | `gko::ReferenceExecutor` | Single-threaded, correctness baseline. Not for performance.         |
 | OpenMP (CPU)       | `gko::OmpExecutor`       | Multi-threaded host execution.                                      |
 | CUDA (NVIDIA GPU)  | `gko::CudaExecutor`      | Single NVIDIA GPU.                                                  |
-| HIP (AMD GPU)      | `gko::HipExecutor`       | Single AMD GPU (or NVIDIA via HIP-CUDA).                            |
+| HIP (AMD GPU)      | `gko::HipExecutor`       | Single AMD GPU (via ROCm).                                          |
 | DPC++ (Intel GPU)  | `gko::DpcppExecutor`     | SYCL-based, targets Intel GPUs and other SYCL-capable accelerators. |
 
 A few notes on availability:
@@ -26,8 +26,10 @@ A few notes on availability:
 - **Reference** is always available and requires no special libraries. It is the right choice for unit tests, debugging, and CI smoke runs where GPUs are absent.
 - **OmpExecutor** requires an OpenMP-capable compiler. Most modern host compilers qualify.
 - **CudaExecutor** requires a CUDA toolkit and a CUDA-capable GPU at runtime. Ginkgo discovers the device automatically.
-- **HipExecutor** requires ROCm for AMD targets, or the HIP-CUDA compatibility layer for NVIDIA targets.
+- **HipExecutor** requires ROCm.
 - **DpcppExecutor** requires a SYCL-capable compiler (Intel oneAPI DPC++).
+
+Detailed coverage of each backend lives in the per-executor sub-pages below.
 
 ## The master/host hierarchy
 
@@ -47,7 +49,7 @@ ReferenceExecutor / OmpExecutor   <-- the master (host)
 CudaExecutor / HipExecutor / DpcppExecutor   <-- the device
 ```
 
-The GPU executor does not manage host memory at all. Cross-executor copies are explicit, so data movement between host and device is always visible in source code rather than hidden behind implicit transfers.
+The GPU executor does not manage host memory at all. Most cross-executor copies are explicit at the call site, so data movement between host and device is generally visible in the source code.
 
 ## Memory and synchronization
 
@@ -62,7 +64,54 @@ auto a_gpu  = gko::array<double>{gpu, a_host};   // copies host → device
 
 The cross-executor constructor is the standard idiom. Alternatively, `gko::clone(exec, object)` produces a deep copy of any Ginkgo object on a different executor.
 
-Ginkgo synchronizes automatically when crossing executor boundaries or when a device-side scalar must be read back to host (for example, to check a residual norm). Most user code therefore does not call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.
+A few situations introduce *implicit* transfers that are easy to miss:
+
+- **Reading a device-side scalar to host** — e.g., reading the residual norm from a `Convergence` logger triggers a device→host copy.
+- **Element accessors on a device-resident matrix or array** — `at()`, iterators, `get_const_value` for individual entries each perform a one-shot transfer. Avoid in inner loops.
+- **Reading `matrix_data` from a device-resident matrix** — copies the entries back to host before sorting or writing.
+
+Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.
+
+:::{tip}
+If you suspect unexpected host↔device traffic is slowing your code, attach a [`Performance` logger](logging.md) to the executor. It records every allocation, deallocation, and transfer with timestamps, so you can spot redundant transfers in inner loops.
+:::
+
+## Allocators
+
+Each executor owns an `Allocator` that determines how memory is acquired. The default is the canonical allocator for that backend (host: `new[]`/`delete[]`; CUDA: `cudaMalloc`; HIP: `hipMalloc`). The CUDA and HIP executors both accept a custom allocator, which lets you opt into different allocation strategies:
+
+| Allocator                                       | Backing call                                | When to use                                                                                              |
+| ----------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `CudaAllocator` / `HipAllocator`                | `cudaMalloc` / `hipMalloc`                  | Default. Synchronous, easy to reason about.                                                              |
+| `CudaAsyncAllocator` / `HipAsyncAllocator`      | `cudaMallocAsync` / `hipMallocAsync`        | Stream-ordered allocator with reduced overhead in fast-allocation hot loops. Requires a stream.          |
+| `CudaUnifiedAllocator` / `HipUnifiedAllocator`  | `cudaMallocManaged` / `hipMallocManaged`    | Unified shared memory: the same pointer is valid on host and device; transfers are page-faulted in by the driver. Convenient but harder to predict. |
+| `CudaHostAllocator` / `HipHostAllocator`        | `cudaHostAlloc` / `hipHostAlloc`            | Pinned (page-locked) host memory; faster host↔device transfers. Slow to allocate.                        |
+
+To plug a custom allocator into a `CudaExecutor`:
+
+```cpp
+auto host  = gko::OmpExecutor::create();
+auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream);
+auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream);
+```
+
+The `HipExecutor` follows the same pattern. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+
+## Memory accessibility between executors
+
+Two executors are *memory-accessible* if a pointer allocated by one can be used directly by the other:
+
+```cpp
+gpu->memory_accessible(host);   // bool
+```
+
+This is normally `false` (a CUDA device pointer cannot be dereferenced from host code) — but it is `true` when:
+
+- Both executors are the same instance.
+- The GPU executor uses a unified-memory allocator (`CudaUnifiedAllocator` / `HipUnifiedAllocator`), which makes its pointers valid on the host master too.
+- The GPU executor uses a pinned-host allocator (`CudaHostAllocator` / `HipHostAllocator`), which produces memory mapped into both spaces.
+
+When `memory_accessible` returns `true`, cross-executor copies degenerate into pointer aliasing — Ginkgo skips the redundant copy. This is why the choice of allocator subtly affects performance characteristics, not just memory locality.
 
 ## Selecting an executor at runtime
 
@@ -94,6 +143,19 @@ The `ReferenceExecutor` is single-threaded, non-optimized, and entirely predicta
 - **CI smoke tests** — verify correctness in an environment without GPUs.
 
 Do not use `ReferenceExecutor` for benchmarking or production. It makes no attempt to use hardware resources efficiently. For host-side performance, use `OmpExecutor`.
+
+## Per-executor pages
+
+```{toctree}
+:maxdepth: 1
+:caption: Execution backends
+
+executors/reference
+executors/omp
+executors/cuda
+executors/hip
+executors/dpcpp
+```
 
 :::{seealso}
 - [LinOp and composition](linop-and-composition.md) — what runs *on* the executor.
