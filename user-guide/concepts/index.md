@@ -21,6 +21,13 @@ matrix-data
 matrix-formats
 ```
 
+## Reordering and permutations
+
+```{toctree}
+:maxdepth: 2
+reordering
+```
+
 ## Solvers, preconditioners, criteria
 
 ```{toctree}
@@ -28,7 +35,6 @@ matrix-formats
 solvers
 preconditioners
 stopping-criteria
-reordering
 mixed-precision
 ```
 

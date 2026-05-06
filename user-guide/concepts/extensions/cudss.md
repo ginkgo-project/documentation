@@ -1,11 +1,11 @@
 # cuDSS direct solver
 
 `gko::ext::cuda::solver::Cudss` is a wrapper around NVIDIA's cuDSS sparse direct
-solver. It is only available on the `CudaExecutor` and only when Ginkgo is built with
-`-DGINKGO_BUILD_EXT_CUDSS=ON`. It is the recommended path when you need a fast sparse
-direct solver on NVIDIA GPUs and Ginkgo's own LU/Cholesky factorization is not
-sufficient — for example, if you need cuDSS-specific features like in-place
-refactorization.
+solver. It is only available on the `CudaExecutor` and only when CMake found a cuDSS
+installation while configuring Ginkgo (see [Build-time enablement](#build-time-enablement) below).
+It is the recommended path when you need a fast sparse direct solver on NVIDIA GPUs
+and Ginkgo's own LU/Cholesky factorization is not sufficient — for example, if you
+need cuDSS-specific features like in-place refactorization.
 
 ## When to use it
 
@@ -81,13 +81,31 @@ used in `generate()`. This is much cheaper than rebuilding the solver from scrat
 | `ValueType` | `float`, `double`, `std::complex<float>`, `std::complex<double>` |
 | `IndexType` | `gko::int32` (default), `gko::int64` (subject to cuDSS support) |
 
+## Build-time enablement
+
+The cuDSS extension does not have a dedicated CMake flag. It is built automatically
+when both of the following hold at configure time:
+
+1. Ginkgo is built with CUDA support (`-DGINKGO_BUILD_CUDA=ON`).
+2. CMake's `find_package(cudss 0.7.1 CONFIG)` discovers a cuDSS installation.
+
+If cuDSS is not in a default search location, point CMake at it explicitly:
+
+```bash
+cmake -DGINKGO_BUILD_CUDA=ON -Dcudss_DIR=/path/to/cudss/lib/cmake/cudss ...
+```
+
+If cuDSS is not found, the build emits a `STATUS` message and silently skips the
+extension — `gko::ext::cuda::solver::Cudss` will not be available, but the rest of
+Ginkgo continues to build normally.
+
 ## Limitations
 
 - **CUDA only** — there is no AMD or Intel equivalent in the extensions tree.
 - **Opaque factorization** — the L and U factors are stored in cuDSS-native format and
   cannot be extracted as Ginkgo `LinOp`s.
-- **Build-time gate** — requires `-DGINKGO_BUILD_EXT_CUDSS=ON` and a working cuDSS
-  installation discoverable by CMake.
+- **Build-time discovery** — requires CUDA support plus a CMake-discoverable cuDSS
+  installation; no `GINKGO_BUILD_EXT_CUDSS` flag exists.
 
 :::{seealso}
 - [Direct (LU / Cholesky)](../solvers/direct.md) — the cross-backend Ginkgo direct solver.

@@ -24,6 +24,7 @@ else:
 extensions = [
     "myst_parser",
     "sphinx.ext.extlinks",
+    "sphinx.ext.mathjax",
     "sphinxcontrib.mermaid",
 ]
 
@@ -56,7 +57,7 @@ extlinks = {
 }
 
 # MyST roles need to be allowed for inline use.
-myst_enable_extensions = ["colon_fence"]
+myst_enable_extensions = ["colon_fence", "dollarmath", "amsmath"]
 # Auto-generate URL-anchor IDs for headings up to h2 so cross-page section links
 # (e.g., [Allocators](executor-model.md#allocators)) resolve.
 myst_heading_anchors = 2

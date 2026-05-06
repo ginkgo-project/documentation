@@ -11,8 +11,8 @@ per-algorithm pages for detail.
 ## What a reordering produces
 
 Every Ginkgo reordering algorithm is a `LinOpFactory` whose `generate(matrix)` step
-returns a permutation. The permutation can then be applied to the matrix
-(`permuted = P * A * P^T`) and to the right-hand side / solution as needed:
+returns a `gko::matrix::Permutation`. The permutation can then be applied to the
+matrix (`permuted = P * A * P^T`) and to the right-hand side / solution as needed:
 
 ```cpp
 auto reorder_factory = gko::experimental::reorder::Amd<int>::build().on(exec);
@@ -24,6 +24,46 @@ auto permuted = system_matrix->permute(perm.get());
 
 For composing a reordering with a downstream solver in one shot, see `ScaledReordered`
 below.
+
+## Permutation modes
+
+Each matrix format's `permute(perm, mode)` member takes a `permute_mode` enum that
+controls **how** the permutation is applied. The enum is a 3-bit mask combining
+*rows*, *columns*, and *inverse*:
+
+| Mode | Effect on `A` | Typical use |
+|---|---|---|
+| `permute_mode::none` | $A' = A$ | No-op (mask cleared). |
+| `permute_mode::rows` | $A' = P A$ | Permute rows only. |
+| `permute_mode::columns` | $A' = A P^T$ | Permute columns only. |
+| `permute_mode::symmetric` *(default)* | $A' = P A P^T$ | Symmetric reordering — the standard pre-factorisation transform. |
+| `permute_mode::inverse_rows` | $A' = P^{-1} A$ | Undo a previous row permutation. |
+| `permute_mode::inverse_columns` | $A' = A P^{-T}$ | Undo a previous column permutation. |
+| `permute_mode::inverse_symmetric` | $A' = P^{-1} A P^{-T}$ | Undo a symmetric reordering (e.g., to map a solution computed in the permuted system back to the original variable order). |
+
+The fundamental modes can be combined with the bitwise `|`, `&`, and `^` operators —
+`rows | inverse` is the same as `inverse_rows`, and so on.
+
+`gko::matrix::Permutation<IndexType>` exposes two more helpers for working with
+permutations directly:
+
+```cpp
+auto inv  = perm->compute_inverse();         // P^{-1}
+auto comp = perm1->compose(perm2);           // P_2 * P_1 — apply perm1 first, then perm2
+```
+
+`compute_inverse()` returns `P^{-1}` as a new `Permutation` object. `compose(other)`
+combines two permutations so that applying the result is equivalent to applying
+`this` first and then `other` — useful when you want to chain a fill-reducing
+reordering with a separate parallel-partitioning reordering, for instance.
+
+For non-symmetric problems where rows and columns should be permuted by **different**
+permutations (for example the row matching from MC64 plus a separate column
+fill-reducer from AMD), use the two-permutation overload of `permute`:
+
+```cpp
+auto permuted = matrix->permute(row_perm.get(), col_perm.get());
+```
 
 ## The available algorithms
 

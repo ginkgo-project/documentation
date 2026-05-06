@@ -41,7 +41,10 @@ The recommended preprocessing recipe is:
    improving pivoting stability.
 2. **Reorder**: apply `Amd` (default for small / medium matrices) or
    `NestedDissection` (for large structured systems; requires METIS) to reduce
-   fill-in.
+   fill-in. As an alternative — particularly when the triangular solves are
+   bandwidth-bound on CPU — `Rcm` minimises bandwidth/profile instead of fill;
+   it can produce different (sometimes better) cache behaviour than the
+   fill-reducers but is not a fill-reducing reordering itself.
 3. **Factorise** with `Direct` on the permuted matrix.
 4. **Solve** with `apply(b, x)`.
 
@@ -68,7 +71,9 @@ On the CUDA backend, both triangular solvers expose two algorithm choices via
 - `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation, often
   faster for highly parallel triangular structures.
 
-On other backends the parameter is ignored.
+On the other backends the parameter is part of the API for uniformity but does not
+change which implementation runs — Reference, OMP, HIP, and DPC++ each ship a
+single triangular-solve kernel, and the kernel does not branch on `algorithm`.
 
 ## cuDSS on NVIDIA GPUs
 

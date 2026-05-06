@@ -20,16 +20,17 @@ just a build-time integration.
 
 ## Build-time enablement
 
-Each extension requires the corresponding CMake flag to be set when Ginkgo is built:
+Each extension is opt-in at build time, but the activation mechanism is not the same
+across them:
 
-| Extension | CMake flag |
+| Extension | How to enable |
 |---|---|
-| Kokkos interop | `-DGINKGO_EXTENSION_KOKKOS=ON` |
-| cuDSS | `-DGINKGO_BUILD_EXT_CUDSS=ON` (also requires `-DGINKGO_BUILD_CUDA=ON`) |
-| JSON / YAML config | `-DGINKGO_EXTENSION_CONFIG_BUILD_JSON=ON` / `-DGINKGO_EXTENSION_CONFIG_BUILD_YAML=ON` |
+| Kokkos interop | Configure with `-DGINKGO_EXTENSION_KOKKOS=ON` and have a Kokkos installation discoverable by CMake. |
+| cuDSS | Build Ginkgo with `-DGINKGO_BUILD_CUDA=ON` and let CMake's `find_package(cudss CONFIG)` discover a cuDSS install. Point `-Dcudss_DIR=<path>` (or set `CMAKE_PREFIX_PATH`) at the directory containing `cudssConfig.cmake` if cuDSS is not in a default location. There is no separate `GINKGO_BUILD_EXT_CUDSS` flag — the extension is built whenever cuDSS is found and skipped silently otherwise. |
+| JSON / YAML config | Configure with `-DGINKGO_EXTENSION_CONFIG_BUILD_JSON=ON` / `-DGINKGO_EXTENSION_CONFIG_BUILD_YAML=ON`. |
 
-If the flag is off, the corresponding header is not installed and the extension's
-namespace is not available.
+If the dependency cannot be found or the flag is off, the corresponding header is
+not installed and the extension's namespace is not available.
 
 ## Per-extension pages
 
