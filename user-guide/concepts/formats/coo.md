@@ -90,6 +90,32 @@ This is correct on every backend but carries two performance costs:
 On modern GPUs, atomics to distinct addresses are fast, so COO SpMV is not catastrophically
 slow — but it is consistently slower than CSR on the same matrix.
 
+## `apply2` — accumulating SpMV
+
+Because COO's SpMV kernel already uses atomic accumulation into the output, COO offers
+an extra entry point that the other matrix formats do not: `apply2`. Where the standard
+`apply(b, x)` *overwrites* `x` with `A * b`, `apply2(b, x)` *adds* `A * b` to whatever
+`x` already holds:
+
+```cpp
+// Standard apply (inherited LinOp interface): x = A * b
+coo->apply(b, x);
+
+// COO-specific apply2: x = A * b + x
+coo->apply2(b, x);
+
+// Generalised apply2: x = alpha * A * b + x
+coo->apply2(alpha, b, x);
+```
+
+This is essentially a fused SpMV + AXPY at no extra cost — the existing atomic update
+on `x` simply skips the zero-initialisation step. It is useful in algorithms that need
+to accumulate contributions from several operators into the same output (for example,
+the off-diagonal block in additive operator splittings).
+
+`apply2` is declared on `gko::matrix::Coo` directly, not on the `LinOp` base — calling
+it through a `LinOp` pointer requires an explicit cast (`as<gko::matrix::Coo<...>>`).
+
 ## Convert to CSR for repeated SpMV
 
 If you perform SpMV more than a few times, the conversion cost pays off quickly:

@@ -58,7 +58,7 @@ The executor compatibility rule also applies: `user_data` must be accessible by 
 | Copy (`array b = a;`)       | Allocates new memory and copies             | Allocates new memory and copies                |
 | Move                        | Transfers ownership                         | Transfers the view (still non-owning)          |
 | `clone(exec, a)`            | Cross-executor copy (new allocation)        | Cross-executor copy (new allocation)           |
-| `resize_and_reset(n)`       | Reallocates to new size                     | **Throws** if `n` differs from current size    |
+| `resize_and_reset(n)`       | Reallocates to new size                     | **Not supported** — throws unless `n` matches the current size (a no-op) |
 | `fill(value)`               | Sets all elements                           | Sets all elements (writes through to buffer)   |
 
 :::{note}
@@ -119,6 +119,57 @@ auto view = gko::make_array_view(exec, n, kv.data());
 ```
 
 As with all views, the Kokkos view must outlive the Ginkgo array view.
+
+### Constructing a CSR matrix from non-owned views
+
+Most matrix formats — including CSR — can be constructed directly from `array<T>` arguments. The relevant `create` overload takes the arrays *by value*:
+
+```cpp
+static std::unique_ptr<Csr> create(
+    std::shared_ptr<const Executor> exec, const dim<2>& size,
+    array<value_type> values, array<index_type> col_idxs,
+    array<index_type> row_ptrs,
+    std::shared_ptr<strategy_type> strategy = nullptr);
+```
+
+If you pass **rvalue** arrays (via `std::move` or freshly-constructed temporaries), Ginkgo moves them into the matrix directly — no copy. When the moved-in array is a view, the resulting matrix simply references the same user memory:
+
+```cpp
+// User owns these buffers — Ginkgo will not free them.
+double* values    = ...;        // length nnz
+int*    col_idxs  = ...;        // length nnz
+int*    row_ptrs  = ...;        // length n_rows + 1
+
+auto exec = gko::OmpExecutor::create();
+
+auto mat = gko::matrix::Csr<double, int>::create(
+               exec,
+               gko::dim<2>{n_rows, n_cols},
+               gko::make_array_view(exec, nnz,         values),    // rvalue view
+               gko::make_array_view(exec, nnz,         col_idxs),  // rvalue view
+               gko::make_array_view(exec, n_rows + 1,  row_ptrs)); // rvalue view
+```
+
+The returned `mat` is a CSR matrix that operates on the user's existing buffers. SpMV reads from them; in-place operations write to them.
+
+:::{attention}
+The CSR `create` API has an explicit caveat in its documentation: *"If one of `row_ptrs`, `col_idxs` or `values` is not an rvalue, not an array of `IndexType`, `IndexType` and `ValueType` respectively, or is on the wrong executor, an internal copy of that array will be created."* In other words: if you forget to `std::move` an lvalue array, or the executor doesn't match, Ginkgo silently copies. The matrix is correct, but you've lost the zero-copy property. Always pass rvalues when zero-copy matters.
+:::
+
+For read-only buffers, use `Csr::create_const`, which takes `const_array_view` rvalues and produces a `unique_ptr<const Csr>`:
+
+```cpp
+auto mat = gko::matrix::Csr<double, int>::create_const(
+               exec,
+               gko::dim<2>{n_rows, n_cols},
+               gko::make_const_array_view(exec, nnz,        const_values),
+               gko::make_const_array_view(exec, nnz,        const_col_idxs),
+               gko::make_const_array_view(exec, n_rows + 1, const_row_ptrs));
+```
+
+The resulting matrix can be applied (`mat->apply(b, x)`), used as a system matrix in a solver factory, etc., but cannot be modified — enforced at the type level.
+
+The same pattern works for `Coo`, `Ell`, `Dense`, and the other matrix formats: each provides a `create(exec, size, ...arrays)` overload that moves rvalue arrays in directly, plus a `create_const(...)` for immutable wrapping.
 
 ## When to copy instead of view
 

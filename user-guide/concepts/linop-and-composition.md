@@ -87,7 +87,7 @@ solver->apply(b, x);
 - `.on(exec)` consumes the parameters and returns a `LinOpFactory` bound to `exec`.
 - `generate(matrix)` consumes the factory and returns a fully configured `LinOp`. The solver performs any necessary setup (for example, ILU factorization for an ILU preconditioner) during this call.
 
-The two-step design is intentional. The same factory can generate solvers for many different matrices without recreating the parameter object. It also makes it possible to serialize factory configurations to and from JSON or YAML (see the config-files page).
+The two-step design is intentional. The same factory can generate solvers for many different matrices without recreating the parameter object. It also makes it possible to serialize factory configurations to and from JSON or YAML — see [Configuration from JSON files](config-files.md).
 
 ## Composing operators
 

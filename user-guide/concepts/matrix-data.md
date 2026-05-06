@@ -30,7 +30,6 @@ Several utility operations help prepare the data before conversion:
 ```cpp
 data.sort_row_major();          // sort entries by (row, col)
 data.remove_zeros();            // drop entries with value == 0
-data.ensure_row_major_order();  // sorts only if not already sorted
 ```
 
 :::{note}
@@ -41,8 +40,10 @@ the conversion.
 
 ## Reading from Matrix Market
 
-Matrix Market (`.mtx`) is the most common interchange format for sparse matrices. Use
-`gko::read_raw` to load a file directly into a `matrix_data`:
+[Matrix Market](https://math.nist.gov/MatrixMarket/formats.html) (`.mtx`) is the most
+common interchange format for sparse matrices, and is the format used by most of the
+SuiteSparse Matrix Collection. Use `gko::read_raw` to load a file directly into a
+`matrix_data`:
 
 ```cpp
 std::ifstream stream("matrix.mtx");
@@ -110,8 +111,20 @@ from `matrix_data` take precedence.
 
 For large matrices assembled directly on a GPU (for example, from a stencil kernel
 applied to a GPU-resident mesh), `gko::device_matrix_data<V, I>` is the GPU-side
-analog of `matrix_data`. It stores the three arrays (`row_idxs`, `col_idxs`, `values`)
-in the executor's memory space.
+analog of `matrix_data`. It stores three separate arrays (`row_idxs`, `col_idxs`,
+`values`) in the executor's memory space.
+
+The two layouts differ deliberately:
+
+- `matrix_data` holds an **array of structs**: a `std::vector<matrix_data_entry<V, I>>`
+  where each entry packs `(row, col, value)` together. Convenient for host-side
+  incremental assembly and for sorting / deduplication, but each access touches
+  three fields adjacent in memory.
+- `device_matrix_data` holds a **struct of arrays**: three independent device-resident
+  arrays. Kernels that touch only one or two of them — say, just `row_idxs` and
+  `col_idxs` for sparsity-pattern analysis — read coalesced contiguous memory and
+  avoid pulling in the third array, which is essential for GPU memory-throughput
+  performance.
 
 ```cpp
 gko::device_matrix_data<double, int> ddata{

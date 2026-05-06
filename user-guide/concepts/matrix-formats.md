@@ -40,8 +40,10 @@ catastrophic for highly skewed row-length distributions. Sellp mitigates by grou
 rows into slabs and padding only within a slab. Hybrid offloads overflow rows to COO.
 
 **Conversion cost.** Converting between formats is a device kernel — fast, but not free.
-Most conversions route through CSR (see next section). If you convert repeatedly inside
-a tight loop, profile whether the conversion dominates.
+CSR and Dense are the two "hubs" with direct converters to every other format; the
+remaining sparse formats (COO, ELL, Sellp, Hybrid) reach each other indirectly via
+CSR. If you convert repeatedly inside a tight loop, profile whether the conversion
+dominates.
 
 **Operation coverage.** CSR has the broadest kernel coverage in Ginkgo: SpMV,
 transpose, scaling, factorisation. Other formats cover SpMV and a subset of the rest.
@@ -50,29 +52,62 @@ convert silently if given another format.
 
 ## The conversion graph
 
-Most format-to-format conversions route through CSR:
+Two formats act as conversion hubs: **CSR** is the sparse hub (direct converters to and
+from every other sparse format) and **Dense** is the dense hub (direct converters to and
+from every sparse format). Every sparse format also accepts a host-side `matrix_data`
+through its `read()` method, so assembly never has to bounce through an intermediate
+format.
 
 ```{mermaid}
 flowchart LR
-    MD[matrix_data] --> COO
-    COO --> CSR
-    CSR --> ELL
-    CSR --> Sellp
-    CSR --> Hybrid
-    CSR --> Fbcsr
-    CSR --> Dense
+    MD[matrix_data]
+
+    MD -.read.-> CSR
+    MD -.read.-> COO
+    MD -.read.-> ELL
+    MD -.read.-> Sellp
+    MD -.read.-> Hybrid
+    MD -.read.-> Fbcsr
+    MD -.read.-> Dense
+    MD -.read.-> SparsityCsr
+
+    CSR <--> COO
+    CSR <--> ELL
+    CSR <--> Sellp
+    CSR <--> Hybrid
+    CSR <--> Fbcsr
+    CSR <--> SparsityCsr
+    CSR <--> Dense
+
+    Dense <--> COO
+    Dense <--> ELL
+    Dense <--> Sellp
+    Dense <--> Hybrid
+    Dense <--> Fbcsr
+    Dense <--> SparsityCsr
+
+    Fbcsr <--> SparsityCsr
 
     classDef hub fill:#3a6b4a,stroke:#3a6b4a,color:#fbfaf6
     classDef leaf fill:#fbfaf6,stroke:#c9a14a,color:#1f2a24
     classDef src fill:#fbfaf6,stroke:#3a6b4a,color:#1f2a24,stroke-dasharray: 4 2
-    class CSR,COO hub
-    class ELL,Sellp,Hybrid,Fbcsr,Dense leaf
+    class CSR,Dense hub
+    class COO,ELL,Sellp,Hybrid,Fbcsr,SparsityCsr leaf
     class MD src
 ```
 
-CSR ↔ COO conversion is cheap (both store one index per non-zero; the difference is
+CSR ↔ COO is particularly cheap (both store one index per non-zero; the difference is
 compressed vs explicit row indices). Dense ↔ sparse is only sensible for matrices small
 enough to fit in dense memory.
+
+:::{attention}
+Conversions that do not appear as a direct edge in the graph above are not routed
+automatically. `copy_from` performs a `dynamic_cast` to the destination's
+`ConvertibleTo` interface and throws `gko::NotSupported` if the source does not
+implement it. For example, COO → ELL is not a direct conversion: you must hop
+explicitly through CSR (`csr->copy_from(coo); ell->copy_from(csr);`) or re-read
+from `matrix_data`.
+:::
 
 The conversion API is uniform across all formats:
 

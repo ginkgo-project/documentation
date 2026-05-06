@@ -96,10 +96,9 @@ A key rule: **copy and move assignment never change the executor of the destinat
 | Operation                                   | Behaviour                                                        |
 | ------------------------------------------- | ---------------------------------------------------------------- |
 | `array<T> b = a;`                           | Copy. `b` shares `a`'s executor; data is copied.                 |
-| `array<T> b{other_exec, a};`               | Cross-executor copy — copies `a`'s data into `other_exec`.       |
-| `array<T> b = std::move(a);`               | Move. `a` becomes empty; no data is copied.                      |
-| `auto b = a.copy_to_executor(other_exec);` | Explicit cross-executor copy returning a new array.              |
-| `auto b = gko::clone(other_exec, a);`      | Same as above; the generic helper used throughout the codebase.  |
+| `array<T> b{other_exec, a};`                | Cross-executor copy — copies `a`'s data into `other_exec`.       |
+| `array<T> b = std::move(a);`                | Move. `a` becomes empty; no data is copied.                      |
+| `auto b = gko::clone(other_exec, a);`       | Generic helper that returns a deep copy on `other_exec`.         |
 
 The executor-conservation rule means that assigning across executors performs a cross-device copy automatically:
 
@@ -111,17 +110,17 @@ a_gpu = a_host;   // copies host → device; a_gpu remains on gpu_exec
 
 ## Cross-executor transfers
 
-The canonical way to move data from host to device (or back) is via the cross-executor constructor or `copy_to_executor`:
+The canonical way to move data from host to device (or back) is via the cross-executor constructor:
 
 ```cpp
 auto a_host = gko::array<double>(host_exec, {1.0, 2.0, 3.0});
 auto a_gpu  = gko::array<double>(gpu_exec, a_host);   // copy host → device
 ```
 
-Equivalently:
+For generic code that copies any Ginkgo object across executors, use `gko::clone`:
 
 ```cpp
-auto a_gpu = a_host.copy_to_executor(gpu_exec);
+auto a_gpu = gko::clone(gpu_exec, a_host);
 ```
 
 To change the executor associated with an existing array, use `set_executor`. If the new executor differs from the current one, the data is automatically migrated:

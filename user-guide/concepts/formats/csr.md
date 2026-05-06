@@ -63,10 +63,10 @@ Use `gko::read<gko::matrix::Csr<double, int>>(stream, exec)` as a shorthand for
 
 | Strategy | Description | Best for |
 |---|---|---|
-| `automatical` | Heuristic selection based on row-length distribution | Default; works well in most cases |
-| `classical` | One thread per row | Short-to-medium rows, CPU |
+| `automatical` | Picks `classical` or `load_balance` based on the matrix | Default; works well in most cases |
+| `classical` | A subwarp of threads per row, with a reduction across the subwarp; the subwarp width scales with the longest row | Most matrices on CPU and GPU |
 | `merge_path` | Merge-based load balancing across non-zeros | Highly imbalanced row lengths on GPU |
-| `load_balance` | Non-zero-balanced thread assignment | Similar to `merge_path`; alternative GPU strategy |
+| `load_balance` | Non-zero-balanced thread assignment | Long-row or high-nnz matrices on GPU |
 | `sparselib` | Delegate to vendor SpMV (cuSPARSE / hipSPARSE) | When vendor libraries outperform Ginkgo's kernels |
 
 To set a strategy explicitly:
@@ -79,6 +79,20 @@ csr->set_strategy(
 Most users should leave the strategy unset — `automatical` picks a reasonable default
 for the executor. Tune only if profiling identifies SpMV as a bottleneck.
 
+:::{note}
+The actual switch in `automatical` happens at construction-time during the matrix's
+`process` step. For the CUDA / HIP / SYCL backends it picks `load_balance` whenever
+either of these holds, and `classical` otherwise:
+
+- the total number of non-zeros exceeds a backend-specific limit
+  (≈ `1e6` for NVIDIA, `1e8` for AMD, `3e8` for Intel), or
+- the longest row exceeds a backend-specific limit
+  (`1024` columns for NVIDIA, `768` for AMD, `25600` for Intel).
+
+These limits are reproduced verbatim from `csr.hpp` and may change between Ginkgo
+releases — treat them as a rough guide, not a contract.
+:::
+
 ## Performance characteristics
 
 SpMV in CSR is memory-bound for typical sparse matrices. The minimum traffic per SpMV is
@@ -86,15 +100,36 @@ approximately `2 * nnz` bytes (one read of `values`, one read of `col_idxs`), pl
 `n_rows` reads of `row_ptrs`. The output vector `y` is written once.
 
 On GPU, coalesced memory access is the key factor. `classical` accesses `col_idxs` and
-`values` sequentially within a warp, which is coalesced when rows are short (one warp
-per row). For matrices with very long rows, multiple warps share a row — still coalesced
-within the row slice but potentially under-utilised. `merge_path` and `load_balance`
-address this by distributing work across non-zeros rather than rows.
+`values` sequentially within each row's subwarp, which is coalesced when rows fit in
+a single subwarp. For matrices with very long rows, the subwarp grows wider and
+utilisation can drop. `merge_path` and `load_balance` address this by distributing
+work across non-zeros rather than rows.
 
-:::{attention}
-Assigning one GPU thread per row (`classical`) is inefficient for rows with fewer
-non-zeros than the warp size (32 for CUDA). `automatical` detects this and switches
-strategies.
+## Sorted column indices
+
+Within each row, the order of entries in `col_idxs` and `values` is not enforced by
+the CSR data structure itself — but many higher-level algorithms expect the columns to
+be sorted in ascending order per row. Triangular solves, ILU/IC factorisations, and
+some `Isai` paths in particular assume sorted indices and may produce incorrect
+results, hit assertion failures, or perform poorly on unsorted input.
+
+Two helpers manage this:
+
+```cpp
+bool sorted = csr->is_sorted_by_column_index();
+csr->sort_by_column_index();
+```
+
+`read(matrix_data)` produces a row-major-sorted CSR when the input was sorted (which
+`matrix_data::sort_row_major()` guarantees). Conversions from other formats also
+generally preserve sortedness. The risk is in the explicit-array constructor (pattern 2
+above): if you build a CSR from raw arrays, you are responsible for ensuring the per-row
+column indices are sorted before handing it to a preconditioner factory.
+
+:::{tip}
+If you suspect sortedness issues, call `csr->is_sorted_by_column_index()` before
+factory `generate()`. The cost is `O(nnz)` and pays for itself when it surfaces a bug
+that would otherwise be silent.
 :::
 
 ## Conversion to and from CSR
