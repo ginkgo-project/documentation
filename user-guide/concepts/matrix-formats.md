@@ -20,6 +20,15 @@ Detailed coverage of individual formats lives in the `formats/` sub-pages.
 All seven implement the `LinOp` interface: every format supports `apply(b, x)` for SpMV,
 and most support `copy_from` conversions to and from the other formats.
 
+In addition to these seven, Ginkgo also provides `gko::matrix::SparsityCsr` — a
+**pattern-only** representation that stores row pointers and column indices but no
+per-entry values (a single shared scalar, default `1.0`, is applied to every
+non-zero). It is not a value-bearing format and so does not appear in the table
+above; its role is to support sparsity-pattern analysis, symbolic factorisation
+preparation, and graph-style algorithms where the values are either trivial or
+irrelevant. SparsityCsr converts directly to and from CSR and Dense and reads from
+`matrix_data` like the other formats.
+
 ## Trade-off axes
 
 The table above reduces each format to one line. Five axes give a fuller picture:

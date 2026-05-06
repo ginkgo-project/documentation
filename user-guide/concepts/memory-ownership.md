@@ -172,8 +172,21 @@ Using `fill` with any other type results in a link-time error. This restriction 
 
 `array` does not support copy-on-write semantics, reference counting of the stored data, or RAII for non-POD types. For owning `LinOp` objects, use `std::shared_ptr<gko::LinOp>`.
 
+## Wrapping memory you do not own
+
+Owning memory is the common case, but `array` also supports a non-owning *view*
+mode that wraps memory you already control — a buffer from deal.II, MFEM, Kokkos,
+or a raw user pointer — without copying it. The lifetime contract, integration
+patterns (deal.II distributed vector, raw user buffers, Kokkos `View`,
+zero-copy CSR construction), and "when to copy instead of view" guidance live on
+their own page:
+
+```{toctree}
+:maxdepth: 1
+views-zero-copy
+```
+
 :::{seealso}
-- [Views and zero-copy wrapping](views-zero-copy.md) — wrapping externally-owned memory in an `array`.
 - [The Executor model](executor-model.md) — what an `array` is bound to.
 - API reference: [`gko::array`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1array.html)
 :::

@@ -7,11 +7,10 @@ through a worked example", see the Tutorials.
 ## Foundation
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 executor-model
 linop-and-composition
 memory-ownership
-views-zero-copy
 ```
 
 ## Matrix data and formats
@@ -29,6 +28,7 @@ matrix-formats
 solvers
 preconditioners
 stopping-criteria
+reordering
 mixed-precision
 ```
 
@@ -52,4 +52,11 @@ batched
 :maxdepth: 1
 logging
 config-files
+```
+
+## Extensions
+
+```{toctree}
+:maxdepth: 2
+extensions
 ```
