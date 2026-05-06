@@ -82,7 +82,7 @@ Each executor owns an `Allocator` that determines how memory is acquired. The de
 
 | Allocator                                       | Backing call                                | When to use                                                                                              |
 | ----------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `CudaAllocator` / `HipAllocator`                | `cudaMalloc` / `hipMalloc`                  | Default. Synchronous, easy to reason about.                                                              |
+| `CudaAllocator` / `HipAllocator` *(default)*    | `cudaMalloc` / `hipMalloc`                  | Synchronous, easy to reason about. What you get if you call `CudaExecutor::create(id, host)` with no allocator argument. |
 | `CudaAsyncAllocator` / `HipAsyncAllocator`      | `cudaMallocAsync` / `hipMallocAsync`        | Stream-ordered allocator with reduced overhead in fast-allocation hot loops. Requires a stream.          |
 | `CudaUnifiedAllocator` / `HipUnifiedAllocator`  | `cudaMallocManaged` / `hipMallocManaged`    | Unified shared memory: the same pointer is valid on host and device; transfers are page-faulted in by the driver. Convenient but harder to predict. |
 | `CudaHostAllocator` / `HipHostAllocator`        | `cudaHostAlloc` / `hipHostAlloc`            | Pinned (page-locked) host memory; faster host↔device transfers. Slow to allocate.                        |
@@ -90,12 +90,18 @@ Each executor owns an `Allocator` that determines how memory is acquired. The de
 To plug a custom allocator into a `CudaExecutor`:
 
 ```cpp
-auto host  = gko::OmpExecutor::create();
-auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream);
-auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream);
+auto host   = gko::OmpExecutor::create();
+cudaStream_t stream;
+cudaStreamCreate(&stream);
+auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream);
+auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream);
 ```
 
-The `HipExecutor` follows the same pattern. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+The `HipExecutor` follows the same pattern with `hipStream_t` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+
+:::{note}
+The stream parameter is a raw runtime-type pointer — `CUstream_st*` for CUDA (identical to the standard `cudaStream_t` typedef) and `GKO_HIP_STREAM_STRUCT*` for HIP (identical to `hipStream_t`). Ginkgo does not wrap streams in its own type; you pass whatever the CUDA / HIP runtime gave you from `cudaStreamCreate` / `hipStreamCreate`.
+:::
 
 ## Memory accessibility between executors
 

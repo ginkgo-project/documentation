@@ -12,7 +12,8 @@ auto gpu  = gko::HipExecutor::create(0, host);   // device id 0
 For custom allocator + stream:
 
 ```cpp
-GKO_HIP_STREAM_STRUCT* stream = ...;
+hipStream_t stream;
+hipStreamCreate(&stream);
 auto alloc = std::make_shared<gko::HipAsyncAllocator>(stream);
 auto gpu   = gko::HipExecutor::create(0, host, alloc, stream);
 ```
@@ -21,16 +22,16 @@ auto gpu   = gko::HipExecutor::create(0, host, alloc, stream);
 
 The HIP allocator family mirrors the CUDA family:
 
-- `HipAllocator` — `hipMalloc` (default).
+- `HipAllocator` — `hipMalloc` (**default**).
 - `HipAsyncAllocator` — `hipMallocAsync` (stream-ordered).
 - `HipUnifiedAllocator` — `hipMallocManaged` (unified shared memory).
 - `HipHostAllocator` — `hipHostAlloc` (pinned host memory).
 
-See [Allocators](../executor-model.md#allocators) for guidance on picking one.
+See [Allocators](../executor-model.md#allocators) for guidance on picking one. If you don't pass an allocator argument, `HipExecutor::create(id, host)` constructs a `HipAllocator` (synchronous `hipMalloc`).
 
 ## Streams
 
-By default `HipExecutor` uses the default HIP stream. Pass an explicit stream for overlap or multi-stream pipelines.
+By default `HipExecutor` uses the default HIP stream. The stream parameter type is `GKO_HIP_STREAM_STRUCT*` — this is the same type HIP defines as `hipStream_t`. Ginkgo does not wrap streams in its own type; pass whatever you got from `hipStreamCreate()`. Use an explicit stream for overlap or multi-stream pipelines.
 
 ## Memory model
 
