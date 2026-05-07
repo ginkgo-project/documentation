@@ -1,4 +1,196 @@
 # Multigrid
 
-*This page is a placeholder. Until it is written, the API reference covers the type:*
-[`gko::solver::Multigrid`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Multigrid.html)*.*
+`gko::solver::Multigrid` builds a hierarchy of progressively coarser representations
+of a system matrix and uses cheap *smoother* iterations on each level combined with
+exact (or near-exact) solves on the coarsest level to attack errors at all
+frequencies. It is most effective on elliptic and diagonally-dominant problems where
+the low-frequency error modes — the ones Krylov methods struggle with — can be
+captured by a coarse-grid representation. In practice, Ginkgo's `Multigrid` is most
+often used as a *preconditioner* inside a Krylov solver, not as the outermost
+iteration.
+
+## The architecture
+
+A multigrid solve is a recursive structure of four ingredients per level:
+
+```text
+finest level (level 0)     A_0   <-- system matrix
+                            |
+                          smooth (pre)
+                            |
+                          restrict --> A_1 = R A_0 P
+                                          |
+                                        smooth (pre)
+                                          |
+                                        restrict --> A_2 ...
+                                          ...
+                                                 coarsest level
+                                                 (direct solve, by default)
+                                          ...
+                                        prolong  <-- correction
+                                          |
+                                        smooth (post)
+                            |
+                          prolong  <-- correction
+                            |
+                          smooth (post)
+finest level (output)
+```
+
+- **Smoothers** (`pre_smoother`, `post_smoother`, optional `mid_smoother`) attack
+  high-frequency errors that the coarse grid cannot represent. Defaults to one step
+  of iterative refinement with a scalar Jacobi preconditioner if not specified.
+- **Restriction** (`R`) maps the residual from a fine level to a coarse level.
+- **Prolongation** (`P`) maps a correction from a coarse level back to the fine
+  level.
+- **Coarsening** (the `mg_level` factories) computes `R`, `P`, and `A_{i+1} = R A_i P`
+  for every level. This is the algebraic component that makes Ginkgo an *algebraic
+  multigrid* (AMG) library — see [Coarsening methods](#coarsening-methods) below.
+- **Coarsest solver** (`coarsest_solver`) handles the smallest-level system. Defaults
+  to a direct LU solver if not specified.
+
+Each pair of consecutive levels is represented by a `gko::multigrid::MultigridLevel`
+implementation. The interface exposes four operators:
+
+```cpp
+auto fine     = level->get_fine_op();      // A_i
+auto restrict = level->get_restrict_op();  // R
+auto coarse   = level->get_coarse_op();    // A_{i+1}
+auto prolong  = level->get_prolong_op();   // P
+```
+
+This is the contract every coarsening method satisfies. Custom coarsening can be
+implemented by inheriting `gko::multigrid::EnableMultigridLevel<ValueType>` and
+calling `set_multigrid_level(prolong, coarse, restrict)` from `generate()`.
+
+## Cycle types
+
+The `cycle` parameter controls how the recursion descends and ascends through the
+hierarchy. At every non-coarsest level, the cycle does pre-smooth → restrict → one
+or more coarse-grid sub-cycles → prolong → post-smooth. The three available cycle
+types differ only in the number and shape of the coarse-grid sub-cycles:
+
+| `multigrid::cycle` | Coarse-grid sub-cycles per level | Cost per outer iteration |
+|---|---|---|
+| `v` *(default)* | One V-recursive sub-cycle. | Cheapest — typical default. |
+| `f` | Two sub-cycles: first an F-recursive call, then a V-recursive call. | Between V and W. |
+| `w` | Two W-recursive sub-cycles. | Most expensive but often the most effective per iteration on stiff problems. |
+
+The exact branching is in [`MultigridState::run_cycle`](https://github.com/ginkgo-project/ginkgo/blob/main/core/solver/multigrid.cpp) — the V case takes the early-exit `end_of_cycle` path after a single recursive call, while F and W make a second recursive call before prolongation.
+
+## Key factory parameters
+
+The `Multigrid::build()` interface exposes a sizeable parameter surface. Most users
+need to set only a small handful — the defaults are intended to work on standard
+elliptic problems out of the box.
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `mg_level` | vector of `LinOpFactory` | Coarsening factories — see [Coarsening methods](#coarsening-methods). |
+| `pre_smoother`, `post_smoother`, `mid_smoother` | vector of `LinOpFactory` | Smoother factory per level (or one shared). Empty vector means "use the default smoother": one step of iterative refinement with scalar Jacobi. `nullptr` entries skip smoothing at that level. |
+| `post_uses_pre` | `bool` *(default `true`)* | When `true`, post-smoothing reuses the pre-smoother factory; the explicit `post_smoother` parameter is ignored. |
+| `mid_case` | `mid_smooth_type` | Behaviour of the mid-smoother in F and W cycles: `both`, `post_smoother`, `pre_smoother`, `standalone` *(default)*. Has no effect on V cycles. |
+| `max_levels` | `size_type` *(default 10)* | Maximum number of coarsening steps (excluding the coarsest solver). |
+| `min_coarse_rows` | `size_type` *(default 64)* | Stop coarsening when the matrix has fewer rows than this. |
+| `coarsest_solver` | vector of `LinOpFactory` | Solver factory for the coarsest level. Defaults to a direct LU solver. |
+| `cycle` | `multigrid::cycle` *(default `v`)* | V, W, or F cycle. |
+| `smoother_relax`, `smoother_iters` | scalar | Tune the *default* smoother (only consulted if `pre_smoother` is empty). |
+| `default_initial_guess` | `initial_guess_mode` *(default `zero`)* | What to assume about the initial `x` passed to `apply` — `zero`, `provided`, or `rhs_is_zero`. |
+| `level_selector`, `solver_selector` | `std::function<size_type(size_type, const LinOp*)>` | Pick which `mg_level` / `coarsest_solver` factory to use at each level based on the level number and the fine matrix. Defaults to "use index `i` at level `i`, last entry once exhausted" for `mg_level` and "first entry" for `coarsest_solver`. |
+
+The vector-valued parameters (`mg_level`, `pre_smoother`, `post_smoother`,
+`mid_smoother`, `coarsest_solver`) all follow the same selection rule:
+- Empty → use the default for that role.
+- One entry → that single factory is used at every level.
+- Multiple entries → `level_selector` (or its default) picks one per level.
+
+This gives fine-grained per-level control without forcing the user to write a
+selector function for the common cases.
+
+## Coarsening methods
+
+The coarsening method is the algebraic component that turns a fine matrix into a
+coarse one. It is what makes a multigrid solver *algebraic* — pure geometric multigrid
+would expect the user to supply the hierarchy from a known mesh. Ginkgo currently
+ships two coarsening implementations, both deriving from
+`gko::multigrid::EnableMultigridLevel`:
+
+| Class | Approach |
+|---|---|
+| `gko::multigrid::Pgm` | Aggregation by parallel graph matching (the AmgX algorithm). The standard AMG-style coarsening; works on most algebraic problems. **Supports distributed matrices** — see [the Pgm page](multigrid/pgm.md#distributed-pgm) for the cross-rank aggregation protocol. |
+| `gko::multigrid::FixedCoarsening` | User-specified coarse rows. Useful when you have external knowledge of which DOFs should survive coarsening (e.g., from a hierarchical mesh). Single-rank only. |
+
+Both produce four operators at each level (`fine`, `coarse`, `restrict`, `prolong`)
+satisfying the `MultigridLevel` contract. They are passed to `Multigrid` through the
+`mg_level` parameter.
+
+```{toctree}
+:maxdepth: 1
+:caption: Coarsening methods
+
+multigrid/pgm
+multigrid/fixed-coarsening
+```
+
+## Construction
+
+A typical multigrid-as-preconditioner setup:
+
+```cpp
+auto mg = gko::solver::Multigrid::build()
+              .with_mg_level(gko::multigrid::Pgm<double, gko::int32>::build()
+                                 .with_deterministic(true)
+                                 .on(exec))
+              .with_max_levels(10u)
+              .with_min_coarse_rows(64u)
+              .with_cycle(gko::solver::multigrid::cycle::v)
+              .on(exec);
+
+auto cg_factory = gko::solver::Cg<double>::build()
+                      .with_preconditioner(mg)
+                      .with_criteria(/* iteration + residual stopping criteria */)
+                      .on(exec);
+
+auto cg_solver = cg_factory->generate(system_matrix);
+cg_solver->apply(b, x);
+```
+
+For a stand-alone multigrid solve (rare in practice but supported), pass
+`with_criteria` and skip the outer Krylov solver:
+
+```cpp
+auto solver_factory = gko::solver::Multigrid::build()
+                          .with_mg_level(/* ... */)
+                          .with_criteria(/* ... */)
+                          .on(exec);
+
+auto solver = solver_factory->generate(system_matrix);
+solver->apply(b, x);
+```
+
+## When multigrid helps (and when it does not)
+
+Multigrid shines when:
+- The problem is elliptic or strongly diagonally dominant (Poisson, diffusion,
+  structural mechanics with reasonable conditioning).
+- The matrix has natural locality — neighbours in the graph correspond to spatially
+  nearby unknowns.
+- You have time to tune cycle type, smoother, and coarsening for the specific PDE
+  and discretisation; a poorly-tuned multigrid can be slower than CG-Jacobi.
+
+Multigrid struggles when:
+- The matrix has long-range coupling or no natural mesh structure (e.g., problems
+  derived from highly irregular graphs).
+- The problem is strongly non-symmetric or indefinite — the smoother and coarse
+  solver assumptions break down.
+
+In Ginkgo specifically, `Multigrid` is most often used as a preconditioner inside
+CG, FCG, or GMRES. Used that way, even an imperfectly-tuned multigrid can outperform
+simpler preconditioners on the right class of problems.
+
+:::{seealso}
+- [Solvers — taxonomy](../solvers.md) — multigrid in context of the other families.
+- [Preconditioners — taxonomy](../preconditioners.md) — what plugs into the smoother slots.
+- [LinOp and composition](../linop-and-composition.md) — the factory pattern multigrid uses.
+- API reference: [`gko::solver::Multigrid`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Multigrid.html), [`gko::multigrid::MultigridLevel`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1multigrid_1_1MultigridLevel.html)
+:::
