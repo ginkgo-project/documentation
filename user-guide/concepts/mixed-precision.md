@@ -89,7 +89,52 @@ gko::matrix::Dense<float>* b_float = /* ... */;
 A->apply(b_float, x_float);  // b_float and x_float are converted internally.
 ```
 
-CSR and ELL skip the conversion step when they can operate natively on the vector's type, which saves bandwidth. Other formats always go through the conversion path. This per-operator behaviour is transparent to calling code.
+### Supported value types
+
+Ginkgo's templated types (matrices, vectors, solvers, preconditioners) accept the following value types as the `ValueType` parameter:
+
+| Value type | Aliases | Built unconditionally |
+|---|---|---|
+| `double` | FP64 | Always — the default for most types. |
+| `float` | FP32 | Always. |
+| `gko::float16` | FP16, half | Yes by default, gated by `-DGINKGO_ENABLE_HALF=ON`. |
+| `gko::bfloat16` | BF16, bfloat | Yes by default, gated by `-DGINKGO_ENABLE_BFLOAT16=ON`. |
+
+The same four real types are also supported in their `std::complex<…>` form. Index types are `gko::int32` and `gko::int64`. The full list of allowed types is enforced at compile time via the `GKO_ASSERT_SUPPORTED_VALUE_TYPE` static-assert (see `include/ginkgo/core/base/types.hpp:1041-1066`); using any other type fails at compile time.
+
+#### Build-time gating per backend
+
+Half precision (`float16`, `bfloat16`) is opt-in at build time and additionally gated per backend depending on hardware capabilities:
+
+| Backend | Gate for `float16` | Gate for `bfloat16` |
+|---|---|---|
+| Reference, OMP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
+| CUDA | `-DGINKGO_ENABLE_HALF=ON` **and** `__CUDA_ARCH__ >= 530` (Maxwell GM200 / GeForce 9xx and newer) | `-DGINKGO_ENABLE_BFLOAT16=ON` **and** `__CUDA_ARCH__ >= 800` (Ampere A100 and newer) |
+| HIP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
+| DPC++ (Intel SYCL) | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
+| MSVC / MINGW (Windows) | **Forced OFF** regardless of the flag | **Forced OFF** regardless of the flag |
+
+Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros (`types.hpp:404-423`) skip those template instantiations rather than emitting code that would fail to compile.
+
+The practical implication: if you build for an older NVIDIA card (pre-Ampere) and want bfloat16, the option will accept the flag but the relevant kernels will not be available at runtime — calls into them produce a `gko::NotImplemented` error.
+
+### Native vs conversion-based dispatch
+
+When the operator's value type differs from the input/output vector's value type, Ginkgo can take one of two paths:
+
+- **Conversion-based** (default): the input vector is converted into a temporary `Dense` matching the operator's value type, the apply runs, and the output is converted back. This adds two implicit conversions and one full-vector temporary per call.
+- **Native cross-precision**: the operator runs a kernel instantiated for the actual `(operator_type, vector_type)` pair, so no conversion is needed and no temporary is allocated.
+
+The native path is gated by the build-time CMake option `GINKGO_MIXED_PRECISION` (default `OFF`):
+
+| `GINKGO_MIXED_PRECISION` | Behaviour |
+|---|---|
+| `OFF` *(default)* | All formats convert. The cross-precision call is correct, but always pays the conversion cost. |
+| `ON` | `gko::matrix::Csr`, `gko::matrix::Ell`, and `gko::matrix::SparsityCsr` instantiate native cross-precision kernels at compile time and dispatch dynamically based on the runtime value types. The other formats (COO, Sellp, Hybrid, Fbcsr, Dense) still fall through to the conversion path. |
+
+So the "skip the conversion step" optimisation requires both (1) building Ginkgo with `-DGINKGO_MIXED_PRECISION=ON` and (2) using one of the three formats that opt into it. Turning the option on does not affect correctness — it only changes how many kernels are instantiated and which dispatch path runs at apply time. Build times grow because every supported `(matrix, vector)` value-type pair has to be compiled.
+
+The internal mechanism is `gko::mixed_precision_dispatch` in `include/ginkgo/core/base/precision_dispatch.hpp`; with the option off, that helper falls back to the single-precision `precision_dispatch` and the conversion path runs unconditionally.
 
 ## When mixed precision pays off
 

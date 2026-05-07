@@ -177,12 +177,6 @@ Avoid IR when:
 - You want a stand-alone Krylov method — IR is a wrapper, not an algorithm of
   its own.
 
-## Publications
-
-- [Using Ginkgo's Memory Accessor for Improving the Accuracy of Memory-Bound Low Precision BLAS](https://doi.org/10.1002/spe.3041)
-- [A Survey of Numerical Methods Utilizing Mixed Precision Arithmetic](https://arxiv.org/abs/2007.06674)
-- [Advances in Mixed Precision Algorithms: 2021 Edition](https://doi.org/10.2172/1814447)
-
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — where IR fits among the families.
 - [Mixed-precision design](../mixed-precision.md) — the dominant IR use case.

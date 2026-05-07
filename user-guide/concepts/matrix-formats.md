@@ -27,7 +27,8 @@ non-zero). It is not a value-bearing format and so does not appear in the table
 above; its role is to support sparsity-pattern analysis, symbolic factorisation
 preparation, and graph-style algorithms where the values are either trivial or
 irrelevant. SparsityCsr converts directly to and from CSR and Dense and reads from
-`matrix_data` like the other formats.
+`matrix_data` like the other formats. See the dedicated
+[SparsityCsr page](formats/sparsity-csr.md) for the full treatment.
 
 ## Trade-off axes
 
@@ -186,6 +187,7 @@ formats/ell
 formats/sellp
 formats/hybrid
 formats/fbcsr
+formats/sparsity-csr
 ```
 
 ## Publications

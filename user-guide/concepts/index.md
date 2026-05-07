@@ -36,6 +36,7 @@ solvers
 preconditioners
 stopping-criteria
 logging
+config-files
 mixed-precision
 ```
 
@@ -51,13 +52,6 @@ distributed
 ```{toctree}
 :maxdepth: 2
 batched
-```
-
-## Cross-cutting features
-
-```{toctree}
-:maxdepth: 1
-config-files
 ```
 
 ## Extensions
