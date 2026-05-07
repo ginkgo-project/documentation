@@ -1,12 +1,70 @@
 # Preconditioners — taxonomy
 
-A preconditioner approximates the inverse of the system matrix to accelerate Krylov convergence. Ginkgo's preconditioner catalog ranges from cheap diagonal scaling to algebraic multigrid. This page surveys the families, how they plug into solvers, and selection guidance.
+A preconditioner approximates the inverse of the system matrix to accelerate
+convergence of any iterative solver. Ginkgo's preconditioner catalog ranges from
+cheap diagonal scaling to algebraic multigrid. This page surveys the families, how
+they plug into solvers, and selection guidance.
 
 ## The role of a preconditioner
 
-Replacing `A x = b` with `M⁻¹ A x = M⁻¹ b`, where `M` approximates `A`, transforms the spectrum of the system so that eigenvalues cluster near 1 — the ideal for Krylov methods. The preconditioner must be cheap to apply relative to the cost it saves in iteration count.
+Replacing $A x = b$ with $M^{-1} A x = M^{-1} b$, where $M$ approximates $A$,
+transforms the spectrum of the system so that eigenvalues cluster near 1 — which
+is what every iterative method, not just Krylov subspace methods, wants. The
+preconditioner must be cheap to apply relative to the cost it saves in iteration
+count.
 
-In Ginkgo, a preconditioner is a `LinOp` whose `apply(r, z)` computes `z ≈ A⁻¹ r`. Krylov solvers call this in their inner iteration loop. Because it is a `LinOp`, a preconditioner can itself be a full solver — multigrid as a preconditioner inside GMRES is a natural example. See [Solvers — taxonomy](solvers.md) for the complementary view.
+Krylov solvers (CG, GMRES, BiCGSTAB, ...) are the most common consumers, but the
+same preconditioner plugs into iterative refinement (`gko::solver::Ir`), serves as
+a smoother in `gko::solver::Multigrid`, and accelerates fixed-point-style
+iterations as well — all through the same `with_preconditioner(...)` factory hook.
+
+In Ginkgo, a preconditioner is a `LinOp` whose `apply(r, z)` computes $z \approx
+A^{-1} r$. Solvers call this in their inner iteration loop. Because it is a
+`LinOp`, a preconditioner can itself be a full solver — multigrid as a
+preconditioner inside GMRES is a natural example. See [Solvers — taxonomy](solvers.md)
+for the complementary view.
+
+## Left, right, and split preconditioning
+
+Mathematically, a preconditioner $M$ can be applied in three ways:
+
+- **Left:** solve $M^{-1} A x = M^{-1} b$. The Krylov residual that the stopping
+  criterion sees is the *preconditioned* residual $M^{-1} r$.
+- **Right:** solve $A M^{-1} y = b$ then recover $x = M^{-1} y$. The residual the
+  stopping criterion sees is the original $r$, and the convergence test is more
+  natural to interpret.
+- **Split:** factor $M = M_L M_R$ and solve $M_L^{-1} A M_R^{-1} y = M_L^{-1} b$.
+  Standard for SPD systems where $M_L = M_R^T$ keeps the preconditioned operator
+  symmetric.
+
+Ginkgo's user-facing API does not expose a left/right switch — `.with_preconditioner(M)`
+is the only knob. The actual placement is method-specific and follows the standard
+preconditioned formulation for each Krylov family:
+
+- **CG and FCG** apply $z = M^{-1} r$ in the inner loop and run the
+  recurrences in the original-variable space. The SpMV is on the unpreconditioned
+  search direction (`q = A p`). Operationally this is left preconditioning of the
+  residual; mathematically, for SPD $M = L L^T$, it is identical to applying
+  unpreconditioned CG/FCG to the symmetrically-preconditioned system
+  $L^{-1} A L^{-T} \tilde x = L^{-1} b$ — the factorisation of $M$ never has to
+  be formed explicitly. This split-preconditioning equivalence is what keeps CG
+  applicable in the first place: an arbitrary non-symmetric left preconditioner
+  would break the symmetry that CG relies on.
+- **BiCGSTAB** applies $M^{-1}$ to the search directions ($y = M^{-1} p$, $z = M^{-1} s$)
+  and the SpMV runs against the preconditioned vectors ($v = A y$, $t = A z$).
+  This builds the Krylov subspace of $A M^{-1}$ — exactly the right-preconditioning
+  pattern that GMRES uses.
+- **GMRES** applies $M^{-1}$ to the Arnoldi basis vector before the SpMV
+  ($v_{\text{prec}} = M^{-1} v$, then `next_krylov = A v_{\text{prec}}`), and
+  the solution recovery on restart applies $M^{-1}$ to the projected coefficients
+  ($x = x_0 + M^{-1} y$). This is right preconditioning.
+- **IR** delegates to its inner solver, whose preconditioning placement is
+  whatever the inner family above prescribes.
+
+In every case, the convergence test sees the *unpreconditioned* residual
+$r = b - A x$ — the stopping criterion is not affected by the preconditioner
+placement. See [Stopping criteria](stopping-criteria.md) for how to control the
+convergence test independently.
 
 ## The catalog
 
@@ -46,9 +104,22 @@ Block Jacobi also supports per-block precision reduction via `with_storage_optim
 
 Incomplete LU factorisation computes approximate triangular factors `L` and `U` such that `L U ≈ A`, discarding fill-in according to a sparsity pattern rule. Ginkgo provides three flavours:
 
-- **ILU(0)** — no fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
-- **ParILU** — a parallelizable ILU suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than sequential elimination.
-- **ParILUT** — extends ParILU with thresholded fill-in, giving control over the trade-off between factorisation quality and memory use.
+- **ILU(0)** — `gko::factorization::Ilu`. No fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
+- **ParILU** — `gko::factorization::ParIlu`. A parallelizable ILU(0) suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than sequential elimination.
+- **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
+
+:::{note}
+Ginkgo does **not** support classical ILU(k) for $k > 0$ — there is no
+`level_of_fill` or `fill_level` parameter on `gko::factorization::Ilu` (only
+`l_strategy`, `u_strategy`, `skip_sorting`, and `algorithm`). The closest user-facing
+fill-control knob is `ParIlut::with_fill_in_limit(ratio)`, which caps the
+non-zero count of $L + U$ at `ratio` × `nnz(A)`. That is *threshold*-based fill
+control, not the level-based fill control of ILU(k); the two produce different
+sparsity patterns and aim at different parts of the cost/quality trade-off. If you
+need level-based fill, you would have to factorise externally (e.g., with SuperLU
+in `level_of_fill` mode) and feed the resulting factors into Ginkgo as plain CSR
+matrices.
+:::
 
 ```cpp
 auto ilu = gko::preconditioner::Ilu<gko::solver::LowerTrs<double, int>,

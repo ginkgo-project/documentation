@@ -7,7 +7,7 @@ In Ginkgo, every operator that maps an input vector to an output vector implemen
 A `LinOp` (linear operator) is any object with an `apply(b, x)` operation that maps an input `b` to an output `x`. The Ginkgo class hierarchy uses `LinOp` as a polymorphic base for:
 
 - **Matrices** — `gko::matrix::Csr`, `gko::matrix::Coo`, `gko::matrix::Dense`, `gko::matrix::Ell`, `gko::matrix::Sellp`, `gko::matrix::Hybrid`, `gko::matrix::Fbcsr`, `gko::matrix::Identity`, `gko::matrix::Diagonal`
-- **Solvers** — `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, and direct solvers
+- **Solvers** — `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, `gko::solver::Idr`, and direct solvers
 - **Preconditioners** — `gko::preconditioner::Jacobi`, `gko::preconditioner::Ilu`, `gko::preconditioner::Ic`, `gko::preconditioner::Isai`, `gko::preconditioner::Multigrid`
 - **Composite operators** — `gko::Composition`, `gko::matrix::BlockOperator`, `gko::Combination`
 
@@ -113,7 +113,7 @@ LinOp
 │   ├─ Csr, Coo, Ell, Sellp, Hybrid, Fbcsr, Dense
 │   └─ Identity, Diagonal
 ├─ solver
-│   ├─ Cg, Gmres, Bicgstab, Fcg, Ir, Gcr, Cgs
+│   ├─ Cg, Gmres, Bicgstab, Fcg, Ir, Gcr, Cgs, Idr
 │   └─ Direct (LU / Cholesky)
 ├─ preconditioner
 │   ├─ Jacobi, Ilu, Ic, ParIlu, ParIc, ParIlut, ParIct

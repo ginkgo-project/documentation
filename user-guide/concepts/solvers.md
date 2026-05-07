@@ -6,7 +6,7 @@ Ginkgo provides three families of solvers — Krylov, direct, and multigrid — 
 
 | Family    | Examples                                              | When to use                                                                                |
 | --------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Krylov    | CG, GMRES, BiCGSTAB, FCG, IR, GCR, CGS                | Default for sparse iterative; need a preconditioner.                                       |
+| Krylov    | CG, GMRES, BiCGSTAB, FCG, IR, GCR, CGS, IDR           | Default for sparse iterative; need a preconditioner.                                       |
 | Direct    | Sparse LU, Cholesky, triangular solves (LowerTrs / UpperTrs), cuDSS (CUDA only) | Sparse one-off solves or repeated solves on a fixed sparsity pattern; preconditioner inside Krylov. |
 | Multigrid | AMG, mixed-precision multigrid                        | Heavily diagonally-dominant or elliptic-style systems.                                     |
 
@@ -22,6 +22,7 @@ Krylov solvers build a solution in the Krylov subspace spanned by successive mat
 - **FCG (`gko::solver::Fcg`, Flexible CG)** — a CG variant that tolerates preconditioners that vary between iterations, such as a multigrid cycle with changing smoothers.
 - **IR (`gko::solver::Ir`, Iterative Refinement)** — wraps an inner solver and refines its output against the residual. The natural host for mixed-precision inner solves.
 - **GCR (`gko::solver::Gcr`) and CGS (`gko::solver::Cgs`)** — additional variants suited to specific sparsity structures and symmetry properties.
+- **IDR (`gko::solver::Idr`)** — Induced Dimension Reduction, IDR(s). A short-recurrence method for general non-symmetric systems whose memory cost stays bounded as the iteration progresses, unlike GMRES. The shadow-space dimension `s` controls the trade-off between work per iteration and convergence speed.
 
 Every Krylov solver expects a stopping criterion and, optionally, a preconditioner. If no preconditioner is supplied, Ginkgo substitutes the identity. Solving without a preconditioner on ill-conditioned problems typically requires many more iterations than with even a cheap Jacobi preconditioner — see [Preconditioners — taxonomy](preconditioners.md).
 
@@ -102,7 +103,7 @@ solver->apply(b, x);
 These rules cover the common cases; profiling and problem-specific knowledge always refine the choice:
 
 1. **SPD systems** (e.g., FEM Poisson, structural mechanics with symmetric loading): start with CG plus a Jacobi or IC preconditioner.
-2. **Non-symmetric systems**: GMRES is the safe default. Try BiCGSTAB if memory is tight and the matrix is not too ill-conditioned.
+2. **Non-symmetric systems**: GMRES is the safe default. Try BiCGSTAB or IDR(s) if memory is tight and the matrix is not too ill-conditioned — both have bounded memory unlike restarted GMRES, and IDR(s) often converges faster than BiCGSTAB on stiff problems with a modest `s` (e.g. `s = 4`).
 3. **Variable preconditioner** (e.g., adaptive multigrid, inner solver with changing tolerance): use FCG or IR.
 4. **Sparse one-off solves, or repeated solves on a fixed sparsity pattern**: direct LU or Cholesky, paired with a fill-reducing reordering (AMD or nested dissection). On NVIDIA GPUs, consider the cuDSS extension instead.
 5. **Large elliptic systems**: AMG as preconditioner inside CG or GMRES.
@@ -121,6 +122,7 @@ solvers/fcg
 solvers/ir
 solvers/gcr
 solvers/cgs
+solvers/idr
 solvers/multigrid
 solvers/direct
 ```
