@@ -6,7 +6,7 @@ Ginkgo provides three families of solvers — Krylov, direct, and multigrid — 
 
 | Family    | Examples                                              | When to use                                                                                |
 | --------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Krylov    | CG, GMRES, BiCGSTAB, FCG, IR, GCR, CGS, IDR           | Default for sparse iterative; need a preconditioner.                                       |
+| Krylov    | CG, GMRES (with flexible mode = FGMRES), BiCGSTAB, FCG, IR, GCR, CGS, IDR | Default for sparse iterative; need a preconditioner. |
 | Direct    | Sparse LU, Cholesky, triangular solves (LowerTrs / UpperTrs), cuDSS (CUDA only) | Sparse one-off solves or repeated solves on a fixed sparsity pattern; preconditioner inside Krylov. |
 | Multigrid | AMG, mixed-precision multigrid                        | Heavily diagonally-dominant or elliptic-style systems.                                     |
 
@@ -17,9 +17,9 @@ All three families follow the same factory pattern and produce a `LinOp` whose `
 Krylov solvers build a solution in the Krylov subspace spanned by successive matrix-vector products. Each variant makes different assumptions about the matrix and carries different memory costs:
 
 - **CG (`gko::solver::Cg`)** — symmetric positive-definite (SPD) systems only. Minimum memory per iteration; the optimal choice for SPD problems.
-- **GMRES (`gko::solver::Gmres`)** — general non-symmetric systems. Restartable; memory grows with restart length. The safest default for unsymmetric problems.
+- **GMRES (`gko::solver::Gmres`)** — general non-symmetric systems. Restartable; memory grows with restart length. The safest default for unsymmetric problems. The same class also provides **FGMRES** (flexible GMRES) via `with_flexible(true)` — use this when the inner preconditioner varies between iterations (e.g., a multigrid cycle whose smoothers change adaptively, or an inner Krylov solve with a loose tolerance).
 - **BiCGSTAB (`gko::solver::Bicgstab`)** — general systems, smaller memory footprint than GMRES, sometimes less numerically stable.
-- **FCG (`gko::solver::Fcg`, Flexible CG)** — a CG variant that tolerates preconditioners that vary between iterations, such as a multigrid cycle with changing smoothers.
+- **FCG (`gko::solver::Fcg`, Flexible CG)** — a CG variant that tolerates preconditioners that vary between iterations, such as a multigrid cycle with changing smoothers. Note that unlike GMRES (where flexibility is a factory parameter on the same class), FCG is its own class.
 - **IR (`gko::solver::Ir`, Iterative Refinement)** — wraps an inner solver and refines its output against the residual. The natural host for mixed-precision inner solves.
 - **GCR (`gko::solver::Gcr`) and CGS (`gko::solver::Cgs`)** — additional variants suited to specific sparsity structures and symmetry properties.
 - **IDR (`gko::solver::Idr`)** — Induced Dimension Reduction, IDR(s). A short-recurrence method for general non-symmetric systems whose memory cost stays bounded as the iteration progresses, unlike GMRES. The shadow-space dimension `s` controls the trade-off between work per iteration and convergence speed.
@@ -104,7 +104,7 @@ These rules cover the common cases; profiling and problem-specific knowledge alw
 
 1. **SPD systems** (e.g., FEM Poisson, structural mechanics with symmetric loading): start with CG plus a Jacobi or IC preconditioner.
 2. **Non-symmetric systems**: GMRES is the safe default. Try BiCGSTAB or IDR(s) if memory is tight and the matrix is not too ill-conditioned — both have bounded memory unlike restarted GMRES, and IDR(s) often converges faster than BiCGSTAB on stiff problems with a modest `s` (e.g. `s = 4`).
-3. **Variable preconditioner** (e.g., adaptive multigrid, inner solver with changing tolerance): use FCG or IR.
+3. **Variable preconditioner** (e.g., adaptive multigrid, inner solver with changing tolerance): use FCG (SPD), FGMRES via `Gmres::build().with_flexible(true)` (non-symmetric), or IR.
 4. **Sparse one-off solves, or repeated solves on a fixed sparsity pattern**: direct LU or Cholesky, paired with a fill-reducing reordering (AMD or nested dissection). On NVIDIA GPUs, consider the cuDSS extension instead.
 5. **Large elliptic systems**: AMG as preconditioner inside CG or GMRES.
 6. **Mixed-precision acceleration**: IR wrapping a low-precision inner solver — see [Mixed-precision design](mixed-precision.md).

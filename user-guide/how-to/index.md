@@ -7,4 +7,5 @@ Short, recipe-style guides for solving specific problems.
 ```{toctree}
 :maxdepth: 1
 :hidden:
+profiler-hook-caliper
 ```

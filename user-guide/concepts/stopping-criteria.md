@@ -104,7 +104,7 @@ For batched solvers, use `gko::log::BatchConvergence` instead. Logging is covere
 
 The two norm-based criteria reflect a classical accuracy-vs-cost trade-off:
 
-- **Explicit** (`ResidualNorm`): computes `‖b − A x‖` directly with a SpMV each time the criterion is checked. Accurate — the norm matches what the user actually cares about — but adds one SpMV per iteration.
+- **Explicit** (`ResidualNorm`): computes `‖b − A x‖` directly with a SpMV each time the criterion is checked. Accurate — the norm matches what the user actually cares about — but at the cost of **one additional SpMV per iteration** on top of the SpMV that the solver would otherwise perform for its own iteration step. For matrix-bandwidth-bound solvers (which most are), that roughly doubles the per-iteration cost.
 - **Implicit** (`ImplicitResidualNorm`): reads the residual estimate that the Krylov recurrence maintains for free as a by-product of the iteration. No extra SpMV, but the estimate can drift away from the true residual in finite-precision arithmetic after many iterations, particularly when the solver is near the noise floor of the working precision.
 
 Prefer explicit residual norms in production runs where correctness is paramount. Use implicit norms in performance-sensitive inner loops (e.g., a preconditioner's inner solve), where a loose stopping tolerance already forgives some inaccuracy.

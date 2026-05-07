@@ -35,6 +35,7 @@ reordering
 solvers
 preconditioners
 stopping-criteria
+logging
 mixed-precision
 ```
 
@@ -56,7 +57,6 @@ batched
 
 ```{toctree}
 :maxdepth: 1
-logging
 config-files
 ```
 

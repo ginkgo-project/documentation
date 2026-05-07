@@ -55,7 +55,27 @@ std::cout << "Converged in " << convergence->get_num_iterations() << " iteration
 auto resnorm = convergence->get_residual_norm();   // Dense<double> on `exec`, shape 1×nrhs
 ```
 
-`Convergence` is templated on the value type. The residual norm is a 1×nrhs `Dense` living on the solver's executor — copy it to a `OmpExecutor` or `ReferenceExecutor` to read individual values on the host.
+`Convergence` is templated on the value type. The residual norm is a 1×nrhs `Dense` living on the solver's executor.
+
+:::{attention}
+`get_residual_norm()` returns a `LinOp*` to a `Dense` that lives on the **solver's
+executor**. If the solver runs on a `CudaExecutor`, `HipExecutor`, or
+`DpcppExecutor`, the underlying `get_const_values()` pointer is a *device* pointer
+— dereferencing it on the host (e.g., reading `data[0]` directly to print a value)
+is undefined behaviour and typically segfaults.
+
+To read the values on the host, clone the residual-norm vector to a host-resident
+executor first:
+
+```cpp
+auto host = gko::ReferenceExecutor::create();
+auto resnorm_host = gko::clone(host,
+    gko::as<gko::matrix::Dense<double>>(convergence->get_residual_norm()));
+std::cout << "norm = " << resnorm_host->at(0, 0) << "\n";
+```
+
+The same warning applies to `get_implicit_sq_resnorm()`.
+:::
 
 The logger reads the outcome from the [stopping criteria](stopping-criteria.md) that triggered termination, so what counts as "converged" is fully controlled by the criteria you configure on the solver.
 
@@ -75,20 +95,42 @@ The second constructor argument controls verbosity — set it to `true` to inclu
 Stream logging is synchronous and can be noisy. Disable it in production paths — every event incurs a format-and-write call.
 :::
 
-## ProfilerHook — integrating with nvprof / rocprof
+## ProfilerHook — integrating with external profilers
 
-`ProfilerHook` emits named regions that profiling tools understand. On CUDA backends it uses NVTX; on HIP backends it uses ROCTX; on CPU backends it hooks into Intel VTune ITT.
+`ProfilerHook` emits named regions that profiling tools understand. The convenience
+factory `create_for_executor` picks the appropriate backend for the active
+executor:
+
+| Factory | Backend | Used by |
+|---|---|---|
+| `create_nvtx(color_argb = …)` | NVTX | NSight Systems on CUDA |
+| `create_roctx()` | ROCTX | rocprof on HIP |
+| `create_vtune()` | Intel VTune ITT | VTune on CPU |
+| `create_tau(initialize = true)` | TAU via PerfStubs | TAU and other PerfStubs targets |
+| `create_for_executor(exec)` | Picks the right one of the above for the executor's backend (NVTX for CUDA, ROCTX for HIP, TAU otherwise) | General-purpose default |
+| `create_custom(begin, end, …)` | User-supplied callbacks | Any profiler with a C entry point — including **Caliper** |
 
 ```cpp
 auto profiler = gko::log::ProfilerHook::create_for_executor(exec);
 solver->add_logger(profiler);
 ```
 
-`create_for_executor` selects the right backend automatically based on the executor type. In the profiler UI (Nsight Systems, rocprof, VTune) you will see solver phases grouped by region name, which makes it straightforward to identify which part of a solve is expensive.
+In the profiler UI you will see solver phases grouped by region name, which makes
+it straightforward to identify which part of a solve is expensive.
+
+### Caliper
+
+Ginkgo does not ship a dedicated Caliper factory; the supported integration path
+is `create_custom`. Pass two function objects that call Caliper's C API directly
+(`cali_begin_region` / `cali_end_region`) as the begin/end callbacks, and Ginkgo
+will invoke them at every annotated region boundary.
+
+A worked example of Caliper integration in an application is planned — see
+[How-To: ProfilerHook with Caliper](../how-to/profiler-hook-caliper.md).
 
 ## Performance logger
 
-`Performance` is lighter-weight than `ProfilerHook`. It accumulates wall-clock durations per operation type and per executor, without emitting external profiling markers:
+`Performance` is more light-weight than `ProfilerHook`. It accumulates wall-clock durations per operation type and per executor, without emitting external profiling markers:
 
 ```cpp
 auto perf = std::make_shared<gko::log::Performance>();
