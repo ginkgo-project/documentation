@@ -134,6 +134,19 @@ accessible via `b::log::BatchConvergence`.
 batched/per-solver-design
 ```
 
+## Publications
+
+- [Batched Sparse Iterative Solvers for Computational Chemistry Simulations on GPUs](https://doi.org/10/gn3xcg)
+- [Preconditioners for Batched Iterative Linear Solvers on GPUs](https://doi.org/10.1007/978-3-031-23606-8_3)
+- [Batched Sparse Iterative Solvers on GPU for the Collision Operator for Fusion Plasma Simulations](https://doi.org/10.1109/IPDPS53621.2022.00024)
+- [Integrating Batched Sparse Iterative Solvers for the Collision Operator in Fusion Plasma Simulations on GPUs](https://doi.org/10.1016/j.jpdc.2023.03.012)
+- [Accelerating Fusion Plasma Collision Operator Solves with Portable Batched Iterative Solvers on GPUs](https://doi.org/10.1007/978-3-031-73716-9_9)
+- [Porting Batched Iterative Solvers onto Intel GPUs with SYCL](https://doi.org/10.1145/3624062.3624181)
+- [Efficient Solution of Batched Band Linear Systems on GPUs](https://doi.org/10.1177/10943420251347460)
+- [Utilizing Batched Solver Ideas for Efficient Solution of Non-Batched Linear Systems](https://doi.org/10.1109/IPDPSW59300.2023.00113)
+- [GPU-based LU Factorization and Solve on Batches of Matrices with Band Structure](https://doi.org/10.1145/3624062.3624247)
+- [Evaluating the Performance of NVIDIA's A100 Ampere GPU for Sparse and Batched Computations](https://doi.org/10.1109/PMBS51919.2020.00009)
+
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — single-system solvers; batched lives in parallel.
 - [Stopping criteria](stopping-criteria.md) — batched uses simpler compile-time criteria.

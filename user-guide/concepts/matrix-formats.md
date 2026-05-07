@@ -188,6 +188,12 @@ formats/hybrid
 formats/fbcsr
 ```
 
+## Publications
+
+- [Load-Balancing Sparse Matrix Vector Product Kernels on GPUs](https://doi.org/10.1145/3380930)
+- [Compression and Load Balancing for Efficient Sparse Matrix-Vector Product on Multicore Processors and Graphics Processing Units](https://doi.org/10/gnsv46)
+- [Balanced and Compressed Coordinate Layout for the Sparse Matrix-Vector Product on GPUs](https://doi.org/10.1007/978-3-030-71593-9_7)
+
 :::{seealso}
 - [Matrix data and assembly](matrix-data.md) — getting data into a format.
 - [CSR](formats/csr.md), [COO](formats/coo.md) — the two filled format pages.

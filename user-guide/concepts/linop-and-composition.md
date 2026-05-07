@@ -126,6 +126,12 @@ LinOp
 
 Every entry in this tree follows the same `apply` contract, carries its executor reference, and can be used anywhere a `LinOp` is expected. That uniformity is the central design principle of Ginkgo.
 
+## Publications
+
+- [Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing](https://doi.org/10/gphfsq)
+- [Ginkgo: A High Performance Numerical Linear Algebra Library](https://doi.org/10.21105/joss.02260)
+- [Ginkgo — A Math Library Designed to Accelerate Exascale Computing Project Science Applications](https://doi.org/10.1177/10943420241268323)
+
 :::{seealso}
 - [The Executor model](executor-model.md) — where the LinOp lives.
 - API reference: [`gko::LinOp`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1LinOp.html)

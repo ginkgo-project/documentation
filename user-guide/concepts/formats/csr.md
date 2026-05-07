@@ -160,6 +160,11 @@ internally calls `copy_from` to get a CSR copy. This conversion is generally tra
 but incurs a one-time cost. If you call such algorithms repeatedly on the same matrix,
 pre-converting to CSR yourself avoids repeated silent conversions.
 
+## Publications
+
+- [Load-Balancing Sparse Matrix Vector Product Kernels on GPUs](https://doi.org/10.1145/3380930)
+- [Compression and Load Balancing for Efficient Sparse Matrix-Vector Product on Multicore Processors and Graphics Processing Units](https://doi.org/10/gnsv46)
+
 :::{seealso}
 - [Matrix formats — overview](../matrix-formats.md) — when to pick CSR vs alternatives.
 - [COO](coo.md) — the assembly-friendly format that often feeds into CSR.

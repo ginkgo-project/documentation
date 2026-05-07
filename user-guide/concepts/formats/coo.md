@@ -140,6 +140,10 @@ prefix-sum over row counts to build `row_ptrs`, then copies `col_idxs` and `valu
   preconditioner factory will trigger an implicit conversion. Pre-converting avoids the
   repeated overhead.
 
+## Publications
+
+- [Balanced and Compressed Coordinate Layout for the Sparse Matrix-Vector Product on GPUs](https://doi.org/10.1007/978-3-030-71593-9_7)
+
 :::{seealso}
 - [Matrix data and assembly](../matrix-data.md) — `matrix_data` reads naturally into COO.
 - [CSR](csr.md) — the conversion target for repeated SpMV.

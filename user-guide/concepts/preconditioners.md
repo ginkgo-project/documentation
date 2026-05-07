@@ -224,6 +224,15 @@ preconditioners/isai
 preconditioners/amg
 ```
 
+## Publications
+
+- [Adaptive Precision Block-Jacobi for High Performance Preconditioning in the Ginkgo Linear Algebra Software](https://doi.org/10.1145/3441850)
+- [ParILUT — A New Parallel Threshold ILU Factorization](https://doi.org/10.1137/16M1079506)
+- [ParILUT — A Parallel Threshold ILU for GPUs](https://doi.org/10.1109/IPDPS.2019.00033)
+- [Incomplete Sparse Approximate Inverses for Parallel Preconditioning](https://doi.org/10.1016/j.parco.2017.10.003)
+- [Mixed Precision Incomplete and Factorized Sparse Approximate Inverse Preconditioning on GPUs](https://doi.org/10.1007/978-3-030-85665-6_34)
+- [Implementing Asynchronous Jacobi Iteration on GPUs](https://doi.org/10.1109/ScalAH56622.2022.00006)
+
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
 - [Mixed-precision design](mixed-precision.md) — `AdaptivePrecisionJacobi` lives in this space.

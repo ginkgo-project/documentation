@@ -147,6 +147,11 @@ matrix and preconditioner. FGMRES roughly doubles the basis storage.
 For very large systems where this overhead is prohibitive, switch to BiCGSTAB or
 IDR(s) — both have bounded per-iteration memory.
 
+## Publications
+
+- [Compressed Basis GMRES on High-Performance Graphics Processing Units](https://doi.org/10.1177/10943420221115140)
+- [FRSZ2 for In-Register Block Compression Inside GMRES on GPUs](https://doi.org/10.1109/SCW63240.2024.00038)
+
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — where GMRES fits among the families.
 - [BiCGSTAB](bicgstab.md), [IDR(s)](idr.md) — bounded-memory alternatives for

@@ -111,6 +111,11 @@ The classical caveats:
 When the system is too large for a direct factorisation, switch to a Krylov solver
 with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.md).
 
+## Publications
+
+- [GPU-Resident Sparse Direct Linear Solvers for Alternating Current Optimal Power Flow Analysis](https://doi.org/10.48550/arXiv.2306.14337)
+- [Parallel Symbolic Cholesky Factorization](https://doi.org/10.1145/3624062.3624253)
+
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — where direct fits among the families.
 - [Reordering and permutations](../reordering.md) — fill-reducing preprocessing.

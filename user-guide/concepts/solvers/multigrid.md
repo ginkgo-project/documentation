@@ -188,6 +188,11 @@ In Ginkgo specifically, `Multigrid` is most often used as a preconditioner insid
 CG, FCG, or GMRES. Used that way, even an imperfectly-tuned multigrid can outperform
 simpler preconditioners on the right class of problems.
 
+## Publications
+
+- [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
+- [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
+
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — multigrid in context of the other families.
 - [Preconditioners — taxonomy](../preconditioners.md) — what plugs into the smoother slots.

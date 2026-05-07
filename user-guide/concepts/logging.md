@@ -181,6 +181,10 @@ public:
 
 The key rule: do not block inside a logger. Loggers run in the hot path of `apply` — heavy I/O or synchronisation here will dominate your solve time.
 
+## Publications
+
+- [Towards Continuous Benchmarking: An Automated Performance Evaluation Framework for High Performance Software](https://doi.org/10.1145/3324989.3325719)
+
 :::{seealso}
 - [Stopping criteria](stopping-criteria.md) — `Convergence` reports the criterion's outcome.
 - [The Executor model](executor-model.md) — loggers attach to executors too.

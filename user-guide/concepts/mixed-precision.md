@@ -105,6 +105,17 @@ CSR and ELL skip the conversion step when they can operate natively on the vecto
 
 When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-precision machinery is low, but the benefit depends entirely on the problem.
 
+## Publications
+
+- [Advances in Mixed Precision Algorithms: 2021 Edition](https://doi.org/10.2172/1814447)
+- [A Survey of Numerical Methods Utilizing Mixed Precision Arithmetic](https://arxiv.org/abs/2007.06674)
+- [Adaptive Precision Block-Jacobi for High Performance Preconditioning in the Ginkgo Linear Algebra Software](https://doi.org/10.1145/3441850)
+- [Using Ginkgo's Memory Accessor for Improving the Accuracy of Memory-Bound Low Precision BLAS](https://doi.org/10.1002/spe.3041)
+- [Mixed Precision Incomplete and Factorized Sparse Approximate Inverse Preconditioning on GPUs](https://doi.org/10.1007/978-3-030-85665-6_34)
+- [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
+- [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
+- [FRSZ2 for In-Register Block Compression Inside GMRES on GPUs](https://doi.org/10.1109/SCW63240.2024.00038)
+
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — IR is one of the Krylov solvers.
 - [Preconditioners — taxonomy](preconditioners.md) — `AdaptivePrecisionJacobi` and block Jacobi storage options.

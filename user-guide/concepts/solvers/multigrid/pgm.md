@@ -136,6 +136,11 @@ Distributed Pgm requires Ginkgo to have been built with
 `#if GINKGO_BUILD_MPI`; without MPI support, Pgm only accepts single-rank
 matrices.
 
+## Publications
+
+- [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
+- [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
+
 :::{seealso}
 - [Multigrid](../multigrid.md) — how Pgm fits into the overall hierarchy.
 - [FixedCoarsening](fixed-coarsening.md) — the alternative coarsening method.

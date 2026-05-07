@@ -47,6 +47,11 @@ problems) or strongly indefinite operators, AMG often performs worse than simple
 preconditioners; start with Jacobi or ILU and reach for AMG only when iteration
 counts are clearly the bottleneck.
 
+## Publications
+
+- [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
+- [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
+
 :::{seealso}
 - [Multigrid](../solvers/multigrid.md) — the full architectural treatment.
 - [Solvers — taxonomy](../solvers.md) — where multigrid sits among solver families.
