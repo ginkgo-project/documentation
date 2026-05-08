@@ -125,8 +125,8 @@ The sub-pages cover the distributed machinery in depth:
   collective communicator that backs the all-to-all exchange.
 - [Collective communicators](distributed/collective-communicator.md) — the
   `CollectiveCommunicator` interface and its dense / neighborhood implementations.
-- [RowGatherer](distributed/row-gatherer.md) — the helper that drives the halo exchange on top of
-  a collective communicator.
+- [RowGatherer and RowScatterer](distributed/row-gather-scatter.md) — the helper that drives the
+  halo exchange on top of a collective communicator.
 - [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
   solvers work automatically and how to configure the Schwarz preconditioner.
 
@@ -140,7 +140,7 @@ distributed/partition-and-index-map
 distributed/communication-primitives
 distributed/mpi-layer
 distributed/collective-communicator
-distributed/row-gatherer
+distributed/row-gather-scatter
 distributed/solvers-and-preconditioners
 ```
 

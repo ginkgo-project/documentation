@@ -71,10 +71,11 @@ immediately. From the caller's perspective, `wait()` is always the right thing t
 
 ## Cost model
 
-For `P` ranks, the per-call work is:
+For $P$ ranks, the per-call work is:
 
 - $\Theta(P)$ to scan the size and offset vectors on each rank (small, typically cache-resident).
-- $\Theta(\text{send\_size})$ to actually transfer the values.
+- $\Theta(N_\text{send})$ to actually transfer the values, where $N_\text{send}$ is the total
+  number of values this rank sends.
 
 The `MPI_Ialltoallv` collective itself is internally implemented by most MPI runtimes as either a
 direct exchange between active senders and receivers (fast for sparse patterns) or a reduction

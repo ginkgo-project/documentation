@@ -100,7 +100,7 @@ Ginkgo's templated types (matrices, vectors, solvers, preconditioners) accept th
 | `gko::float16` | FP16, half | Yes by default, gated by `-DGINKGO_ENABLE_HALF=ON`. |
 | `gko::bfloat16` | BF16, bfloat | Yes by default, gated by `-DGINKGO_ENABLE_BFLOAT16=ON`. |
 
-The same four real types are also supported in their `std::complex<…>` form. Index types are `gko::int32` and `gko::int64`. The full list of allowed types is enforced at compile time via the `GKO_ASSERT_SUPPORTED_VALUE_TYPE` static-assert (see `include/ginkgo/core/base/types.hpp:1041-1066`); using any other type fails at compile time.
+The same four real types are also supported in their `std::complex<…>` form. Index types are `gko::int32` and `gko::int64`. The full list of allowed types is enforced at compile time via the `GKO_ASSERT_SUPPORTED_VALUE_TYPE` static-assert in `include/ginkgo/core/base/types.hpp`; using any other type fails at compile time.
 
 #### Build-time gating per backend
 
@@ -114,7 +114,7 @@ Half precision (`float16`, `bfloat16`) is opt-in at build time and additionally 
 | DPC++ (Intel SYCL) | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | MSVC / MINGW (Windows) | **Forced OFF** regardless of the flag | **Forced OFF** regardless of the flag |
 
-Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros (`types.hpp:404-423`) skip those template instantiations rather than emitting code that would fail to compile.
+Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros in `include/ginkgo/core/base/types.hpp` skip those template instantiations rather than emitting code that would fail to compile.
 
 The practical implication: if you build for an older NVIDIA card (pre-Ampere) and want bfloat16, the option will accept the flag but the relevant kernels will not be available at runtime — calls into them produce a `gko::NotImplemented` error.
 

@@ -65,14 +65,15 @@ not safely available with all type combinations and the implementation reports `
 
 ## Cost model
 
-For `P` ranks where each rank has on average `k` neighbours:
+For $P$ ranks where each rank has on average $k$ neighbours:
 
-- Construction: one global `MPI_Alltoall` of size `P` integers (the inverse-envelope discovery)
+- Construction: one global `MPI_Alltoall` of size $P$ integers (the inverse-envelope discovery)
   plus the cost of `MPI_Dist_graph_create_adjacent`. The `Alltoall` is the dominant term and is
   paid **once** per matrix construction.
 - Each subsequent exchange: $\Theta(k)$ work outside MPI (scanning the per-neighbour size vector)
-  plus $\Theta(\text{send\_size})$ for the actual transfer. Many MPI implementations optimise
-  `MPI_Ineighbor_alltoallv` into direct point-to-point sends between neighbours.
+  plus $\Theta(N_\text{send})$ for the actual transfer, where $N_\text{send}$ is the total number
+  of values this rank sends. Many MPI implementations optimise `MPI_Ineighbor_alltoallv` into
+  direct point-to-point sends between neighbours.
 
 So the neighborhood communicator pays a higher **setup** cost (the topology graph creation) in
 exchange for a lower **per-exchange** cost. For matrices that are reused across many `apply` calls
@@ -88,6 +89,7 @@ roles. This is what `RowGatherer` uses internally to derive the *send* index pat
 - [Collective communicators](collective-communicator.md) — the abstract interface and picker
   guidance.
 - [Dense communicator](dense-communicator.md) — the portable default.
-- [RowGatherer](row-gatherer.md) — the helper that uses the inverse pattern derived above.
+- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses the inverse
+  pattern derived above.
 - API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1NeighborhoodCommunicator.html)
 :::

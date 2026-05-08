@@ -116,8 +116,8 @@ exchange is in flight.
   the call sites above.
 - [Collective communicators](collective-communicator.md) — the interface that backs
   `i_all_to_all_v`, plus the dense and neighborhood implementations.
-- [RowGatherer](row-gatherer.md) — the helper that packs the send buffer and issues the
-  collective.
+- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that packs the send buffer
+  and issues the collective.
 - [Partitions and index maps](partition-and-index-map.md) — the indexing that drives the halo
   construction.
 - [Distributed solvers and preconditioners](solvers-and-preconditioners.md) — what consumes the

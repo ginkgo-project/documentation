@@ -78,7 +78,7 @@ Pgm is the only coarsening method in Ginkgo that supports distributed matrices â
 `gko::experimental::distributed::Matrix<V, L, G>`. The same `Pgm` factory accepts
 both single-rank `gko::matrix::Csr` and the distributed matrix type; `generate()`
 detects which is which at runtime and takes one of two branches
-(`core/multigrid/pgm.cpp:334-488`).
+(see the distributed branch of `Pgm::generate()` in `core/multigrid/pgm.cpp`).
 
 ### How the distributed path works
 
@@ -99,7 +99,7 @@ stitches the results together with a single all-to-all communication. The proced
    that row is needed in order to translate the off-diagonal block into coarse-row
    indices. Pgm uses the matrix's row-gatherer to issue an `i_all_to_all_v` so each
    rank receives the coarse global aggregate IDs for the non-local columns it
-   touches (`communicate_non_local_agg`, `pgm.cpp:272-328`). When the executor
+   touches (see `communicate_non_local_agg` in `core/multigrid/pgm.cpp`). When the executor
    does not support direct GPU-side MPI, the buffer is staged through host memory.
 4. **Coarse index map and matrix assembly.** Pgm builds a coarse-level
    `experimental::distributed::index_map` from the received non-local aggregate

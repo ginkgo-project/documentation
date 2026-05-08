@@ -59,7 +59,8 @@ buffer. Implementations override `i_all_to_all_v_impl` (the typed `void*` form) 
 actual MPI call.
 
 `create_inverse()` is what `RowGatherer` uses to derive the *send* index pattern from the *receive*
-index pattern stored in the matrix's `IndexMap` — see [RowGatherer](row-gatherer.md).
+index pattern stored in the matrix's `IndexMap` — see
+[RowGatherer and RowScatterer](row-gather-scatter.md).
 
 ## Picking an implementation
 
@@ -97,7 +98,7 @@ neighborhood-communicators
   surface this object sits on top of.
 - [Communication primitives](communication-primitives.md) — how `i_all_to_all_v` is consumed by
   distributed SpMV.
-- [RowGatherer](row-gatherer.md) — the helper that uses a collective communicator to perform the
-  halo exchange.
+- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses a collective
+  communicator to perform the halo exchange.
 - API reference: [`gko::experimental::mpi::CollectiveCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1CollectiveCommunicator.html)
 :::
