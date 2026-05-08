@@ -10,7 +10,7 @@ pattern, when to choose distributed over single-device, and the communicator. Pe
 Distributed is the right choice when a single device's memory is no longer sufficient or when a
 multi-node MPI job demands a single matrix view spanning ranks:
 
-- **Memory pressure.** A GPU typically becomes the bottleneck around 10⁷–10⁸ unknowns. Once the
+- **Memory pressure.** A GPU typically becomes the bottleneck around $10^7$–$10^8$ unknowns. Once the
   matrix and vectors no longer fit in one device's VRAM, distributing across multiple GPUs (or CPU
   ranks) is the natural next step.
 - **Multi-node MPI runs.** If your simulation already uses MPI for domain decomposition, Ginkgo's
@@ -88,20 +88,24 @@ internally using `MPI_Allreduce`.
 
 A distributed matrix has two blocks on each rank:
 
-- **On-diagonal block** — entries where both the row and the column belong to this rank. This is
-  the bulk of the work for well-partitioned matrices.
-- **Off-diagonal block** — entries where the row belongs to this rank but the column belongs to
-  another rank. These require halo communication during `apply`.
+- **Local matrix** — entries where both the row and the column belong to this rank. This is the
+  bulk of the work for well-partitioned matrices.
+- **Ghost matrix** — entries where the row belongs to this rank but the column belongs to another
+  rank (a "ghost" column). These require halo communication during `apply`.
 
 Access the parts directly if needed:
 
 ```cpp
-auto local_mat    = mat->get_local_matrix();      // shared_ptr<const LinOp>: on-diagonal block
-auto nonlocal_mat = mat->get_non_local_matrix();  // off-diagonal block
+auto local_mat = mat->get_local_matrix();      // shared_ptr<const LinOp>: the local matrix
+auto ghost_mat = mat->get_non_local_matrix();  // the ghost matrix
 
 // Vectors expose local Dense:
-auto local_x = x->get_local_vector();             // matrix::Dense<V> with local rows only
+auto local_x = x->get_local_vector();          // matrix::Dense<V> with local rows only
 ```
+
+The C++ API uses `get_local_matrix()` and `get_non_local_matrix()` for historical reasons; this
+documentation refers to the second one as the *ghost matrix*, matching the standard
+distributed-sparse-linear-algebra terminology.
 
 For generic code that works for both distributed and non-distributed vectors, use the helper:
 
@@ -116,20 +120,28 @@ The sub-pages cover the distributed machinery in depth:
 - [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
   ranks and how local/global indexing is reconciled.
 - [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
-  ordering, and the on-diagonal/off-diagonal decomposition of SpMV.
+  ordering, and the local/ghost decomposition of SpMV.
+- [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
+  collective communicator that backs the all-to-all exchange.
+- [Collective communicators](distributed/collective-communicator.md) — the
+  `CollectiveCommunicator` interface and its dense / neighborhood implementations.
+- [RowGatherer](distributed/row-gatherer.md) — the helper that drives the halo exchange on top of
+  a collective communicator.
 - [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
   solvers work automatically and how to configure the Schwarz preconditioner.
 
 ## Distributed sub-pages
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 :caption: Distributed
 
 distributed/partition-and-index-map
 distributed/communication-primitives
+distributed/mpi-layer
+distributed/collective-communicator
+distributed/row-gatherer
 distributed/solvers-and-preconditioners
-distributed/neighborhood-communicators
 ```
 
 :::{seealso}
