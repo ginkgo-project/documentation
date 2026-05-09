@@ -53,13 +53,23 @@ For batched dense, values are simply concatenated row-major per item.
 
 ## The fused-kernel design
 
-The defining feature of batched solvers: the entire iterative solve lives inside one `__global__`
-kernel.
+The defining feature of batched solvers: the entire iterative solve lives inside one device
+kernel — there is no host-side loop that re-launches the kernel each iteration.
 
-- One CUDA block per batch item.
-- Threads within a block cooperate via `__syncthreads()`.
+- **One workgroup per batch item.** A *workgroup* is the portable name for what CUDA calls a
+  *thread block* and HIP and SYCL also call a *work-group* — a fixed-size cluster of threads
+  that share fast on-chip memory and can synchronise cheaply. Each batch item is solved
+  independently inside its own workgroup.
+- **Sub-group reductions.** Within a workgroup the kernels further partition into a *sub-group*
+  (CUDA *warp* / HIP *wavefront* / SYCL *sub-group*) using cooperative-groups
+  `tiled_partition<tile_size>(thread_block)`; the sub-group handles row-level dot products and
+  norms. The sub-group size is chosen at compile time per-backend.
+- **Backend-portable barriers.** The CUDA / HIP kernels synchronise the workgroup with
+  `__syncthreads()`; the SYCL kernels use the equivalent `item.barrier(...)`. From the
+  high-level kernel source the call is the same — only the backend dispatch layer picks the
+  matching primitive.
 - The iteration loop runs **inside** the kernel — no per-iteration kernel launch.
-- Scalars (rho, alpha, residual norms) live in shared memory.
+- Scalars (rho, alpha, residual norms) live in shared / local memory.
 - Vectors (residual, search direction) are split between shared and global memory based on a
   `storage_config` heuristic that balances against available shared memory.
 
@@ -89,34 +99,60 @@ not mix them.
 
 ## Construction example
 
+A batched matrix is built from three pre-packed `gko::array`s — the values concatenated across
+all items, plus the single shared `col_idxs` and `row_ptrs` for one item:
+
 ```cpp
 namespace b = gko::batch;
 auto exec = gko::CudaExecutor::create(0, gko::OmpExecutor::create());
 
-// Build N independent matrices that share sparsity pattern.
-std::vector<gko::matrix_data<double, int>> per_item_data = ...;
+// Per-item dimensions and total batch size.
+const gko::size_type N = 100;          // number of items in the batch
+const int n = 256, nnz = 1024;          // rows and non-zeros per item
+gko::batch_dim<2> mat_size{N, gko::dim<2>{n, n}};
 
-// Construct the batched matrix.
-auto mat = b::matrix::Csr<double, int>::create(exec);
-mat->read(per_item_data);   // host data, copies to device
+// Three contiguous device-resident arrays:
+//   values    — N * nnz entries, item k's values at offset k * nnz
+//   col_idxs  — nnz entries, shared by every item
+//   row_ptrs  — n + 1 entries, shared by every item
+gko::array<double> values{exec, N * nnz};
+gko::array<int>    col_idxs{exec, nnz};
+gko::array<int>    row_ptrs{exec, n + 1};
+// ... fill the arrays from your application data ...
+
+auto mat = gko::share(b::matrix::Csr<double, int>::create(
+    exec, mat_size, std::move(values), std::move(col_idxs), std::move(row_ptrs)));
 
 // Build a right-hand side and a solution multivector.
-auto rhs = b::MultiVector<double>::create(exec, gko::batch_dim<2>{N, gko::dim<2>{n, 1}});
-auto sol = b::MultiVector<double>::create(exec, gko::batch_dim<2>{N, gko::dim<2>{n, 1}});
+gko::batch_dim<2> vec_size{N, gko::dim<2>{n, 1}};
+auto rhs = b::MultiVector<double>::create(exec, vec_size);
+auto sol = b::MultiVector<double>::create(exec, vec_size);
+// ... fill rhs / initial guess ...
 
 // Configure and apply a batched CG.
-auto factory = b::solver::Cg<double>::build()
-                   .with_max_iterations(100)
-                   .with_tolerance(1e-8)
-                   .with_tolerance_type(b::stop::tolerance_type::absolute)
-                   .on(exec);
-
-auto solver = factory->generate(mat);
+auto solver = b::solver::Cg<double>::build()
+                  .with_max_iterations(100)
+                  .with_tolerance(1e-8)
+                  .with_tolerance_type(b::stop::tolerance_type::absolute)
+                  .on(exec)
+                  ->generate(mat);
 solver->apply(rhs, sol);
 ```
 
+The shared `col_idxs` and `row_ptrs` are the structural promise of the
+[uniform-batch constraint](#the-uniform-batch-constraint): every item is required to have the
+same sparsity pattern, so storing the pattern once is correct by construction.
+
+If your application has the systems as `std::vector<gko::matrix_data<V, I>>` instead of
+pre-packed arrays, build a single-item `gko::matrix::Csr` from each `matrix_data` via its
+`read(matrix_data)` method, then concatenate the per-item values into a contiguous buffer; the
+shared `col_idxs` and `row_ptrs` come from any one of the per-item CSRs since they are required
+to match. For zero-copy integration with application-owned memory, use `create_const(...)`
+instead.
+
 After `apply`, `sol` contains all N solutions; per-item iteration counts and residuals are
-accessible via `b::log::BatchConvergence`.
+accessible by attaching a [`b::log::BatchConvergence`](batched/convergence.md) logger before
+the apply call.
 
 ## What batched is not
 
@@ -131,7 +167,9 @@ accessible via `b::log::BatchConvergence`.
 :maxdepth: 1
 :caption: Batched
 
-batched/per-solver-design
+batched/cg
+batched/bicgstab
+batched/convergence
 ```
 
 ## Publications
@@ -144,8 +182,6 @@ batched/per-solver-design
 - [Porting Batched Iterative Solvers onto Intel GPUs with SYCL](https://doi.org/10.1145/3624062.3624181)
 - [Efficient Solution of Batched Band Linear Systems on GPUs](https://doi.org/10.1177/10943420251347460)
 - [Utilizing Batched Solver Ideas for Efficient Solution of Non-Batched Linear Systems](https://doi.org/10.1109/IPDPSW59300.2023.00113)
-- [GPU-based LU Factorization and Solve on Batches of Matrices with Band Structure](https://doi.org/10.1145/3624062.3624247)
-- [Evaluating the Performance of NVIDIA's A100 Ampere GPU for Sparse and Batched Computations](https://doi.org/10.1109/PMBS51919.2020.00009)
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — single-system solvers; batched lives in parallel.

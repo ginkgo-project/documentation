@@ -42,14 +42,32 @@ solver->apply(b, x);
 
 ## Factory parameters
 
-| Parameter | Type | Default | Purpose |
-|---|---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | (required) | Stopping criteria — see [Stopping criteria](../stopping-criteria.md). |
-| `preconditioner` | `LinOpFactory` | identity | Preconditioner factory; rebuilt each `generate()`. |
-| `generated_preconditioner` | `LinOp` | `nullptr` | Pre-built preconditioner; bypasses `preconditioner` if set. |
-| `krylov_dim` | `size_type` | `0` (resolved to `gmres_default_krylov_dim = 100`) | Restart length. The size of the Krylov subspace before a restart; controls memory and convergence. |
-| `flexible` | `bool` | `false` | Activates [FGMRES](#flexible-gmres-fgmres) for variable preconditioners. |
-| `ortho_method` | `gmres::ortho_method` | `mgs` | Orthogonalisation strategy — see below. |
+```{list-table}
+:widths: 28 25 47
+:header-rows: 1
+
+* - Parameter
+  - Type
+  - Purpose
+* - `criteria`
+  - vector of `stop::CriterionFactory`
+  - **Required.** Stopping criteria — see [Stopping criteria](../stopping-criteria.md).
+* - `preconditioner`
+  - `LinOpFactory`
+  - Preconditioner factory; rebuilt on each `generate()`. Defaults to identity (no preconditioning).
+* - `generated_preconditioner`
+  - `LinOp`
+  - Pre-built preconditioner that bypasses `preconditioner` when set. Defaults to `nullptr`.
+* - `krylov_dim`
+  - `size_type`
+  - Restart length — the size of the Krylov subspace before a restart; controls memory and convergence. Defaults to `0`, which resolves to `gmres_default_krylov_dim = 100`.
+* - `flexible`
+  - `bool`
+  - Activates [FGMRES](#flexible-gmres-fgmres) for variable preconditioners. Defaults to `false`.
+* - `ortho_method`
+  - `gmres::ortho_method`
+  - Orthogonalisation strategy — see below. Defaults to `mgs`.
+```
 
 ## Restart length (`krylov_dim`)
 

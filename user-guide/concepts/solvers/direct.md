@@ -82,8 +82,10 @@ large unstructured systems — the
 [`gko::ext::cuda::solver::Cudss`](../extensions/cudss.md) extension wraps NVIDIA's
 cuDSS sparse direct solver. cuDSS supports unsymmetric and symmetric factorisations,
 applies its own reordering and pivoting heuristics, and exposes a `refactorize` entry
-point that reuses the symbolic analysis when only the numerical values change. It
-requires `-DGINKGO_BUILD_EXT_CUDSS=ON` and a working cuDSS installation.
+point that reuses both the symbolic analysis and the factorization data structures
+when only the numerical values change. The extension is built automatically when
+CUDA support is enabled and CMake discovers a cuDSS installation — see
+[Build-time enablement](../extensions/cudss.md#build-time-enablement) for details.
 
 ## When sparse direct is (and is not) appropriate
 
@@ -94,8 +96,11 @@ when:
 
 - The same matrix is used for many right-hand sides — the factorisation is amortised.
 - Numerical robustness matters more than peak iteration speed.
-- The sparsity pattern is fixed across many solves with changing values
-  (`refactorize` reuses the symbolic phase).
+- The sparsity pattern is fixed across many solves with changing values — passing
+  a precomputed `symbolic_factorization` to the `Lu` / `Cholesky` factory lets
+  subsequent `generate()` calls skip the symbolic step. On CUDA, the
+  [cuDSS extension](../extensions/cudss.md) goes further with an in-place
+  `refactorize` that updates only the numerical values.
 
 The classical caveats:
 

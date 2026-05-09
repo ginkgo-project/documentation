@@ -4,8 +4,7 @@
 solver. It is only available on the `CudaExecutor` and only when CMake found a cuDSS
 installation while configuring Ginkgo (see [Build-time enablement](#build-time-enablement) below).
 It is the recommended path when you need a fast sparse direct solver on NVIDIA GPUs
-and Ginkgo's own LU/Cholesky factorization is not sufficient — for example, if you
-need cuDSS-specific features like in-place refactorization.
+and Ginkgo's own LU/Cholesky factorization does not perform well for your matrix.
 
 ## When to use it
 
@@ -17,9 +16,13 @@ cuDSS is appropriate when:
   heuristics.
 - You need to **refactorize** repeatedly with the same sparsity pattern but different
   numerical values (e.g., a Newton iteration that updates Jacobian values without
-  reshaping the system) — cuDSS reuses the symbolic analysis across `refactorize`
-  calls, while Ginkgo's own `experimental::solver::Direct` would need to rebuild the
-  factorization from scratch.
+  reshaping the system) — cuDSS reuses both the symbolic analysis and the
+  factorization data structures across `refactorize` calls, updating only the
+  numerical values in place. Ginkgo's own `experimental::solver::Direct` can skip
+  the symbolic step (by passing a previously computed `symbolic_factorization` to
+  the `Lu` / `Cholesky` factory it wraps), but the numeric factorization and the
+  solver itself are rebuilt each time, so the saving is smaller than cuDSS's
+  in-place refactorization.
 
 For non-CUDA backends, fall back to [`gko::experimental::solver::Direct`](../solvers/direct.md).
 

@@ -148,9 +148,43 @@ p, li {
     line-height: 1.7;
 }
 
-/* Content max-width and rhythm */
+/* Content max-width and rhythm — wide enough that most code blocks (≲ 90 mono cols)
+   render without horizontal scroll while prose stays readable. */
 .bd-main .bd-content .bd-article-container {
-    max-width: 72ch;
+    max-width: 88ch;
+}
+
+/* Tables — auto layout sizes columns to content; tables that declare a
+   `<colgroup>` (i.e. list-table with explicit `:widths:`) switch to fixed
+   layout so the configured widths become authoritative and content wraps
+   within. Inline code only breaks as a last resort to prevent overflow,
+   so plain text never breaks letter-by-letter. */
+.bd-content table {
+    table-layout: auto;
+    width: 100%;
+}
+
+.bd-content table:has(colgroup) {
+    table-layout: fixed;
+}
+
+.bd-content table th,
+.bd-content table td {
+    vertical-align: top;
+}
+
+.bd-content table code,
+.bd-content table .literal {
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.pst-scrollable-table-container {
+    overflow-x: auto;
+}
+
+.pst-scrollable-table-container:has(table:has(colgroup)) {
+    overflow-x: visible;
 }
 
 /* Active sidebar item — gold accent bar */
