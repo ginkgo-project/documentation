@@ -152,13 +152,6 @@ the more specific `HIP_PATH`, `HIPBLAS_PATH`, `HIPSPARSE_PATH`, etc.) either
 as an environment variable or as a CMake `-D` flag. To target NVIDIA GPUs
 through HIP, set `HIPCXX=nvcc`.
 
-**System-wide install.** When `CMAKE_INSTALL_PREFIX` is not writable
-(e.g. `/usr/local`), prefix the install step with `sudo`:
-
-```sh
-sudo cmake --install .
-```
-
 :::{seealso}
 - [Build options](build-options.md) — every CMake flag, organised by purpose.
 - [Your first solver in 10 minutes](first-solver.md) — verify everything works end-to-end.

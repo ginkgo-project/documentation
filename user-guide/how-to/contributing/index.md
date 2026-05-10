@@ -8,6 +8,7 @@ start with [Build options](../../../getting-started/build-options.md).
 :maxdepth: 1
 
 setup-dev-environment
+speed-up-builds
 add-a-kernel
 add-a-matrix-format
 add-a-solver
