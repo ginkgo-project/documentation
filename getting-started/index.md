@@ -1,4 +1,4 @@
-# Get Started
+# Getting Started
 
 The fastest path to running your first solver with Ginkgo.
 

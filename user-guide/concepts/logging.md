@@ -126,7 +126,7 @@ is `create_custom`. Pass two function objects that call Caliper's C API directly
 will invoke them at every annotated region boundary.
 
 A worked example of Caliper integration in an application is planned — see
-[How-To: ProfilerHook with Caliper](../how-to/profiler-hook-caliper.md).
+[How-To: ProfilerHook with Caliper](../how-to/using/profiler-hook-caliper.md).
 
 ## Performance logger
 

@@ -15,4 +15,4 @@ The intended scope:
   per-phase breakdown is meaningful.
 
 For the conceptual overview of `ProfilerHook` and its other backends, see
-[Logging and observability — ProfilerHook](../concepts/logging.md#profilerhook--integrating-with-external-profilers).
+[Logging and observability — ProfilerHook](../../concepts/logging.md#profilerhook--integrating-with-external-profilers).

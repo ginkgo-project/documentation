@@ -6,6 +6,13 @@ The User Guide is organized by what you are trying to do:
 - **How-To** guides solve specific problems — pick these when you know what you want and need a recipe.
 - **Concepts** pages cover the concepts and design — pick these when you want to *understand*.
 
+:::{tip}
+Looking for installation instructions or CMake build options? See
+[Getting Started](../getting-started/index.md) — it covers installing Ginkgo
+from source, package managers (Spack, Conda), and the per-backend build
+flags.
+:::
+
 ```{toctree}
 :maxdepth: 1
 tutorials/index

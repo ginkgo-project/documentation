@@ -4,8 +4,8 @@ High-performance numerical linear algebra, built for accelerators.
 
 ```{toctree}
 :hidden:
-:caption: Get Started
-get-started/index
+:caption: Getting Started
+getting-started/index
 ```
 
 ```{toctree}
