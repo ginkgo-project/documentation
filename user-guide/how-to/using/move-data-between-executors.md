@@ -7,11 +7,12 @@ they don't all do the same thing.
 ## The three options
 
 ```cpp
-// Deep copy returning a new object on `target`.
+// Deep copy returning a new object on `target`, typed like A.
 auto B = gko::clone(target, A);
 
-// Equivalent method form when A is already a typed pointer.
-auto B = A->clone(target);
+// Method form: same deep copy, but the return type is the base
+// polymorphic type (e.g. unique_ptr<LinOp>, not unique_ptr<Csr<...>>).
+auto B_base = A->clone(target);
 
 // Copy in place. B already exists on `target`; overwrite its contents.
 B->copy_from(A);
@@ -19,12 +20,16 @@ B->copy_from(A);
 
 | Idiom | What it does | When to use |
 |---|---|---|
-| `gko::clone(exec, obj)` | Allocates a new object on `exec` and deep-copies contents into it. Works on any `LinOp`. | You don't yet have a destination — you want a fresh copy on the target executor. |
-| `obj->clone(exec)` | Same as above, expressed through the object. | Convenient when you already have a typed pointer. |
+| `gko::clone(exec, obj)` | Allocates a new object on `exec` and deep-copies contents into it. **Preserves the static type** of `obj` — a `shared_ptr<Csr<>>` clones to a `unique_ptr<Csr<>>`. | You want a fresh, *typed* copy on the target executor and don't want to `as<>`-cast afterwards. |
+| `obj->clone(exec)` | Same deep copy, but returns the base type the `clone` method declares (`unique_ptr<LinOp>` / `unique_ptr<PolymorphicObject>`). | You're working through a base pointer anyway, or you'll downcast with `gko::as<>` next. |
 | `dst->copy_from(src)` | Copies `src`'s contents into the existing `dst`. Requires `src` to be `ConvertibleTo<DstType>`. | You want to reuse an existing buffer (e.g. inside an iteration loop) without reallocating. |
 
-`gko::clone(exec, obj)` is the most common — it both reallocates and
-copies. The other two avoid the allocation when you can reuse a buffer.
+The header doxygen for `gko::clone` calls out the type-preservation
+point explicitly: "the difference between this function and directly
+calling `LinOp::clone()` is that this one preserves the static type of
+the object." That makes `gko::clone` the preferred form whenever you
+want to keep using the concrete matrix or vector type without an
+intermediate cast.
 
 ## Plain `gko::array`
 

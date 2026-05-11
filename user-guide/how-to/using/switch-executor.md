@@ -72,9 +72,12 @@ For zero-copy from application-owned buffers see
 - **`at(i, j)` is host-only.** Dereferencing `Dense::at` on a vector
   whose executor is a GPU is undefined behaviour. `clone` to the host
   executor first when you need to read or write individual entries.
-- **One host master per process.** Multiple GPU executors can share the
-  same `OmpExecutor` host master — and should, since each new host
-  executor allocates its own thread pool.
+- **Share the host master across GPU executors.** Each `OmpExecutor`
+  allocates its own thread pool at construction. If you build several
+  GPU executors (e.g. one per MPI rank's local device), construct **one**
+  `OmpExecutor` and pass the same `shared_ptr` to each GPU executor
+  rather than calling `gko::OmpExecutor::create()` inline at every
+  GPU-executor construction site.
 
 :::{seealso}
 - [Move data between executors](move-data-between-executors.md) — `clone` vs `copy_from`.

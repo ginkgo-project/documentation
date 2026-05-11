@@ -53,9 +53,14 @@ baseline**:
 | `rhs_norm` | $\lVert r_k \rVert \le \tau \, \lVert b \rVert$ |
 | `absolute` | $\lVert r_k \rVert \le \tau$ |
 
-Pick `rhs_norm` when you want a tolerance that's independent of how
-good your initial guess is — useful when chaining solves with warm
-starts.
+Pick `rhs_norm` when you want a tolerance that's independent of the
+initial guess. The `initial_resnorm` baseline is fixed once per solve
+to $\lVert b - A x_0 \rVert$, so when you chain warm-started solves
+and feed each previous solution back as $x_0$, $\lVert r_0 \rVert$
+shrinks and the implied stopping target $\tau \, \lVert r_0 \rVert$
+shrinks with it — sometimes well below what the solver can actually
+reach in finite precision. `rhs_norm` fixes the baseline to
+$\lVert b \rVert$, which stays constant across the chain.
 
 ## Implicit vs explicit residual
 
@@ -113,9 +118,10 @@ for the interface.
 - **Don't forget the iteration cap.** Without one, a non-convergent
   problem loops forever.
 - **Preconditioner choice changes the residual.** GMRES and BiCGSTAB
-  preconditioner the right side ($A M^{-1} y = b$); the criterion
-  always sees the *unpreconditioned* residual $r = b - A x$ regardless
-  of placement.
+  use right preconditioning ($A M^{-1} y = b$, recover $x = M^{-1} y$);
+  CG and FCG apply $M^{-1}$ to the residual. Regardless of placement,
+  the stopping criterion always sees the *unpreconditioned* residual
+  $r = b - A x$.
 
 :::{seealso}
 - [Stopping criteria](../../concepts/stopping-criteria.md) — the conceptual reference.

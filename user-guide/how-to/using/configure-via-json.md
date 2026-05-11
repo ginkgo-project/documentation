@@ -65,6 +65,95 @@ auto factory = gko::config::parse(config, registry).on(exec);
 
 `parse_yaml_file` does the same for YAML.
 
+## Worked example: mixed-precision multigrid preconditioning CG
+
+The simple recipe above shows the on-ramp, but the property-tree
+format scales to arbitrarily nested solver stacks. The configuration
+below — taken verbatim from `examples/file-config-solver/config/mixed-pgm-multigrid-cg.json`
+in the Ginkgo source — drives a double-precision CG whose
+preconditioner is a multigrid V-cycle that drops to single precision
+on every level below the finest. The fine-level Pgm coarsening and IR
+smoother stay at `double`; the second level, coarsest solver, and
+their Pgm coarsening all run in `float32`.
+
+```json
+{
+    "type": "solver::Cg",
+    "preconditioner": {
+        "type": "solver::Multigrid",
+        "max_levels": 10,
+        "min_coarse_rows": 2,
+        "pre_smoother": [
+            {
+                "type": "solver::Ir",
+                "relaxation_factor": 0.9,
+                "solver": {
+                    "type": "preconditioner::Jacobi",
+                    "max_block_size": 1
+                },
+                "criteria": [{"type": "Iteration", "max_iters": 1}]
+            },
+            {
+                "type": "solver::Ir",
+                "value_type": "float32",
+                "relaxation_factor": 0.9,
+                "solver": {
+                    "type": "preconditioner::Jacobi",
+                    "max_block_size": 1
+                },
+                "criteria": [{"type": "Iteration", "max_iters": 1}]
+            }
+        ],
+        "post_uses_pre": true,
+        "mg_level": [
+            {"type": "multigrid::Pgm", "deterministic": true},
+            {"type": "multigrid::Pgm", "value_type": "float32",
+             "deterministic": true}
+        ],
+        "coarsest_solver": {
+            "type": "solver::Ir",
+            "value_type": "float32",
+            "relaxation_factor": 0.9,
+            "solver": {
+                "type": "preconditioner::Jacobi",
+                "max_block_size": 1
+            },
+            "criteria": [{"type": "Iteration", "max_iters": 4}]
+        },
+        "default_initial_guess": "zero",
+        "criteria": [{"type": "Iteration", "max_iters": 1}]
+    },
+    "criteria": [
+        {"type": "Iteration", "max_iters": 100},
+        {"type": "ResidualNorm", "reduction_factor": 1e-8,
+         "baseline": "absolute"}
+    ]
+}
+```
+
+Things to notice:
+
+- **Per-level lists.** `pre_smoother` and `mg_level` are JSON arrays.
+  The first entry applies to the finest level, the second applies to
+  every coarser level — that's the [vector-parameter selection rule
+  documented for `Multigrid`](../../concepts/solvers/multigrid.md).
+- **`value_type` overrides.** Setting `"value_type": "float32"` on any
+  sub-object retypes that part of the hierarchy. The fine level stays
+  `double` (the outer CG's value type); the coarse hierarchy works in
+  `float32`, halving its memory and bandwidth.
+- **`post_uses_pre: true`** reuses the pre-smoother definitions as
+  post-smoothers, so a single per-level smoother list covers both.
+- **One-iteration smoothers.** Each smoother runs a single
+  Jacobi-preconditioned IR step per visit; the V-cycle's structure
+  comes from the level-wise recursion, not from inner-loop counts.
+- **Coarsest solver budget.** `max_iters: 4` on the coarsest level
+  means we accept an approximate coarse correction rather than solving
+  to convergence — typical for AMG as a Krylov preconditioner.
+
+A matching C++ driver — load the file, parse it, call `apply` — is
+shipped in `examples/file-config-solver/` and works without any
+recompilation when the JSON changes.
+
 ## Type names
 
 The `"type"` field names a Ginkgo type. The parser recognises the
@@ -75,17 +164,44 @@ Examples: `solver::Cg`, `solver::Gmres`, `preconditioner::Jacobi`,
 
 ## Register custom types
 
-If your application defines its own `LinOp` and wants to drive it from
-config, add a `parse` static method on the class and register it:
+If your application defines its own `LinOpFactory` and wants to drive
+it from config, supply a parse callable when constructing the
+`registry`. The parse callable's signature is fixed by Ginkgo's
+`configuration_map` typedef in
+`include/ginkgo/core/config/registry.hpp`:
 
 ```cpp
-auto registry = gko::config::registry{
-    {"MyLinOp", MyLinOp::parse_function}
-};
+std::function<gko::deferred_factory_parameter<gko::LinOpFactory>(
+    const gko::config::pnode&,
+    const gko::config::registry&,
+    gko::config::type_descriptor)>
 ```
 
-`parse_function` must have signature
-`deferred_factory_parameter<LinOpFactory>(pnode, registry, type_descriptor)`.
+Wire it up like this:
+
+```cpp
+auto my_parse =
+    [](const gko::config::pnode& config,
+       const gko::config::registry& context,
+       gko::config::type_descriptor td) {
+        // Read keys off `config`, look up nested factories in `context`,
+        // and return a deferred factory parameter for your type.
+        return MyLinOpFactory::build()
+            .with_some_param(config.get("some_param").get_integer());
+    };
+
+// `usr::` prefix is the convention suggested by the registry doxygen
+// to avoid colliding with Ginkgo's built-in type names.
+auto registry = gko::config::registry{{{"usr::MyLinOp", my_parse}}};
+
+auto factory = gko::config::parse(config, registry).on(exec);
+```
+
+The doubled braces are intentional: the outer pair constructs the
+`configuration_map` argument, the inner pair is the initialiser list
+of `{name, callable}` entries. Mismatching the callable signature will
+fail to convert to `std::function<...>` and the compiler points at the
+inner brace.
 
 ## Common pitfalls
 

@@ -1,8 +1,8 @@
 # Read and write matrices
 
-Ginkgo has built-in I/O for the **Matrix Market** format (and a binary
-variant). The same helpers work for every matrix type because they
-round-trip through `matrix_data`.
+Ginkgo has built-in I/O for the **Matrix Market** format and for its
+own **binary on-disk format**. The same helpers work for every matrix
+type because they round-trip through `matrix_data`.
 
 ## Read a Matrix Market file
 
@@ -18,15 +18,29 @@ auto A  = gko::read<gko::matrix::Csr<double, int>>(in, exec);
 type and populates it from the stream. Use `Csr`, `Coo`, `Dense`, etc.
 as the template argument.
 
-For the **binary** Matrix Market variant (smaller, faster):
+For the **Ginkgo binary format** (smaller, faster than Matrix Market
+ASCII):
 
 ```cpp
 auto in = std::ifstream{"matrix.bin", std::ios::binary};
 auto A  = gko::read_binary<gko::matrix::Csr<double, int>>(in, exec);
 ```
 
-`gko::read_generic<T>` detects the format from a magic prefix and picks
-the matching reader.
+`gko::read_generic<T>` peeks at the first byte to decide which reader
+to use: `%` (a Matrix Market comment) goes to the ASCII path, anything
+else goes to the binary path.
+
+:::{attention}
+The binary format is **Ginkgo-specific**, not Matrix-Market-binary or
+any other published spec. It starts with an 8-byte magic prefix
+`GINKGO__` (the trailing two bytes encode the value and index types)
+followed by `num_rows`, `num_cols`, `num_entries` as little-endian
+`uint64_t`s and the raw triplet payload. Files produced by other
+tools — even other "binary `.mtx`" producers — will fail with
+`GKO_STREAM_ERROR: invalid header magic number` from
+`read_binary_raw` (`core/base/mtx_io.cpp`). Always pair a `read_binary`
+on one end with a `write_binary` on the other.
+:::
 
 ## Write a matrix
 
