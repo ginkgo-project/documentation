@@ -17,19 +17,19 @@ Three construction patterns cover the common cases:
 ```cpp
 namespace dist = gko::experimental::distributed;
 
-// 1. Contiguous: each rank owns a contiguous range of global rows.
+// Contiguous: each rank owns a contiguous range of global rows.
 //    `ranges_array` has length comm.size() + 1, with ranges_array[r] being the
 //    first global row of rank r.
 auto p1 = dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
     host, ranges_array);
 
-// 2. Mapping: an external partitioner assigns each global row to a rank.
+// Mapping: an external partitioner assigns each global row to a rank.
 //    `mapping_array` has length == global_size; mapping_array[i] is the owner rank
 //    of global row i.
 auto p2 = dist::Partition<gko::int32, gko::int64>::build_from_mapping(
     host, mapping_array, n_parts);
 
-// 3. Uniform: Ginkgo divides N rows as evenly as possible among all ranks.
+// Uniform: Ginkgo divides N rows as evenly as possible among all ranks.
 //    floor(N / size) rows per rank, with remainder distributed to the first few.
 auto p3 = dist::Partition<gko::int32, gko::int64>::build_from_global_size_uniform(
     host, n_parts, global_size);

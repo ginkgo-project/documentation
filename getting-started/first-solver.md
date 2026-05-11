@@ -50,10 +50,10 @@ int main()
     using Dense = gko::matrix::Dense<ValueType>;
     using Cg    = gko::solver::Cg<ValueType>;
 
-    // 1. Pick an executor. Reference is the single-threaded CPU baseline.
+    // Pick an executor. Reference is the single-threaded CPU baseline.
     auto exec = gko::ReferenceExecutor::create();
 
-    // 2. Build the 1D Poisson matrix A as a CSR matrix via matrix_data.
+    // Build the 1D Poisson matrix A as a CSR matrix via matrix_data.
     constexpr int N = 16;
     gko::matrix_data<ValueType, IndexType> data(gko::dim<2>{N, N});
     for (int i = 0; i < N; ++i) {
@@ -68,7 +68,7 @@ int main()
     auto A = gko::share(Csr::create(exec));
     A->read(data);
 
-    // 3. Build the right-hand side b = (1, ..., 1) and an initial guess x = 0.
+    // Build the right-hand side b = (1, ..., 1) and an initial guess x = 0.
     auto b = Dense::create(exec, gko::dim<2>{N, 1});
     auto x = Dense::create(exec, gko::dim<2>{N, 1});
     for (int i = 0; i < N; ++i) {
@@ -76,7 +76,7 @@ int main()
         x->at(i, 0) = ValueType{0};
     }
 
-    // 4. Configure CG: stop after 100 iterations or when the residual drops
+    // Configure CG: stop after 100 iterations or when the residual drops
     //    by 1e-10 relative to its initial value.
     auto solver_factory =
         Cg::build()
@@ -89,11 +89,11 @@ int main()
                     .on(exec))
             .on(exec);
 
-    // 5. Bind the factory to A and apply to (b, x).
+    // Bind the factory to A and apply to (b, x).
     auto solver = solver_factory->generate(A);
     solver->apply(b, x);
 
-    // 6. Print the solution.
+    // Print the solution.
     std::cout << "Solution x:\n";
     for (int i = 0; i < N; ++i) {
         std::cout << "  x[" << i << "] = " << x->at(i, 0) << '\n';

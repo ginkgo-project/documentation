@@ -1,10 +1,104 @@
 # Use an existing MPI communicator
 
-:::{note}
-Stub — content forthcoming.
-:::
+When your application has already created an `MPI_Comm` — typically a
+sub-communicator from `MPI_Comm_split`, a duplicated comm from
+`MPI_Comm_dup`, or one inherited from a framework like PETSc — wrap
+that handle in `gko::experimental::mpi::communicator` and Ginkgo will
+use it for every distributed object you build with it.
 
-Make Ginkgo's distributed types reuse an `MPI_Comm` your application already
-created (sub-communicator, split, dup) instead of `MPI_COMM_WORLD`. Covers
-constructing `gko::experimental::mpi::communicator` from a raw handle and the
-ownership / lifetime guarantees Ginkgo makes around the wrapper.
+## The recipe
+
+```cpp
+#include <ginkgo/ginkgo.hpp>
+#include <mpi.h>
+
+// Your application's existing communicator.
+MPI_Comm app_comm = /* whatever your application built */;
+
+// Wrap it. The wrapper is non-owning — the caller still controls the lifetime
+// of app_comm (i.e. when MPI_Comm_free is called).
+auto gko_comm = gko::experimental::mpi::communicator{app_comm};
+
+// Now every distributed type you build with gko_comm uses your handle.
+auto partition = gko::experimental::distributed::Partition<int, long>::
+    build_from_global_size_uniform(exec, gko_comm.size(), global_n);
+
+auto A = gko::experimental::distributed::Matrix<double, int, long>::create(
+    exec, gko_comm);
+A->read_distributed(matrix_data, partition.get());
+```
+
+## When to take ownership
+
+The default constructor is **non-owning** — Ginkgo will not call
+`MPI_Comm_free` on the handle. If you want Ginkgo to manage the
+lifetime (rare; typically applications track their own comms), use
+the explicit factory:
+
+```cpp
+auto owning = gko::experimental::mpi::communicator::create_owning(app_comm);
+// MPI_Comm_free called when the last copy goes out of scope.
+```
+
+## Splitting communicators
+
+The wrapper also exposes `MPI_Comm_split` directly — useful when you
+want to subdivide ranks for a nested solver without dropping into
+raw MPI:
+
+```cpp
+auto world = gko::experimental::mpi::communicator{MPI_COMM_WORLD};
+auto sub   = gko::experimental::mpi::communicator{world,
+                                                  /*color=*/rank / 4,
+                                                  /*key=*/rank};
+```
+
+This produces sub-communicators with 4 ranks each. Use them like any
+other `gko::experimental::mpi::communicator`.
+
+## Force host-buffer staging
+
+When your MPI build is not GPU-aware but you want to keep CUDA-aware
+Ginkgo running, set the second constructor argument:
+
+```cpp
+auto gko_comm = gko::experimental::mpi::communicator{app_comm,
+                                                     /*force_host_buffer=*/true};
+```
+
+Ginkgo will route every distributed exchange through a host staging
+buffer, sidestepping the assumption that MPI accepts device pointers.
+
+## Pair with the right device id
+
+On multi-GPU nodes, choose the device based on the rank within the
+communicator:
+
+```cpp
+auto n_dev = gko::CudaExecutor::get_num_devices();
+auto exec  = gko::CudaExecutor::create(
+    gko::experimental::mpi::map_rank_to_device_id(app_comm, n_dev),
+    gko::OmpExecutor::create());
+```
+
+`map_rank_to_device_id` ensures ranks sharing a node get distinct
+devices.
+
+## Common pitfalls
+
+- **MPI must be initialised first.** Either call `MPI_Init` yourself
+  before constructing any `communicator`, or use
+  `gko::experimental::mpi::environment` (Ginkgo's RAII guard around
+  `MPI_Init` / `MPI_Finalize`).
+- **One `MPI_Comm` per Ginkgo communicator wrapper.** Copies of the
+  wrapper share the same `MPI_Comm`; freeing the handle while any
+  copy survives is undefined behaviour. Stick with non-owning
+  semantics unless you have a clear reason otherwise.
+- **Distributed Ginkgo requires `-DGINKGO_BUILD_MPI=ON`.** Without it
+  the `distributed::` namespace is not compiled. See
+  [Build options](../../../getting-started/build-options.md).
+
+:::{seealso}
+- [MPI layer](../../concepts/distributed/mpi-layer.md) — the conceptual reference for the wrapper, request, and collective layer.
+- [Assemble a distributed matrix](assemble-distributed-matrix.md) — using the communicator to build a `distributed::Matrix`.
+:::

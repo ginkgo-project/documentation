@@ -46,17 +46,17 @@ gko::array<double> c(exec, std_c.begin(), std_c.end());
 All four common construction forms together:
 
 ```cpp
-// 1. Size only — uninitialised
+// Size only — uninitialised
 gko::array<double> a(exec, size);
 
-// 2. Initializer list
+// Initializer list
 gko::array<double> b(exec, {1.0, 2.0, 3.0});
 
-// 3. Iterator pair from host container
+// Iterator pair from host container
 std::vector<double> std_c{1.0, 2.0, 3.0};
 gko::array<double> c(exec, std_c.begin(), std_c.end());
 
-// 4. Default construction
+// Default construction
 gko::array<double> d;        // no executor, zero size
 gko::array<double> e(exec);  // executor, zero size
 ```

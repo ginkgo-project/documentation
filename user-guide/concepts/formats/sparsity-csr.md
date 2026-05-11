@@ -51,11 +51,11 @@ If you need to apply the matrix to a vector for any non-trivial value, convert t
 Two factory overloads are typical:
 
 ```cpp
-// 1. Empty SparsityCsr to be filled by `read(data)` from a matrix_data
+// Empty SparsityCsr to be filled by `read(data)` from a matrix_data
 auto sp = gko::matrix::SparsityCsr<double, int>::create(exec);
 sp->read(matrix_data);
 
-// 2. From explicit arrays (when you already hold row_ptrs and col_idxs)
+// From explicit arrays (when you already hold row_ptrs and col_idxs)
 auto sp = gko::matrix::SparsityCsr<double, int>::create(
               exec,
               gko::dim<2>{n_rows, n_cols},

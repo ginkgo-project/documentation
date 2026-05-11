@@ -62,7 +62,7 @@ protected:
 Most user-facing operators — especially solvers and preconditioners — are configured via *factories* rather than constructed directly. This separates parameter selection from system binding:
 
 ```cpp
-// 1. Configure the factory (executor-independent parameters).
+// Configure the factory (executor-independent parameters).
 auto solver_factory = gko::solver::Cg<double>::build()
                           .with_criteria(
                               gko::stop::ResidualNorm<double>::build()
@@ -76,10 +76,10 @@ auto solver_factory = gko::solver::Cg<double>::build()
                                   .on(exec))
                           .on(exec);
 
-// 2. Bind the factory to a specific matrix to produce a configured solver.
+// Bind the factory to a specific matrix to produce a configured solver.
 auto solver = solver_factory->generate(matrix);
 
-// 3. Apply the solver.
+// Apply the solver.
 solver->apply(b, x);
 ```
 

@@ -43,18 +43,18 @@ auto host = gko::ReferenceExecutor::create();
 auto exec = gko::CudaExecutor::create(0, host);
 auto comm = gko::experimental::mpi::communicator(MPI_COMM_WORLD);
 
-// 1. Each rank builds its local contribution to the global matrix.
+// Each rank builds its local contribution to the global matrix.
 gko::matrix_data<double, gko::int64> data{...};
 
-// 2. Build a Partition: which global rows live on which rank.
+// Build a Partition: which global rows live on which rank.
 auto partition = dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
     host, ranges_array);
 
-// 3. Assemble the distributed matrix on the host.
+// Assemble the distributed matrix on the host.
 auto mat_host = dist::Matrix<double, gko::int32, gko::int64>::create(host, comm);
 mat_host->read_distributed(data, partition.get());
 
-// 4. Clone to the device for computation.
+// Clone to the device for computation.
 auto mat = mat_host->clone(exec);
 ```
 

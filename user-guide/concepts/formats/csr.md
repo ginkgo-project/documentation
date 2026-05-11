@@ -32,11 +32,11 @@ compact slice of memory for each row.
 Three patterns cover the typical use cases:
 
 ```cpp
-// 1. From matrix_data (assembled on the host or device)
+// From matrix_data (assembled on the host or device)
 auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->read(matrix_data);
 
-// 2. From explicit arrays (when you already hold the three CSR arrays)
+// From explicit arrays (when you already hold the three CSR arrays)
 auto csr = gko::matrix::Csr<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
@@ -44,7 +44,7 @@ auto csr = gko::matrix::Csr<double, int>::create(
                std::move(col_idxs_array),
                std::move(row_ptrs_array));
 
-// 3. Converted from another format
+// Converted from another format
 auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->copy_from(some_coo);   // COO → CSR
 ```

@@ -1,4 +1,4 @@
-# How-To: integrate `ProfilerHook` with Caliper
+# Integrate `ProfilerHook` with Caliper
 
 *This page is a placeholder. It will host a worked example of using
 `gko::log::ProfilerHook` to feed Ginkgo's region annotations into

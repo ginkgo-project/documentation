@@ -20,6 +20,4 @@ assemble-distributed-matrix
 tune-direct-solver
 use-batched-solver
 profiler-hook-caliper
-integrate-with-petsc
-integrate-with-deal-ii
 ```
