@@ -69,8 +69,12 @@ int main()
     A->read(data);
 
     // 3. Build the right-hand side b = (1, ..., 1) and an initial guess x = 0.
-    auto b = gko::initialize<Dense>(std::vector<ValueType>(N, 1.0), exec);
-    auto x = gko::initialize<Dense>(std::vector<ValueType>(N, 0.0), exec);
+    auto b = Dense::create(exec, gko::dim<2>{N, 1});
+    auto x = Dense::create(exec, gko::dim<2>{N, 1});
+    for (int i = 0; i < N; ++i) {
+        b->at(i, 0) = ValueType{1};
+        x->at(i, 0) = ValueType{0};
+    }
 
     // 4. Configure CG: stop after 100 iterations or when the residual drops
     //    by 1e-10 relative to its initial value.
@@ -122,7 +126,31 @@ cmake --build .
 ```
 
 You should see 16 solution components — increasing from the boundary toward
-the centre — printed to the terminal.
+the centre — printed to the terminal:
+
+```text
+Solution x:
+  x[0] = 8
+  x[1] = 15
+  x[2] = 21
+  x[3] = 26
+  x[4] = 30
+  x[5] = 33
+  x[6] = 35
+  x[7] = 36
+  x[8] = 36
+  x[9] = 35
+  x[10] = 33
+  x[11] = 30
+  x[12] = 26
+  x[13] = 21
+  x[14] = 15
+  x[15] = 8
+```
+
+These match the analytical 1D Poisson solution $x_i = (i+1)(N - i) / 2$
+exactly: minimum of 8 at the boundaries, symmetric maximum of 36 in the
+middle.
 
 ## What happened
 
@@ -137,9 +165,13 @@ Six steps, each mapping to a Ginkgo concept worth knowing:
    coordinate-list representation. Any Ginkgo matrix type can be populated
    from it — switching to `Coo` or `Ell` later is a one-line type change.
 
-3. **`gko::initialize<Dense>`.** The `Dense` type is Ginkgo's column-vector
-   container (it's a Dense matrix with a single column). `initialize`
-   builds it from a `std::vector` on the chosen executor.
+3. **`Dense::create(exec, dim<2>{N, 1})`.** The `Dense` type is Ginkgo's
+   column-vector container (a Dense matrix with one column). `create`
+   allocates `N` uninitialised entries; the loop then writes through
+   `at(i, 0)`, which is a host-side accessor — valid here because the
+   Reference executor's storage *is* host memory. (For `gko::initialize`
+   with literal values use `gko::initialize<Dense>({v0, v1, ...}, exec)`,
+   which takes an `initializer_list` directly.)
 
 4. **The solver factory.** `Cg::build()` returns a builder, configured with
    `with_*` chained methods. Stopping criteria are themselves factories
