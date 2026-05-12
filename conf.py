@@ -58,9 +58,10 @@ extlinks = {
 
 # MyST roles need to be allowed for inline use.
 myst_enable_extensions = ["colon_fence", "dollarmath", "amsmath"]
-# Auto-generate URL-anchor IDs for headings up to h2 so cross-page section links
-# (e.g., [Allocators](executor-model.md#allocators)) resolve.
-myst_heading_anchors = 2
+# Auto-generate URL-anchor IDs for headings up to h3 so cross-page section links
+# (e.g., [Allocators](executor-model.md#allocators) or
+# [A worked example](distributed.md#a-worked-example)) resolve.
+myst_heading_anchors = 3
 html_title = "Ginkgo"
 
 html_logo = "_static/ginkgo-theme/leaf.png"

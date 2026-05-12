@@ -21,7 +21,6 @@ The following solvers dispatch distributed inputs through
 | Krylov, general   | `Gmres`                             | Has a specialised `finish_reduce` for the CGS / CGS2 orthogonalisation path.   |
 | Stationary / meta | `Ir`                                | Delegates to its inner solver.                                                 |
 | Polynomial        | `Chebyshev`                         | Uses local SpMV plus rank-local AXPYs.                                         |
-| Symmetric         | `Minres`                            | Standard reductions only.                                                      |
 | Multilevel        | `Multigrid`                         | Coarsening through distributed Pgm (see below).                                |
 
 The solver itself is unchanged in most cases — it does not know whether the matrix it operates
@@ -42,9 +41,11 @@ solver->apply(distributed_b, distributed_x);
 
 `gko::solver::Idr`, `gko::solver::Bicg`, and `gko::solver::CbGmres` do not currently dispatch
 distributed inputs and will not produce correct results if a distributed matrix is passed to
-them. Some other solvers (notably `Gcr` and `Cgs`) accept distributed inputs at the dispatch
-layer but are not yet validated for production use; treat them as experimental for distributed
-problems.
+them. `gko::solver::Minres` compiles against distributed inputs through the standard dispatch,
+but has no MPI test coverage and is not validated for production distributed runs — treat it as
+unsupported until that gap closes. Some other solvers (notably `Gcr` and `Cgs`) accept
+distributed inputs at the dispatch layer but are similarly not yet validated for production
+use; treat them as experimental for distributed problems.
 
 ### Why GMRES needs a specialised path
 

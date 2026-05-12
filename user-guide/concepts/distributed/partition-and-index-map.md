@@ -9,8 +9,13 @@ data they expose.
 
 A `Partition<L, G>` is templated on a local index type (`L`) and a global index type (`G`). It maps
 global row indices to ranks by storing ranges of contiguous global indices, each owned by one rank.
-The partition is always constructed on a host executor — it is a host-side data structure used to
-coordinate assembly and index translation.
+The partition lives on whichever executor it was built on — backend kernels exist for Reference,
+OMP, CUDA, HIP, and SYCL, so a partition built directly on a device executor is valid. When
+passed to `read_distributed`, the matrix calls `make_temporary_clone(matrix_exec, partition)`
+internally, so any mismatch between the partition's executor and the matrix's executor is
+resolved transparently. Constructing on the host is the conventional choice for small
+partitions; constructing on the matrix's device avoids a host round-trip if the input arrays
+already live there.
 
 Three construction patterns cover the common cases:
 
@@ -21,18 +26,18 @@ namespace dist = gko::experimental::distributed;
 //    `ranges_array` has length comm.size() + 1, with ranges_array[r] being the
 //    first global row of rank r.
 auto p1 = dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
-    host, ranges_array);
+    exec, ranges_array);
 
 // Mapping: an external partitioner assigns each global row to a rank.
 //    `mapping_array` has length == global_size; mapping_array[i] is the owner rank
 //    of global row i.
 auto p2 = dist::Partition<gko::int32, gko::int64>::build_from_mapping(
-    host, mapping_array, n_parts);
+    exec, mapping_array, n_parts);
 
 // Uniform: Ginkgo divides N rows as evenly as possible among all ranks.
 //    floor(N / size) rows per rank, with remainder distributed to the first few.
 auto p3 = dist::Partition<gko::int32, gko::int64>::build_from_global_size_uniform(
-    host, n_parts, global_size);
+    exec, n_parts, global_size);
 ```
 
 Use `build_from_contiguous` when your physical decomposition already gives contiguous row ranges

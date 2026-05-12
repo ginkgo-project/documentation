@@ -100,8 +100,8 @@ of the matrix:
   owned by this rank. These sit on the off-diagonal blocks of the permuted global matrix and
   drive the halo exchange during `apply`. The storage is **compressed**: only the remote
   columns that this rank's local rows actually reference are kept, and those columns are
-  renumbered into a compact 0..*K* − 1 local indexing via the matrix's `index_map`. So its
-  dimensions are $n_\text{local rows} \times K$, where *K* is the number of *distinct* remote
+  renumbered into a compact $0..K-1$ local indexing via the matrix's `index_map`. So its
+  dimensions are $n_\text{local rows} \times K$, where $K$ is the number of **distinct** remote
   global columns this rank touches — **not** the total number of remote columns. The original
   global column IDs are tracked separately in `index_map::get_remote_global_idxs()` and used
   to unpack the values received in the halo exchange.
@@ -114,6 +114,99 @@ similarly a sparse block; the "off-diagonal" name describes its position in the 
 global matrix, not anything about its values.
 :::
 
+### A worked example
+
+Take a 4 × 4 matrix on 2 ranks. Two partitions are involved, and they can be different
+functions — though by default Ginkgo uses the row partition for both:
+
+- **Row partition** — assigns each global row index to one rank.
+- **Column partition** — assigns each global column index to one rank.
+
+Saying "rank $R$ owns row $i$" means the row partition maps $i$ to $R$; saying "rank $R$ owns
+column $j$" means the column partition maps $j$ to $R$. Ownership is a property of the
+partition, not of which rank physically stores something — those are related but distinct
+questions, and we will see how, below.
+
+For this example, let both partitions assign indices {0, 1} to rank 0 and {2, 3} to rank 1.
+Suppose the global sparsity pattern is:
+
+```text
+                       column partition
+                ┌── cols owned by ──┬── cols owned by ──┐
+                │      rank 0       │      rank 1       │
+                │  col 0    col 1   │  col 2    col 3   │
+                ├───────────────────┼───────────────────┤
+                │                   │                   │
+   row 0  ───┐  │   *        *      │   *        .      │
+   row 1     │  │   *        *      │   *        .      │   ← rows owned by rank 0
+             │  │                   │                   │
+             │  ├───────────────────┼───────────────────┤
+             │  │                   │                   │
+   row 2     │  │   .        .      │   *        *      │   ← rows owned by rank 1
+   row 3  ───┘  │   *        .      │   *        *      │
+                └───────────────────┴───────────────────┘
+                  ↑                    ↑
+                  │                    │
+            cols 0,1 belong to    cols 2,3 belong to
+            rank 0 (per the       rank 1 (per the
+            column partition,     column partition,
+            globally)             globally)
+```
+
+The four quadrants of the matrix are defined by **crossing** row ownership with column
+ownership. Each quadrant has a name based on the row owner *and* on whether the column owner
+matches:
+
+```text
+                       cols owned by R0     cols owned by R1
+                       ┌──────────────────┬──────────────────┐
+   rows owned by R0    │   R0's diagonal  │ R0's off-diagonal│   ←─ stored on rank 0
+                       │  (R0 owns both   │ (R0 owns rows,   │
+                       │   rows and cols) │  R1 owns cols)   │
+                       ├──────────────────┼──────────────────┤
+   rows owned by R1    │R1's off-diagonal │  R1's diagonal   │   ←─ stored on rank 1
+                       │ (R1 owns rows,   │ (R1 owns both    │
+                       │  R0 owns cols)   │  rows and cols)  │
+                       └──────────────────┴──────────────────┘
+```
+
+Where each block is **stored** is determined by the *row* owner alone: every rank holds the
+two blocks of the global matrix that lie in its own row range. So:
+
+- **Rank 0** stores its top-left quadrant (its diagonal matrix) and its top-right quadrant
+  (its off-diagonal matrix). The cols 2, 3 block lives on rank 0 because rows 0, 1 live on
+  rank 0 — even though rank 1 is the one that *owns* those columns.
+- **Rank 1** stores the bottom-left quadrant (its off-diagonal matrix) and the bottom-right
+  quadrant (its diagonal matrix). Symmetric story.
+
+Plugging in the concrete sparsity pattern above, the per-rank storage is:
+
+```text
+Rank 0 (holds rows 0, 1):
+                                          index_map for the off-diagonal cols:
+  diagonal matrix      off-diagonal         local col 0  ↔  global col 2
+  (2 × 2)              matrix (2 × K)       (col 3 is not touched — dropped)
+  ┌────────────┐       ┌─────┐
+  │  *    *    │       │  *  │              K = 1: only one of the two remote
+  │  *    *    │       │  *  │              columns is actually referenced.
+  └────────────┘       └─────┘
+
+Rank 1 (holds rows 2, 3):
+                                          index_map for the off-diagonal cols:
+  diagonal matrix      off-diagonal         local col 0  ↔  global col 0
+  (2 × 2)              matrix (2 × K)       (col 1 is not touched — dropped)
+  ┌────────────┐       ┌─────┐
+  │  *    *    │       │  .  │              K = 1: again, only one of the two
+  │  *    *    │       │  *  │              remote columns is referenced.
+  └────────────┘       └─────┘
+```
+
+Note that `get_non_local_matrix()` on rank 0 returns a 2 × 1 sparse block, not a 2 × 2 block:
+the remote column the rank doesn't touch (global col 3) is simply not stored. The mapping
+from the compressed local column to its global index lives in
+`index_map::get_remote_global_idxs()` and is used during the halo exchange to know which
+entries of $x$ this rank should expect from which other rank.
+
 Access the parts directly if needed:
 
 ```cpp
@@ -123,11 +216,6 @@ auto off_diag_mat = mat->get_non_local_matrix();  // the off-diagonal matrix (co
 // Vectors expose the rank-local Dense:
 auto local_x = x->get_local_vector();             // matrix::Dense<V> with rank-owned rows only
 ```
-
-The C++ API still spells these `get_local_matrix()` and `get_non_local_matrix()` for historical
-reasons; the docs use *diagonal matrix* and *off-diagonal matrix* throughout, matching the
-block-partitioning convention shared with PETSc, Trilinos, and the broader
-distributed-sparse-linear-algebra literature.
 
 For generic code that works for both distributed and non-distributed vectors, use the helper:
 

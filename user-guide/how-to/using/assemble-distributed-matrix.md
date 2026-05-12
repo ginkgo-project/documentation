@@ -38,16 +38,27 @@ A->read_distributed(data, partition.get());
 ```
 
 After `read_distributed`, each rank holds only the rows assigned to it
-by `partition`. Within those rows the matrix is split into:
+by `partition`. Within that block-row, the matrix is split by column
+ownership into a *diagonal matrix* (this rank also owns the column) and
+an *off-diagonal matrix* (the column is owned by some other rank).
+A worked 4 × 4 example with the resulting per-rank storage is in
+[Distributed Computing — Block-structured view across
+ranks](../../concepts/distributed.md#a-worked-example); the short
+version:
 
-- a *diagonal matrix* containing entries whose column is also owned by
-  this rank, and
-- an *off-diagonal matrix* containing entries whose column is owned by
-  some other rank.
+```text
+Rank R's share of A:
+
+       cols R owns        cols other ranks own
+       ┌───────────────┬──────────────────────┐
+       │  diagonal     │  off-diagonal        │
+       │  matrix       │  matrix (compressed) │
+       └───────────────┴──────────────────────┘
+```
 
 The off-diagonal matrix is stored compressed: it keeps only the remote
 columns this rank's rows actually reference, renumbered into a compact
-0..*K* − 1 local indexing via the matrix's `index_map`. "Diagonal"
+$0..K-1$ local indexing via the matrix's `index_map`. "Diagonal"
 here refers to the block structure of the partitioned global matrix,
 not to the diagonal of the matrix in the linear-algebra sense.
 
@@ -55,11 +66,15 @@ not to the diagonal of the matrix in the linear-algebra sense.
 
 | Builder | Use when |
 |---|---|
-| `Partition::build_from_global_size_uniform(host, num_parts, global_n)` | You don't care how rows are distributed; uniform block partition. |
-| `Partition::build_from_contiguous(host, ranges)` | You want explicit per-rank row ranges (e.g. load-balanced manually). |
-| `Partition::build_from_mapping(host, mapping, num_parts)` | You have a per-row owner mapping (e.g. ParMETIS output). |
+| `Partition::build_from_global_size_uniform(exec, num_parts, global_n)` | Rows have no strong locality — short-range or no remote coupling — so a uniform block partition is good enough. |
+| `Partition::build_from_contiguous(exec, ranges)` | You want explicit per-rank row ranges (e.g. load-balanced manually, or matching an existing application-side decomposition). |
+| `Partition::build_from_mapping(exec, mapping, num_parts)` | You have a per-row owner mapping from an external graph partitioner (e.g. ParMETIS / Scotch output). |
 
-`Partition` is host-resident; pass `host` as the executor.
+`Partition` works on any executor — backend kernels exist for Reference, OMP, CUDA, HIP, and
+SYCL. Building on the host is the conventional choice for small partitions; building on the
+matrix's device avoids a host round-trip if the input arrays already live there. When passed to
+`read_distributed`, the matrix transparently clones the partition to its own executor through
+`make_temporary_clone` if the two executors differ.
 
 ## Build the matching vectors
 
@@ -80,7 +95,7 @@ respectively.
 ## Solve
 
 Distributed-ready Krylov solvers (`Cg`, `Fcg`, `Gmres`, `Bicgstab`,
-`Ir`, `Minres`, `Multigrid`, etc. — see
+`Ir`, `Chebyshev`, `Multigrid` — see
 [Distributed solvers and preconditioners](../../concepts/distributed/solvers-and-preconditioners.md))
 work without modification:
 
@@ -101,9 +116,10 @@ solver->apply(b, x);
 
 ## Common pitfalls
 
-- **Build `matrix_data` and `Partition` on the host.** `read_distributed`
-  internally moves data onto the matrix's executor — passing a
-  device-resident `Partition` is undefined behaviour.
+- **`matrix_data` is host-only.** It's a host-side incremental-assembly
+  type. The `Partition`, by contrast, is fine on any executor —
+  `read_distributed` clones it to the matrix's executor automatically
+  if needed.
 - **Use a 64-bit global index type** (`long` / `int64`) when
   `global_n` exceeds the 32-bit range. The local index type can stay
   32-bit; only global indexing across ranks needs the wider type.
