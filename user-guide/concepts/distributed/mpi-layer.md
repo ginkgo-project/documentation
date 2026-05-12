@@ -138,9 +138,9 @@ Putting it together, a single distributed `apply` invokes the layer roughly as f
 ```text
 1. RowGatherer packs the values to send into a contiguous buffer (host or device).
 2. coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr) returns an mpi::request.
-3. The local-matrix kernel runs in parallel with the in-flight collective.
+3. The diagonal-matrix kernel runs in parallel with the in-flight collective.
 4. request.wait() — the recv buffer now holds x_halo.
-5. The ghost-matrix kernel applies to x_halo and accumulates into y_local.
+5. The off-diagonal-matrix kernel applies to x_halo and accumulates into y_local.
 ```
 
 This is the only path that performs MPI traffic during a normal solve. Reductions for stopping

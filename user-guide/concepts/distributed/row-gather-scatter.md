@@ -2,10 +2,10 @@
 
 Distributed sparse-matrix kernels need two symmetric pieces of MPI bookkeeping. To compute
 $y = A x$ where $A$ is row-distributed, every rank must **pull in** the entries of $x$ that its
-ghost matrix references but does not own — a halo gather. To compute $y = A^T x$ (or any operation
-that builds $y$ from contributions on multiple ranks), every rank must **push out** locally-computed
-contributions to the ranks that own the corresponding rows of $y$, where they are accumulated — a
-halo scatter.
+off-diagonal matrix references but does not own — a halo gather. To compute $y = A^T x$ (or any
+operation that builds $y$ from contributions on multiple ranks), every rank must **push out**
+locally-computed contributions to the ranks that own the corresponding rows of $y$, where they are
+accumulated — a halo scatter.
 
 `RowGatherer` and `RowScatterer` are the two helper objects that encapsulate these patterns. Both
 sit on top of a [collective communicator](collective-communicator.md) and reuse a precomputed
@@ -28,8 +28,8 @@ vector.
 ### What it does
 
 The mathematical operation is the row-selection map $x_\text{halo} = R_\text{halo}\, x$, where
-$R_\text{halo}$ is the indicator that picks out the global rows of $x$ that this rank's ghost
-matrix needs. In distributed terms each rank owns a contiguous block of $x$, so satisfying
+$R_\text{halo}$ is the indicator that picks out the global rows of $x$ that this rank's
+off-diagonal matrix needs. In distributed terms each rank owns a contiguous block of $x$, so satisfying
 $x_\text{halo}$ requires **other** ranks to send their owned values to this rank — i.e. an
 all-to-all. `RowGatherer` is the object that owns the index list ("which local rows of *my* $x$
 do I need to send out, and to whom") plus the send-side buffer.
@@ -107,12 +107,12 @@ The matrix holds a `RowGatherer` per `IndexMap`. The 6-step apply trace
 ([Communication primitives](communication-primitives.md)) calls into it as follows:
 
 1. `rg->apply_prepare(b)` packs the values that need to be sent into the workspace buffer.
-2. The local matrix kernel runs in parallel.
+2. The diagonal-matrix kernel runs in parallel.
 3. `rg->apply_finalize(b, x_halo, prepare_event)` issues the all-to-all and returns the
    `mpi::request`.
 4. `req.wait()` — `x_halo` is now populated.
-5. The ghost matrix kernel applies to `x_halo`.
-6. The local-matrix result and the ghost-matrix result are summed into `y_local`.
+5. The off-diagonal-matrix kernel applies to `x_halo`.
+6. The diagonal-matrix result and the off-diagonal-matrix result are summed into `y_local`.
 
 These two protected entry points (`apply_prepare` / `apply_finalize`) are exposed via the
 `detail` friend interface for testing and for advanced users who want fine-grained control over

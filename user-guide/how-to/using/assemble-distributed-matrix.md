@@ -3,8 +3,8 @@
 `gko::experimental::distributed::Matrix` represents a sparse matrix
 whose rows are partitioned across MPI ranks. Each rank owns a
 contiguous block of global rows; entries with column indices outside
-the rank's row range become *ghost matrix* entries that participate in
-the halo exchange during `apply`.
+the rank's row range become *off-diagonal matrix* entries that
+participate in the halo exchange during `apply`.
 
 ## The recipe
 
@@ -38,8 +38,18 @@ A->read_distributed(data, partition.get());
 ```
 
 After `read_distributed`, each rank holds only the rows assigned to it
-by `partition`, split into a *local matrix* (columns owned by this
-rank) and a *ghost matrix* (columns owned by remote ranks).
+by `partition`. Within those rows the matrix is split into:
+
+- a *diagonal matrix* containing entries whose column is also owned by
+  this rank, and
+- an *off-diagonal matrix* containing entries whose column is owned by
+  some other rank.
+
+The off-diagonal matrix is stored compressed: it keeps only the remote
+columns this rank's rows actually reference, renumbered into a compact
+0..*K* − 1 local indexing via the matrix's `index_map`. "Diagonal"
+here refers to the block structure of the partitioned global matrix,
+not to the diagonal of the matrix in the linear-algebra sense.
 
 ## Pick a partition
 

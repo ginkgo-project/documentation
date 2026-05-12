@@ -62,7 +62,7 @@ non-contiguous.
 `IndexMap<L, G>` is the per-rank mapping between local indices and global indices. It lives
 alongside a `Partition` and a communicator. The distributed `Matrix` and `Vector` use it to
 translate between indexing schemes for the halo exchange — determining which remote global indices
-this rank's ghost matrix references, and which remote ranks need values from this rank.
+this rank's off-diagonal matrix references, and which remote ranks need values from this rank.
 
 For most user code, `IndexMap` is an implementation detail accessed indirectly:
 
@@ -75,23 +75,23 @@ automatically from the matrix's sparsity pattern, so you get a correctly-built m
 
 ## Choosing a partition
 
-A good partition minimises the ghost-matrix size, which directly controls communication volume.
-Practical guidelines:
+A good partition minimises the off-diagonal-matrix size, which directly controls communication
+volume. Practical guidelines:
 
 - **Match your application's decomposition.** For FE codes, partition by element groups mapped to
   DOF groups, not by raw row indices. A uniform-row partition usually cuts across element
-  boundaries, creating unnecessary ghost entries.
+  boundaries, creating unnecessary off-diagonal entries.
 - **Balance non-zero count, not just row count.** Skewed sparsity (some rows much denser than
   others) makes uniform-row partitions load-imbalanced for SpMV. If your matrix has strongly
   non-uniform row lengths, a graph-partitioner-based mapping handles this better.
-- **Minimise ghost entries.** Communication volume is proportional to the number of ghost
-  non-zeros summed across all ranks. Mesh-aware partitioners minimise the cut, which minimises
-  the halo size.
+- **Minimise off-diagonal entries.** Communication volume is proportional to the number of
+  off-diagonal non-zeros summed across all ranks. Mesh-aware partitioners minimise the cut,
+  which minimises the halo size.
 
 :::{tip}
 For a quick start or a test, `build_from_global_size_uniform` is the least code. For production
 runs on unstructured meshes, invest in a graph-partitioner-based mapping — the convergence benefit
-from fewer ghost entries typically outweighs the setup cost.
+from a smaller off-diagonal matrix typically outweighs the setup cost.
 :::
 
 :::{seealso}

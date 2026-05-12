@@ -10,8 +10,8 @@ ranks this process actually communicates with, so the all-to-all only involves t
 ## When to use it
 
 - **High rank count with sparse halo connectivity.** This is the typical pattern for
-  finite-element and finite-difference simulations: each rank's ghost matrix only references
-  values on a handful of neighbouring ranks, regardless of the total job size.
+  finite-element and finite-difference simulations: each rank's off-diagonal matrix only
+  references values on a handful of neighbouring ranks, regardless of the total job size.
 - **The dense per-rank size vector is the bottleneck.** At thousands of ranks, just transmitting
   the full send-size vector to MPI starts to matter. The neighborhood communicator avoids that
   overhead.

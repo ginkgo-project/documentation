@@ -84,28 +84,50 @@ Rank 0 is the leader by convention. No rank holds global state — each rank own
 part of the matrix and vector data. Global operations (dot products, norms) reduce across ranks
 internally using `MPI_Allreduce`.
 
-## Local vs global views
+## Block-structured view across ranks
 
-A distributed matrix has two blocks on each rank:
+Conceptually, the global matrix is permuted by the row partition so that the rows owned by each
+rank form a contiguous block. Within that block-row, the columns split by ownership (per the
+column partition — by default the same as the row partition). This gives every rank two pieces
+of the matrix:
 
-- **Local matrix** — entries where both the row and the column belong to this rank. This is the
-  bulk of the work for well-partitioned matrices.
-- **Ghost matrix** — entries where the row belongs to this rank but the column belongs to another
-  rank (a "ghost" column). These require halo communication during `apply`.
+- **Diagonal matrix** — entries whose row is owned by this rank **and** whose column is also
+  owned by this rank. Across all ranks, these pieces sit on the block-diagonal of the permuted
+  global matrix; hence the name. Both row and column indices are local (0..*n_local* − 1) and
+  the dimensions are $n_\text{local rows} \times n_\text{local cols}$. This is the bulk of the
+  work for well-partitioned matrices.
+- **Off-diagonal matrix** — entries whose row is owned by this rank but whose column is *not*
+  owned by this rank. These sit on the off-diagonal blocks of the permuted global matrix and
+  drive the halo exchange during `apply`. The storage is **compressed**: only the remote
+  columns that this rank's local rows actually reference are kept, and those columns are
+  renumbered into a compact 0..*K* − 1 local indexing via the matrix's `index_map`. So its
+  dimensions are $n_\text{local rows} \times K$, where *K* is the number of *distinct* remote
+  global columns this rank touches — **not** the total number of remote columns. The original
+  global column IDs are tracked separately in `index_map::get_remote_global_idxs()` and used
+  to unpack the values received in the halo exchange.
+
+:::{note}
+"Diagonal" here refers to the **block structure** of the partitioned global matrix, not to the
+diagonal of the matrix in the linear-algebra sense. The diagonal matrix on each rank is an
+arbitrary sparse sub-block of $A$ that this rank owns end-to-end. The off-diagonal matrix is
+similarly a sparse block; the "off-diagonal" name describes its position in the partitioned
+global matrix, not anything about its values.
+:::
 
 Access the parts directly if needed:
 
 ```cpp
-auto local_mat = mat->get_local_matrix();      // shared_ptr<const LinOp>: the local matrix
-auto ghost_mat = mat->get_non_local_matrix();  // the ghost matrix
+auto diag_mat     = mat->get_local_matrix();      // shared_ptr<const LinOp>: the diagonal matrix
+auto off_diag_mat = mat->get_non_local_matrix();  // the off-diagonal matrix (compressed columns)
 
-// Vectors expose local Dense:
-auto local_x = x->get_local_vector();          // matrix::Dense<V> with local rows only
+// Vectors expose the rank-local Dense:
+auto local_x = x->get_local_vector();             // matrix::Dense<V> with rank-owned rows only
 ```
 
-The C++ API uses `get_local_matrix()` and `get_non_local_matrix()` for historical reasons; this
-documentation refers to the second one as the *ghost matrix*, matching the standard
-distributed-sparse-linear-algebra terminology.
+The C++ API still spells these `get_local_matrix()` and `get_non_local_matrix()` for historical
+reasons; the docs use *diagonal matrix* and *off-diagonal matrix* throughout, matching the
+block-partitioning convention shared with PETSc, Trilinos, and the broader
+distributed-sparse-linear-algebra literature.
 
 For generic code that works for both distributed and non-distributed vectors, use the helper:
 
@@ -120,7 +142,7 @@ The sub-pages cover the distributed machinery in depth:
 - [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
   ranks and how local/global indexing is reconciled.
 - [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
-  ordering, and the local/ghost decomposition of SpMV.
+  ordering, and the diagonal / off-diagonal decomposition of SpMV.
 - [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
   collective communicator that backs the all-to-all exchange.
 - [Collective communicators](distributed/collective-communicator.md) — the

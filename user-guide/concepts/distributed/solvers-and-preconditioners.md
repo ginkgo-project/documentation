@@ -141,12 +141,12 @@ outside this range fall back to plain summation).
 
 ### L1 smoother variant
 
-Setting `with_l1_smoother(true)` on the Schwarz factory updates the local matrix used to
-generate the local solver: the row-wise absolute sum of the **ghost matrix** entries is added
-to the diagonal of the local matrix before the local-solver factory is applied. This is the
-classical L1 smoother adaptation that improves stability of point-wise smoothers (Jacobi, ILU)
-in domain-decomposition contexts. The L1 update is applied only to the local solver — the
-coarse-level path uses the unmodified system matrix.
+Setting `with_l1_smoother(true)` on the Schwarz factory updates the diagonal matrix used to
+generate the local solver: the row-wise absolute sum of the **off-diagonal matrix** entries is
+added to the matrix-diagonal entries of the diagonal matrix before the local-solver factory is
+applied. This is the classical L1 smoother adaptation that improves stability of point-wise
+smoothers (Jacobi, ILU) in domain-decomposition contexts. The L1 update is applied only to the
+local solver — the coarse-level path uses the unmodified system matrix.
 
 ### Limitations to be aware of
 
@@ -160,15 +160,15 @@ multiplicative variant is not implemented.
 `gko::multigrid::Pgm` for coarsening. The distributed path is **algorithmically slightly
 different** from the single-rank path:
 
-- The aggregation step runs on each rank's local matrix only — couplings to remote rows are
+- The aggregation step runs on each rank's diagonal matrix only — couplings to remote rows are
   ignored at the aggregation stage. This keeps coarsening communication-free at the cost of
   potentially weaker aggregations near rank boundaries (use a graph partitioner first if rank
   boundaries are arbitrary).
 - The coarse partition is built block-wise — one contiguous range per rank — so the coarse
   matrix carries the same MPI communicator as the input.
 - A single `i_all_to_all_v` per coarsening step exchanges the cross-rank aggregate IDs so the
-  coarse-level ghost matrix can be assembled. The communication volume scales with the existing
-  ghost-matrix volume of the input, not the matrix size.
+  coarse-level off-diagonal matrix can be assembled. The communication volume scales with the
+  existing off-diagonal-matrix volume of the input, not the matrix size.
 
 The full protocol — including the build flag, executor compatibility, and the consequences for
 the multigrid hierarchy — is documented on the
