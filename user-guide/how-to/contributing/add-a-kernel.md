@@ -1,12 +1,234 @@
 # Add a new kernel
 
-:::{note}
-Stub — content forthcoming.
-:::
+A *kernel* in Ginkgo is a function bound to a specific executor backend
+(`reference`, `omp`, `cuda`, `hip`, `dpcpp`). The dispatch path is fixed: a
+host-side method on a `LinOp` (e.g. `Csr::compute_something()`) packages
+arguments into an `Operation` via `GKO_REGISTER_OPERATION`, hands that to
+`exec->run(...)`, and the executor selects the right backend implementation.
 
-Walk through the full kernel-dispatch chain: declare in
-`core/<area>/<type>_kernels.hpp`, register with `GKO_REGISTER_OPERATION`,
-implement on `reference/`, and provide either a backend-portable
-`common/unified/` implementation or backend-specific `cuda/` / `hip/` /
-`omp/` / `dpcpp/` versions. Ends with the reference-parity test that
-proves the new kernel matches across backends.
+This page walks through the chain end to end on a real, minimal kernel —
+`csr::row_wise_absolute_sum` — that lives in the source tree today
+(`core/distributed/preconditioner/schwarz.cpp` uses it to build an $\ell_1$
+diagonal for the off-diagonal block).
+
+## What you need to write
+
+For a new kernel `foo` on `matrix::Csr`, you touch four files:
+
+| File | Purpose |
+|---|---|
+| `core/matrix/csr_kernels.hpp` | Macro-expanded forward declaration (one entry per backend) |
+| `core/matrix/csr.cpp` | `GKO_REGISTER_OPERATION` + the public `LinOp` method that calls it |
+| `reference/matrix/csr_kernels.cpp` | The single-threaded reference implementation (correctness baseline) |
+| `common/unified/matrix/csr_kernels.cpp` *or* `cuda/`, `hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
+
+The Reference implementation is mandatory; it's the parity baseline every
+other backend test compares against. The second performance implementation
+can either be backend-portable (one entry in `common/unified/`, compiled
+once per backend through the `kernel_launch` macros) or backend-specific.
+
+You do **not** edit `CMakeLists.txt` for a new kernel — every file in the
+table above is already wired into each backend's compile list.
+
+## Step 1: Declare the kernel macro
+
+In `core/matrix/csr_kernels.hpp`, near the other `GKO_DECLARE_CSR_*`
+macros, add:
+
+```cpp
+#define GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM(ValueType, IndexType)           \
+    void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,   \
+                               const matrix::Csr<ValueType, IndexType>* orig, \
+                               array<ValueType>& sum)
+```
+
+Then append a `template ... GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM(...)` line
+to the `GKO_DECLARE_ALL_AS_TEMPLATES` block in the same header so the
+declaration gets stamped out for every value/index combination at every
+backend's namespace. Two rules for editing this block:
+
+- Entries are separated by a backslash newline. Add one to the previous
+  last entry when you append, and leave the new entry without a trailing
+  backslash.
+- The macro your entry uses must match the parameter list of your kernel
+  declaration above. `row_wise_absolute_sum` is `(ValueType, IndexType)`,
+  so the template line is `template <typename ValueType, typename IndexType>`.
+
+## Step 2: Register the operation and write the dispatch method
+
+In `core/matrix/csr.cpp`, in the anonymous-namespace block at the top
+where `GKO_REGISTER_OPERATION` is called for every existing kernel, add:
+
+```cpp
+GKO_REGISTER_OPERATION(row_wise_absolute_sum, csr::row_wise_absolute_sum);
+```
+
+Macro effect: this defines `make_row_wise_absolute_sum(args...)` that
+returns an `Operation` whose `run` method dispatches to
+`kernels::reference::csr::row_wise_absolute_sum`,
+`kernels::cuda::csr::row_wise_absolute_sum`, …, based on the executor
+type at runtime. The dispatch is a compile-time `if constexpr` chain on
+the executor's static type, so a missing backend implementation surfaces
+as a linker error, not a runtime fall-through.
+
+Then write the public method that fires the dispatch. In the same file:
+
+```cpp
+template <typename ValueType, typename IndexType>
+void Csr<ValueType, IndexType>::row_wise_absolute_sum(
+    array<ValueType>& sum) const
+{
+    auto exec = this->get_executor();
+    exec->run(csr::make_row_wise_absolute_sum(this, sum));
+}
+```
+
+And declare the method on the class in the corresponding public header
+(`include/ginkgo/core/matrix/csr.hpp`).
+
+## Step 3: Implement the reference kernel
+
+In `reference/matrix/csr_kernels.cpp`:
+
+```cpp
+template <typename ValueType, typename IndexType>
+void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,
+                           const matrix::Csr<ValueType, IndexType>* orig,
+                           array<ValueType>& sum)
+{
+    auto row_ptrs = orig->get_const_row_ptrs();
+    auto values   = orig->get_const_values();
+    auto sum_ptr  = sum.get_data();
+
+    for (size_type row = 0; row < orig->get_size()[0]; ++row) {
+        sum_ptr[row] = zero<ValueType>();
+        for (size_type k = row_ptrs[row];
+             k < static_cast<size_type>(row_ptrs[row + 1]); ++k) {
+            sum_ptr[row] += abs(values[k]);
+        }
+    }
+}
+
+GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(
+    GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
+```
+
+Reference kernels:
+
+- Live inside `namespace gko::kernels::reference::csr`. The macro
+  `GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE` expands the template into
+  every supported `(ValueType, IndexType)` combination — invoke it once at
+  the bottom of the implementation.
+- Should be the simplest possible serial code. Reviewers cross-check the
+  results against e.g. a few lines of MATLAB, so keep test inputs small
+  enough that they can do this by hand.
+
+## Step 4: Implement the backend-portable kernel
+
+For an embarrassingly parallel operation like this one, the
+`common/unified/` path covers CUDA, HIP, OMP, and DPC++ in a single
+implementation. Add the following to `common/unified/matrix/csr_kernels.cpp`:
+
+```cpp
+template <typename ValueType, typename IndexType>
+void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,
+                           const matrix::Csr<ValueType, IndexType>* orig,
+                           array<ValueType>& sum)
+{
+    run_kernel(
+        exec,
+        [] GKO_KERNEL(auto row, auto row_ptrs, auto value_ptr, auto sum_ptr) {
+            sum_ptr[row] = zero<device_type<ValueType>>();
+            for (auto k = row_ptrs[row]; k < row_ptrs[row + 1]; ++k) {
+                sum_ptr[row] += abs(value_ptr[k]);
+            }
+        },
+        sum.get_size(), orig->get_const_row_ptrs(), orig->get_const_values(),
+        sum.get_data());
+}
+
+GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(
+    GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
+```
+
+The `common/unified/` file is compiled once per backend. The macros it
+relies on (`run_kernel`, `run_kernel_reduction`, `GKO_KERNEL`,
+`device_type<...>`) lower to the right device-launch primitives for each
+executor — `parallel_for` on OMP, `__global__` kernel launches on CUDA,
+`hipLaunchKernelGGL` on HIP, and `sycl::parallel_for` on DPC++.
+
+If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
+reductions, shared-memory tiling — put it in a backend-specific
+implementation (`cuda/matrix/csr_kernels.cu`,
+`hip/matrix/csr_kernels.hip.cpp`, etc.) instead. Shared device code
+between CUDA and HIP usually lives in a `.hpp.inc` header that both files
+`#include`.
+
+## Reductions
+
+When the kernel reduces across elements (sums, norms, max), reach for
+`run_kernel_reduction` rather than open-coding the parallel reduction. It
+needs an explicit include:
+
+```cpp
+#include "common/unified/base/kernel_launch_reduction.hpp"
+```
+
+Its signature is:
+
+```cpp
+run_kernel_reduction(exec,
+    [] GKO_KERNEL(auto i, auto args...) { return /* value at i */; },
+    [] GKO_KERNEL(auto a, auto b) { return a + b; },     // combine
+    [] GKO_KERNEL(auto a) { return a; },                 // finalize
+    /* identity */ ValueType{},
+    /* device result pointer */ result_ptr,
+    /* number of elements */ n,
+    /* extra args forwarded to the per-element lambda */ ...);
+```
+
+The 2D variants `run_kernel_row_reduction` and `run_kernel_col_reduction`
+take a `dim<2>` instead of a scalar size, for row-wise / column-wise
+reductions on dense input.
+
+## The circular-dependency rule
+
+Inside any kernel module (`reference/`, `omp/`, `cuda/`, `hip/`, `dpcpp/`,
+`common/unified/`), you can **call** other kernels in the same backend
+namespace (`cuda::dense::add_scaled(...)` is fine), but you must **not**
+instantiate a polymorphic Ginkgo class — no `Csr::create`, no
+`Dense::create`, no `Cg::build()`. Doing so creates a circular dependency
+between the kernel module and `core/`, which is exactly the dependency
+the layering is designed to forbid. The CI job `no-circular-deps`
+catches violations; enable it locally with
+`-DGINKGO_CHECK_CIRCULAR_DEPS=ON`.
+
+If you need to compose existing operators (e.g. a `Hybrid` matrix that
+holds an `Ell` and a `Coo`), the composition stays in `core/`; the kernel
+files only consume the already-instantiated objects.
+
+## Reference-parity test
+
+The companion test goes in `reference/test/matrix/csr_kernels.cpp` (small,
+hand-verifiable inputs) and a parallel file in `cuda/test/matrix/`,
+`hip/test/matrix/`, `omp/test/matrix/`, `dpcpp/test/matrix/` that runs the
+same input on both the Reference and the target backend and compares
+results within a tolerance. The pattern is covered in
+[Write tests](write-tests.md).
+
+## Helper: bootstrap a new algorithm
+
+For a wholesale new solver / matrix format / preconditioner / factorisation
+(many kernels, not just one), the source tree ships
+`dev_tools/scripts/create_new_algorithm.sh`. Pass it an existing
+algorithm as a model and a new name, and it duplicates the entire
+boilerplate skeleton with the kernels marked `GKO_NOT_IMPLEMENTED`. Run
+`./create_new_algorithm.sh --help` from the source root for the option
+list.
+
+:::{seealso}
+- [Add a matrix format](add-a-matrix-format.md) — the `LinOp` skeleton
+  that holds the data the kernels operate on.
+- [Write tests](write-tests.md) — the reference-parity test pattern.
+- [Submit a pull request](submit-a-pr.md) — what CI will run before merge.
+:::

@@ -1,10 +1,264 @@
 # Add a new matrix format
 
-:::{note}
-Stub — content forthcoming.
-:::
+A new sparse matrix format in Ginkgo is a `LinOp` subclass that owns its
+storage arrays, plumbs `apply` into a backend-specific SpMV kernel, and
+converts to/from Ginkgo's host-side assembly type (`matrix_data` /
+`device_matrix_data`). This page walks through the skeleton, modelled on
+the existing `matrix::Ell` (`include/ginkgo/core/matrix/ell.hpp`,
+`core/matrix/ell.cpp`).
 
-The `LinOp` + `EnableLinOp` + `ConvertibleTo` pattern for a new matrix
-format. Covers `read` / `write` round-trips through `matrix_data`, the
-SpMV kernel chain, and how to register the format with the configuration
-layer so it can be selected at runtime.
+## What you commit to implement
+
+Every matrix format provides at least:
+
+| Trait | Why |
+|---|---|
+| `EnableLinOp<Self>` base | Auto-generates the `apply` dispatcher; you only write `apply_impl`. |
+| `ReadableFromMatrixData<V, I>` | The `read` overloads that ingest `matrix_data` from host code. |
+| `WritableToMatrixData<V, I>` | `write` to round-trip back to host-side `matrix_data`. |
+| `ConvertibleTo<Dense<V>>`, `ConvertibleTo<Csr<V, I>>` | At minimum a path to and from CSR; Dense is conventional. |
+| `ConvertibleTo<Self<next_precision<V>, I>>` | Cross-precision conversion to the neighbouring float type. |
+| One backend kernel set | `spmv` plus `advanced_spmv` (alpha/beta variant); plus a `read` / `convert_to_csr` kernel per backend. |
+
+Optional but conventional: `DiagonalExtractable<V>`,
+`EnableAbsoluteComputation<...>`, conversion to other formats (COO, ELL, ...).
+
+## The class skeleton
+
+Public header (`include/ginkgo/core/matrix/my_format.hpp`):
+
+```cpp
+template <typename ValueType = default_precision, typename IndexType = int32>
+class MyFormat
+    : public EnableLinOp<MyFormat<ValueType, IndexType>>,
+      public ConvertibleTo<MyFormat<next_precision<ValueType>, IndexType>>,
+      public ConvertibleTo<Dense<ValueType>>,
+      public ConvertibleTo<Csr<ValueType, IndexType>>,
+      public ReadableFromMatrixData<ValueType, IndexType>,
+      public WritableToMatrixData<ValueType, IndexType>,
+      public DiagonalExtractable<ValueType>,
+      public EnableAbsoluteComputation<remove_complex<MyFormat<ValueType, IndexType>>> {
+    friend class EnablePolymorphicObject<MyFormat, LinOp>;
+    GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE;
+
+public:
+    using value_type = ValueType;
+    using index_type = IndexType;
+    using mat_data        = matrix_data<ValueType, IndexType>;
+    using device_mat_data = device_matrix_data<ValueType, IndexType>;
+    using absolute_type   = remove_complex<MyFormat>;
+
+    // Conversions (one pair per ConvertibleTo above):
+    void convert_to(Dense<ValueType>* result) const override;
+    void move_to   (Dense<ValueType>* result)       override;
+    void convert_to(Csr<ValueType, IndexType>* result) const override;
+    void move_to   (Csr<ValueType, IndexType>* result)       override;
+    void convert_to(MyFormat<next_precision<ValueType>, IndexType>* result) const override;
+    void move_to   (MyFormat<next_precision<ValueType>, IndexType>* result)       override;
+
+    // Assembly ingress / egress:
+    void read(const mat_data& data) override;
+    void read(const device_mat_data& data) override;
+    void read(device_mat_data&& data) override;
+    void write(mat_data& data) const override;
+
+    // Auxiliary traits:
+    std::unique_ptr<Diagonal<ValueType>> extract_diagonal() const override;
+    std::unique_ptr<absolute_type>       compute_absolute() const override;
+    void                                 compute_absolute_inplace() override;
+
+    // Per-format storage accessors (data shape depends on your format):
+    value_type*       get_values() noexcept { return values_.get_data(); }
+    const value_type* get_const_values() const noexcept { return values_.get_const_data(); }
+    // ... index arrays, dimensions, etc.
+
+protected:
+    // Constructors live in the protected section; users go through ::create.
+    MyFormat(std::shared_ptr<const Executor> exec, const dim<2>& size = {});
+
+    void apply_impl(const LinOp* b, LinOp* x) const override;
+    void apply_impl(const LinOp* alpha, const LinOp* b,
+                    const LinOp* beta, LinOp* x) const override;
+
+private:
+    array<value_type> values_;
+    array<index_type> col_idxs_;
+    // ... whatever else your storage scheme needs
+};
+```
+
+A few notes on the base list:
+
+- `EnableLinOp<MyFormat>` injects the public `apply` overloads and the
+  `create(...)` factory. You only write `apply_impl`.
+- The half/bfloat16 precision strands (`next_precision<V, 2>`,
+  `next_precision<V, 3>`) live under `#if GINKGO_ENABLE_HALF || ...`
+  guards in `ell.hpp`. Copy that pattern if you want low-precision
+  variants.
+- `GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE` is a static-assert that
+  catches accidentally-instantiated combinations outside the supported
+  set (e.g. `(int8, int64)`).
+- The non-public constructor + base-class-generated `create` is
+  deliberate. Users always go through `MyFormat::create(exec, ...)`,
+  which returns a `std::unique_ptr<MyFormat>`.
+
+## apply_impl
+
+The `EnableLinOp` base auto-generates the public `apply(b, x)` and
+`apply(alpha, b, beta, x)`; you implement the two `apply_impl` overrides
+that actually run the SpMV. Use the precision-dispatch helper that
+matches the type set you support — `mixed_precision_dispatch_real_complex`
+for full V×L×G coverage, `precision_dispatch_real_complex` for
+matching-precision-only, etc.
+
+```cpp
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::apply_impl(const LinOp* b, LinOp* x) const
+{
+    mixed_precision_dispatch_real_complex<ValueType>(
+        [this](auto dense_b, auto dense_x) {
+            this->get_executor()->run(my_format::make_spmv(
+                this, dense_b, dense_x));
+        },
+        b, x);
+}
+
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::apply_impl(const LinOp* alpha,
+                                                const LinOp* b,
+                                                const LinOp* beta,
+                                                LinOp* x) const
+{
+    mixed_precision_dispatch_real_complex<ValueType>(
+        [this, alpha, beta](auto dense_b, auto dense_x) {
+            auto dense_alpha = make_temporary_conversion<ValueType>(alpha);
+            auto dense_beta  = make_temporary_conversion<
+                typename std::decay_t<decltype(*dense_x)>::value_type>(beta);
+            this->get_executor()->run(my_format::make_advanced_spmv(
+                dense_alpha.get(), this, dense_b, dense_beta.get(), dense_x));
+        },
+        b, x);
+}
+```
+
+`make_temporary_conversion<ValueType>(alpha)` returns a temporary
+`Dense<ValueType>` view of the scalar `alpha`, transparently converting
+precision if needed. The two `apply_impl` overloads dispatch into
+`my_format::make_spmv` / `my_format::make_advanced_spmv` —
+operation builders generated by `GKO_REGISTER_OPERATION` (see [Add a new
+kernel](add-a-kernel.md)).
+
+## read / write — host-side assembly
+
+The mandatory `read(matrix_data)` ingests Ginkgo's host-side
+incremental-assembly type. The conventional shape: count nonzeros to size
+your arrays, then hand the device-side fill-in to a kernel:
+
+```cpp
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::read(const device_mat_data& data)
+{
+    auto size = data.get_size();
+    // Compute layout (max nnz per row, padding, etc.) from `data` on its executor.
+    // Resize storage:
+    this->resize(size, /* format-specific shape */);
+    // Hand off to backend kernel:
+    this->get_executor()->run(my_format::make_fill_in_matrix_data(
+        data, this));
+}
+
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::read(const mat_data& data)
+{
+    this->read(device_mat_data::create_from_host(this->get_executor(), data));
+}
+
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::read(device_mat_data&& data)
+{
+    this->read(data);   // or specialise: avoid the extra copy if possible
+}
+```
+
+`write` is the reverse:
+
+```cpp
+template <typename ValueType, typename IndexType>
+void MyFormat<ValueType, IndexType>::write(mat_data& data) const
+{
+    // Walk the local storage on the host (use a temporary clone if your
+    // matrix lives on the device) and append triplets to `data.nonzeros`.
+}
+```
+
+## Conversions
+
+`convert_to(Csr*)` and `convert_to(Dense*)` are the minimum interop set.
+The CSR path tends to be a kernel (`my_format::make_convert_to_csr`)
+since it's a parallel transformation of the storage layout. The Dense
+path can usually go through CSR, or directly fill a dense buffer. The
+precision-promoting `convert_to(MyFormat<next_precision<V>, I>*)` is
+just a member-wise assignment plus `set_size`.
+
+## Kernel files
+
+Each operation `apply_impl` and `convert_to` calls needs the four files
+described in [Add a new kernel](add-a-kernel.md). For a new format
+`my_format`, the layout is:
+
+| File | Purpose |
+|---|---|
+| `core/matrix/my_format_kernels.hpp` | Kernel macro declarations |
+| `reference/matrix/my_format_kernels.cpp` | Reference single-thread impl |
+| `omp/matrix/my_format_kernels.cpp` | OMP impl (if hand-tuned) |
+| `common/unified/matrix/my_format_kernels.cpp` | Portable CUDA/HIP/SYCL/OMP impl |
+| `cuda/matrix/my_format_kernels.cu` (optional) | Hand-tuned CUDA |
+| `hip/matrix/my_format_kernels.hip.cpp` (optional) | Hand-tuned HIP |
+| `dpcpp/matrix/my_format_kernels.dp.cpp` (optional) | Hand-tuned SYCL |
+
+## CMake wiring
+
+A new format **does** require CMake edits, unlike a new kernel on an
+existing format. Add the file to each backend's source list:
+
+- `core/CMakeLists.txt` — add `matrix/my_format.cpp` next to
+  `matrix/ell.cpp`.
+- `reference/CMakeLists.txt`, `omp/CMakeLists.txt`,
+  `dpcpp/CMakeLists.txt` — add `matrix/my_format_kernels.cpp`
+  (`.dp.cpp` for DPC++) next to `matrix/ell_kernels.cpp`.
+- `common/unified/CMakeLists.txt` — add
+  `matrix/my_format_kernels.cpp` if you have a portable kernel.
+- `cuda/CMakeLists.txt`, `hip/CMakeLists.txt` — add the
+  backend-specific files only if you wrote hand-tuned variants.
+
+The public header `include/ginkgo/core/matrix/my_format.hpp` becomes
+discoverable through the standard install layout once the file exists in
+the tree — no CMake list to update for the include.
+
+## You do not need to register matrix formats with the config layer
+
+The runtime JSON / `gko::config` registry is for *factories* (solvers,
+preconditioners, factorizations). Matrix formats are constructed
+directly by the user (`MyFormat::create(exec, ...)`). The benchmark
+suite picks formats at runtime through the `FORMATS=...` environment
+variable on `benchmark/spmv/spmv --help` — you'll want to extend the
+benchmark front-end (`benchmark/utils/types.hpp` lists the recognised
+format names) if you want your format to participate in the benchmark
+parity matrix.
+
+## Reference-parity test
+
+The full test plan for a new format is covered in [Write tests](write-tests.md).
+Briefly: write `reference/test/matrix/my_format_kernels.cpp` with
+hand-checkable inputs covering the SpMV kernels, conversions, and
+`read`/`write`. Mirror those tests in `cuda/test/matrix/`,
+`hip/test/matrix/`, `omp/test/matrix/`, `dpcpp/test/matrix/`,
+running the same input on both the backend and the Reference and
+comparing within tolerance.
+
+:::{seealso}
+- [Add a new kernel](add-a-kernel.md) — the kernel files that back `apply_impl`.
+- [Write tests](write-tests.md) — the reference-parity pattern.
+- [Run the benchmark suite](run-benchmark-suite.md) — extend the SpMV
+  benchmark to include your new format.
+:::
