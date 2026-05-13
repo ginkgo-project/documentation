@@ -64,13 +64,16 @@ where `GKO_REGISTER_OPERATION` is called for every existing kernel, add:
 GKO_REGISTER_OPERATION(row_wise_absolute_sum, csr::row_wise_absolute_sum);
 ```
 
-Macro effect: this defines `make_row_wise_absolute_sum(args...)` that
-returns an `Operation` whose `run` method dispatches to
-`kernels::reference::csr::row_wise_absolute_sum`,
-`kernels::cuda::csr::row_wise_absolute_sum`, …, based on the executor
-type at runtime. The dispatch is a compile-time `if constexpr` chain on
-the executor's static type, so a missing backend implementation surfaces
-as a linker error, not a runtime fall-through.
+What the macro produces:
+
+- A `make_row_wise_absolute_sum(args...)` helper that returns an
+  `Operation`.
+- The `Operation`'s `run` dispatches to
+  `kernels::reference::csr::row_wise_absolute_sum`,
+  `kernels::cuda::csr::row_wise_absolute_sum`, … by executor type.
+- The dispatch is a compile-time `if constexpr` chain, so a missing
+  backend implementation surfaces as a linker error, not a runtime
+  fall-through.
 
 Then write the public method that fires the dispatch. In the same file:
 
@@ -152,29 +155,35 @@ GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(
     GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
 ```
 
-The `common/unified/` file is compiled once per backend. The macros it
-relies on (`run_kernel`, `run_kernel_reduction`, `GKO_KERNEL`,
-`device_type<...>`) lower to the right device-launch primitives for each
-executor — `parallel_for` on OMP, `__global__` kernel launches on CUDA,
-`hipLaunchKernelGGL` on HIP, and `sycl::parallel_for` on DPC++.
+The `common/unified/` file is compiled once per backend. The launch
+macros it uses lower to the right primitives per executor:
+
+| Macro | Lowers to |
+|---|---|
+| OMP | `#pragma omp parallel for` |
+| CUDA | `__global__` kernel launch |
+| HIP | `hipLaunchKernelGGL` |
+| DPC++ | `sycl::parallel_for` |
 
 If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
-reductions, shared-memory tiling — put it in a backend-specific
-implementation (`cuda/matrix/csr_kernels.cu`,
-`hip/matrix/csr_kernels.hip.cpp`, etc.) instead. Shared device code
-between CUDA and HIP usually lives in a `.hpp.inc` header that both files
-`#include`.
+reductions, shared-memory tiling — put it in a backend-specific file
+instead (`cuda/matrix/csr_kernels.cu`,
+`hip/matrix/csr_kernels.hip.cpp`, …). Shared CUDA/HIP device code goes
+in a `.hpp.inc` header `#include`-d from both.
 
 ## Step 5: Register a stub in `device_hooks`
 
-Ginkgo can be built with any subset of backends — `GINKGO_BUILD_CUDA=OFF`,
-`GINKGO_BUILD_HIP=OFF`, etc. When a backend is disabled, its symbol set
-still has to resolve, otherwise the link step fails. The
-`core/device_hooks/` tree provides placeholder libraries that
-substitute for each disabled backend: they expose the same kernel
-symbols, but each function body is `GKO_NOT_COMPILED(<backend>)` —
-calling it at runtime throws `NotCompiled` immediately. The per-backend
-hooks file does:
+Ginkgo can be built with any subset of backends
+(`GINKGO_BUILD_CUDA=OFF`, `GINKGO_BUILD_HIP=OFF`, …). When a backend is
+disabled, its symbols still have to link. The `core/device_hooks/`
+tree provides placeholder libraries that:
+
+- expose the same kernel symbols as the real backend,
+- have function bodies of `GKO_NOT_COMPILED(<backend>)` — calling one
+  at runtime throws `NotCompiled` immediately.
+
+Each per-backend hooks file pulls in `common_kernels.inc.cpp` once with
+the backend tag set:
 
 ```cpp
 // core/device_hooks/omp_hooks.cpp (and similar for cuda/, hip/, dpcpp/)
@@ -183,11 +192,10 @@ hooks file does:
 #undef GKO_HOOK_MODULE
 ```
 
-`common_kernels.inc.cpp` is included once per disabled backend. Inside,
-each kernel is given a `GKO_STUB_*` line that stamps out the
-`GKO_NOT_COMPILED(GKO_HOOK_MODULE)` placeholder plus the matching
-`GKO_INSTANTIATE_FOR_EACH_*` block. The macro family is keyed on the
-kernel's template signature:
+Inside `common_kernels.inc.cpp`, each kernel gets one `GKO_STUB_*`
+line that stamps out the `GKO_NOT_COMPILED(GKO_HOOK_MODULE)`
+placeholder *and* the matching `GKO_INSTANTIATE_FOR_EACH_*` block.
+The macro family is keyed on the kernel's template signature:
 
 | Stub macro | Use for kernels declared as |
 |---|---|
@@ -208,11 +216,13 @@ GKO_STUB_VALUE_AND_INDEX_TYPE(GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
 Place it next to the other `csr` entries — the file groups stubs by
 module to mirror the kernel-header layout.
 
-If you forget this step, builds with the affected backend disabled
-fail at link time with an undefined-reference to your kernel. The
-build with every backend enabled succeeds, which makes the omission
-easy to miss locally — the CI's no-CUDA / no-OMP / no-GPU rows catch
-it.
+Forgetting this step:
+
+- A full-backend local build still succeeds, so the omission is easy
+  to miss.
+- Any disabled-backend build fails at link time with an
+  undefined-reference. The CI's no-CUDA / no-OMP / no-GPU rows are
+  what catch it.
 
 ## Reductions
 
@@ -243,15 +253,17 @@ reductions on dense input.
 
 ## The circular-dependency rule
 
-Inside any kernel module (`reference/`, `omp/`, `cuda/`, `hip/`, `dpcpp/`,
-`common/unified/`), you can **call** other kernels in the same backend
-namespace (`cuda::dense::add_scaled(...)` is fine), but you must **not**
-instantiate a polymorphic Ginkgo class — no `Csr::create`, no
-`Dense::create`, no `Cg::build()`. Doing so creates a circular dependency
-between the kernel module and `core/`, which is exactly the dependency
-the layering is designed to forbid. The CI job `no-circular-deps`
-catches violations; enable it locally with
-`-DGINKGO_CHECK_CIRCULAR_DEPS=ON`.
+Inside any kernel module (`reference/`, `omp/`, `cuda/`, `hip/`,
+`dpcpp/`, `common/unified/`):
+
+- **Allowed**: calling other kernels in the same backend namespace —
+  e.g. `cuda::dense::add_scaled(...)` from another `cuda` kernel.
+- **Forbidden**: instantiating a polymorphic Ginkgo class — no
+  `Csr::create`, no `Dense::create`, no `Cg::build()`. That creates a
+  circular dependency between the kernel module and `core/`.
+
+The `no-circular-deps` CI job catches violations; enable it locally
+with `-DGINKGO_CHECK_CIRCULAR_DEPS=ON`.
 
 If you need to compose existing operators (e.g. a `Hybrid` matrix that
 holds an `Ell` and a `Coo`), the composition stays in `core/`; the kernel
@@ -259,12 +271,13 @@ files only consume the already-instantiated objects.
 
 ## Reference-parity test
 
-The companion test goes in `reference/test/matrix/csr_kernels.cpp` (small,
-hand-verifiable inputs) and a parallel file in `cuda/test/matrix/`,
-`hip/test/matrix/`, `omp/test/matrix/`, `dpcpp/test/matrix/` that runs the
-same input on both the Reference and the target backend and compares
-results within a tolerance. The pattern is covered in
-[Write tests](write-tests.md).
+Two companion test files, both covered by [Write tests](write-tests.md):
+
+- **`reference/test/matrix/csr_kernels.cpp`** — small, hand-verifiable
+  inputs on the Reference executor.
+- **`test/matrix/csr_kernels.cpp`** — cross-backend parity test using
+  `CommonTestFixture`, compiled once per enabled backend, asserting
+  agreement with the Reference within tolerance.
 
 ## Helper: bootstrap a new algorithm
 

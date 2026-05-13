@@ -24,7 +24,7 @@ modelled on `experimental::distributed::preconditioner::Schwarz`
 | `core/CMakeLists.txt` | Add `preconditioner/my_precond.cpp` | Add under the `if(GINKGO_BUILD_MPI)` block |
 | `core/config/config_helper.hpp` | Append to `LinOpFactoryType` | Append to `LinOpFactoryType` |
 | `core/config/registry.cpp` | Add to `generate_config_map()` | Same, but guarded `#if GINKGO_BUILD_MPI` |
-| `core/config/preconditioner_config.cpp` *(local)* or `core/config/indextype_dispatch.cpp` *(distributed)* | Parse specialisation | Parse specialisation |
+| Parse specialisation | A line in `core/config/preconditioner_config.cpp` (or its own file when dispatch is non-trivial) | A new file `core/config/my_precond_config.cpp`, wired in under the `if(GINKGO_BUILD_MPI)` block of `core/CMakeLists.txt` |
 
 ## The local preconditioner skeleton
 
@@ -223,8 +223,8 @@ Two differences from the local case:
   distributed-supported combinations.
 
 The `apply_impl` for a purely local Schwarz-style preconditioner applies
-the inner solver to the rank-local Dense slice and returns — there is no
-MPI communication in the preconditioner itself:
+the inner solver to the rank-local Dense slice and returns. The
+Schwarz preconditioner does no MPI communication of its own:
 
 ```cpp
 template <typename ValueType, typename LocalIndexType, typename GlobalIndexType>
@@ -255,32 +255,61 @@ void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_dense_impl(
 `matrix::Dense<V>*` for both `distributed::Vector` and ordinary
 `matrix::Dense`, so the same iteration body covers serial and MPI use.
 
-The communication this preconditioner *needs* (typically a halo exchange
-before the local solve) is the responsibility of the surrounding solver,
-not of the preconditioner. The Schwarz preconditioner does no MPI
-communication inside its own `apply_impl`.
+### Where MPI can live
+
+A distributed preconditioner *can* do its own MPI communication, but
+not everywhere:
+
+- **Allowed**: core layer —
+  `core/distributed/preconditioner/my_precond.cpp` and any host-side
+  helpers it calls.
+- **Forbidden**: kernel modules — `reference/`, `cuda/`, `hip/`,
+  `omp/`, `dpcpp/`, `common/unified/`, `common/cuda_hip/` must not
+  include `mpi.h` or touch the communicator.
+
+The split is the same circular-dependency rule that applies to every
+kernel module: backend kernels depend on `core/`, not the other way
+around. The `no-circular-deps` CI job catches violations.
+
+When communication is needed, structure `apply_dense_impl` as an
+interleaving of kernel launches and MPI calls so MPI latency hides
+behind on-device work:
+
+1. Launch the kernel work that has no remote dependency.
+2. Issue the non-blocking MPI call (`i_all_to_all_v`, `Isend`/`Irecv`,
+   ...) from the host — returns immediately, kernel keeps running.
+3. Wait on the MPI request, or use a stream event (see [Stream-MPI
+   ordering for GPU executors](../../concepts/distributed/communication-primitives.md#stream-mpi-ordering-for-gpu-executors)).
+4. Launch the kernel that consumes the received data.
+
+The distributed `Matrix::apply` is the canonical example: diagonal
+matrix kernel runs concurrently with the halo `i_all_to_all_v`, then
+the off-diagonal kernel fires once the receive completes (see
+[Communication
+primitives](../../concepts/distributed/communication-primitives.md)).
+Replicate that structure rather than putting an `MPI_Allreduce`
+between two synchronous kernel launches.
 
 ## Config / JSON registration
 
-For a local preconditioner, the parse specialisation lives in
-`core/config/preconditioner_config.cpp` next to the existing
-`GKO_PARSE_VALUE_AND_INDEX_TYPE(Jacobi, gko::preconditioner::Jacobi)`
-line. For a value-only preconditioner, use `GKO_PARSE_VALUE_TYPE`.
+Add an entry to the `LinOpFactoryType` enum in
+`core/config/config_helper.hpp` and a map entry to
+`generate_config_map()` in `core/config/registry.cpp` (MPI-gate the
+latter for a distributed preconditioner — see the Schwarz line as the
+precedent). Then provide the parse specialisation:
 
-For a distributed preconditioner, the equivalent lives in
-`core/config/indextype_dispatch.cpp` (the Schwarz parse specialisation
-is the existing precedent).
-
-Then add the enum entry to `LinOpFactoryType` in
-`core/config/config_helper.hpp` and the map entry to
-`generate_config_map()` in `core/config/registry.cpp`. The Schwarz
-example shows the MPI guard pattern:
-
-```cpp
-#if GINKGO_BUILD_MPI
-    {"preconditioner::Schwarz", parse<LinOpFactoryType::Schwarz>},
-#endif
-```
+- **Local, simple dispatch** — one line in
+  `core/config/preconditioner_config.cpp` next to the Jacobi entry,
+  using `GKO_PARSE_VALUE_AND_INDEX_TYPE` (or `GKO_PARSE_VALUE_TYPE`
+  for a value-only preconditioner).
+- **Local, custom dispatch** — its own file, mirroring
+  `preconditioner_ilu_config.cpp` or `preconditioner_isai_config.cpp`.
+- **Distributed** — always its own file under the
+  `if(GINKGO_BUILD_MPI)` block of `core/CMakeLists.txt`. Copy
+  `core/config/schwarz_config.cpp`; the hand-written
+  `parse<LinOpFactoryType::Schwarz>` handles the `(LocalIndexType,
+  GlobalIndexType)` dispatch and skips invalid combinations like
+  `(int64, int32)`.
 
 ## Instantiation
 
@@ -302,12 +331,38 @@ GKO_INSTANTIATE_FOR_EACH_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE(GKO_DECLARE_MY_PRECON
 
 ## Reference-parity test
 
-The test pattern is the same as for matrix formats and solvers — a
-small hand-checkable input, run on Reference and on the target backend,
-compared within a tolerance. Existing tests:
-`reference/test/preconditioner/jacobi_kernels.cpp` for the local case,
-`test/mpi/distributed/preconditioner/schwarz.cpp` for the distributed
-case. See [Write tests](write-tests.md) for the general convention.
+The full test plan is covered in [Write tests](write-tests.md). For a
+new **local preconditioner** you write three files:
+
+- `core/test/preconditioner/my_precond.cpp` — pure-C++ tests on the
+  factory: `parameters_type` defaults, `with_*` setters, `build()`
+  accepting a system matrix, `transpose()` returning a valid object.
+  These don't need a backend or apply. Registered with
+  `ginkgo_create_test(my_precond)` in
+  `core/test/preconditioner/CMakeLists.txt`.
+- `reference/test/preconditioner/my_precond_kernels.cpp` —
+  Reference-only correctness tests on small hand-checkable inputs.
+  Registered with `ginkgo_create_test(my_precond_kernels)`.
+- `test/preconditioner/my_precond_kernels.cpp` — the **cross-backend
+  parity test**. Same source file compiled once per enabled backend
+  (`omp`, `cuda`, `hip`, `dpcpp`) by `ginkgo_create_common_test`,
+  using `CommonTestFixture` (from `test/utils/common_fixture.hpp`)
+  which provides both `ref` (Reference) and `exec` (the target
+  backend). Each test sets up the same input on both, applies the
+  preconditioner, and asserts agreement with
+  `GKO_ASSERT_MTX_NEAR(...)`. Registered with
+  `ginkgo_create_common_test(my_precond_kernels)` in
+  `test/preconditioner/CMakeLists.txt`.
+
+`jacobi*.cpp` in those three trees is the template to copy.
+
+For a new **distributed preconditioner**, the cross-backend parity
+test lives at `test/mpi/preconditioner/my_precond.cpp` and is
+registered with `ginkgo_create_common_and_reference_test(my_precond
+MPI_SIZE 3 LABELS distributed)`. That helper stamps out one test per
+enabled backend *plus* a Reference variant, all run under MPI on the
+requested rank count. `test/mpi/preconditioner/schwarz.cpp` is the
+template.
 
 :::{seealso}
 - [Add a new solver](add-a-solver.md) — the iterative pattern, with

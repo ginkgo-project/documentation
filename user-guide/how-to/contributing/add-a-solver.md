@@ -274,9 +274,9 @@ cases.
 When the solver is symmetric (CG, MINRES, Chebyshev), `transposed_type
 = MySolver<ValueType>` and `transpose()` rebuilds the solver around the
 transposed system matrix and transposed preconditioner. Copy the body
-from CG (`core/solver/cg.cpp:51-74`) and adjust the operator factory.
-If your solver is not transposable, do not include `public
-Transposable` in the base list.
+from `Cg::transpose` / `Cg::conj_transpose` in `core/solver/cg.cpp`
+and adjust the operator factory. If your solver is not transposable,
+do not include `public Transposable` in the base list.
 
 ## Parse and register for JSON config
 
@@ -336,11 +336,31 @@ Both lines are required — the second is what makes
 
 ## Reference-parity test
 
-The convention for solvers is to test convergence and correctness on a
-small SPD or general matrix (depending on the solver class). The test
-plan is covered in [Write tests](write-tests.md); the existing
-`core/test/solver/cg_kernels.cpp` and `reference/test/solver/cg.cpp`
-are the templates.
+The full test plan is covered in [Write tests](write-tests.md). For a
+new solver you write three files:
+
+- `core/test/solver/my_solver.cpp` — pure-C++ tests on the factory:
+  `parameters_type` defaults, `with_*` setters, `build()` accepting
+  generated preconditioners, `transpose()` returning a valid object.
+  These don't need a system matrix or iteration. Registered with
+  `ginkgo_create_test(my_solver)` in `core/test/solver/CMakeLists.txt`.
+- `reference/test/solver/my_solver_kernels.cpp` — Reference-only
+  convergence and correctness tests on a small SPD or general system
+  (depending on the solver class). Registered with
+  `ginkgo_create_test(my_solver_kernels)` in
+  `reference/test/solver/CMakeLists.txt`.
+- `test/solver/my_solver_kernels.cpp` — the **cross-backend parity
+  test**. Same source file compiled once per enabled backend (`omp`,
+  `cuda`, `hip`, `dpcpp`) by `ginkgo_create_common_test`, using
+  `CommonTestFixture` (from `test/utils/common_fixture.hpp`) which
+  provides both `ref` (Reference) and `exec` (the target backend).
+  Each test sets up the same system on both, runs the solver, and
+  asserts the solutions agree with `GKO_ASSERT_MTX_NEAR(...)`.
+  Registered with `ginkgo_create_common_test(my_solver_kernels)` in
+  `test/solver/CMakeLists.txt`.
+
+`cg_kernels.cpp` in each of those three trees is the existing template
+to copy from.
 
 :::{seealso}
 - [Add a new kernel](add-a-kernel.md) — for the iteration-step kernels.

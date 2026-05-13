@@ -67,22 +67,30 @@ layer at all.
 
 ## Stream-MPI ordering for GPU executors
 
-When using a GPU executor with a non-CUDA-aware MPI, the gather kernel that populates the send
-buffer must complete before the host-side MPI call. Without an explicit synchronisation point,
-the kernel may still be executing on the device stream when MPI reads the host copy:
+When using a GPU executor with a non-GPU-aware MPI, the gather kernel that populates the send
+buffer runs on the executor's device stream while the MPI call runs on the host. The kernel
+must finish before the host-side MPI call reads the staged buffer. Without an explicit
+synchronisation point, the kernel may still be executing on the device stream when MPI starts
+reading.
+
+The straightforward way to enforce the ordering in user code is a full executor sync after the
+kernel and before the MPI call:
 
 ```cpp
-auto event = exec->create_event();
-event->record(exec);
-event->synchronize();
+exec->synchronize();
 // Now safe to launch the host-side i_all_to_all_v on the gathered buffer.
 ```
 
-A full device sync (`exec->synchronize()`) is the heavier alternative that achieves the same
-correctness guarantee.
+This waits for everything queued on the executor's stream, not just the gather kernel. Internally
+Ginkgo's `RowGatherer` does something more granular — it records an event on the stream right
+after the gather kernel and waits on just that event before issuing the all-to-all — but the
+event-recording machinery (`gko::detail::Event`, the `event::record_event` kernel registered in
+`core/distributed/row_gatherer.cpp`) is internal-by-convention and not a stable user-facing API.
+For an external distributed `LinOp`, the executor-level sync is the supported path.
 
-With a CUDA-aware MPI, the device pointer can be passed directly to the all-to-all call without an
-explicit synchronise — the CUDA stream semantics still apply, but MPI manages the ordering.
+With a GPU-aware MPI build (`-DGINKGO_FORCE_GPU_AWARE_MPI=ON` at configure time), the device
+pointer can be passed directly to the all-to-all call without any host-side synchronisation —
+the CUDA / HIP stream semantics still apply, but MPI manages the ordering.
 
 :::{tip}
 Most user code does not orchestrate halo exchange manually. `Matrix::apply` handles all of the

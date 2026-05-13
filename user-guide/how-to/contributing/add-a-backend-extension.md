@@ -1,41 +1,52 @@
 # Add a backend extension
 
 The `extensions/` tree (and the corresponding public headers under
-`include/ginkgo/extensions/`) holds header-only adapters that let Ginkgo
-interoperate with external frameworks. The shipped extensions are:
+`include/ginkgo/extensions/`) holds user-facing libraries that depend
+on third-party packages and bridge them with Ginkgo. They are not
+"backends" in the kernel-dispatch sense — those live under `cuda/`,
+`hip/`, `omp/`, `dpcpp/`.
 
-| Extension | Purpose | Public header |
+Shipped extensions:
+
+| Extension | Shape | Public header |
 |---|---|---|
-| Kokkos | Map `gko::array<T>` and `matrix::Dense<T>` to `Kokkos::View`; align Ginkgo executors with Kokkos execution / memory spaces | `ginkgo/extensions/kokkos.hpp` |
-| nlohmann JSON config | Parse a `nlohmann::json` tree into a `gko::config::pnode` for the runtime factory registry | `ginkgo/extensions/config/json_config.hpp` |
-| yaml-cpp YAML config | Same, for YAML | `ginkgo/extensions/config/yaml_config.hpp` |
+| Kokkos | Header-only | `ginkgo/extensions/kokkos.hpp` |
+| nlohmann JSON config | Header-only | `ginkgo/extensions/config/json_config.hpp` |
+| yaml-cpp YAML config | Header-only | `ginkgo/extensions/config/yaml_config.hpp` |
+| cuDSS direct solver | Compiled library (`ginkgo_cudss`) | `ginkgo/extensions/cuda/solver/cudss.hpp` |
 
-Extensions are not "backends" in the kernel-dispatch sense (those live
-under `cuda/`, `hip/`, `omp/`, `dpcpp/`). They are user-facing libraries
-that depend on third-party packages and provide bidirectional bridges
-between Ginkgo and that package.
+An extension can be **header-only** (Kokkos / JSON / YAML — pure
+bridging headers that consumers `#include`) or a **compiled library
+target** (cuDSS — wraps a vendor library as a `LinOp`, distributed as
+its own `Ginkgo::<name>` library alongside `Ginkgo::ginkgo`). The
+right shape depends on what the extension does.
 
 ## What an extension provides
 
-The shipped extensions all share the same shape:
+Every extension, regardless of shape:
 
-- **A single public umbrella header** (`ginkgo/extensions/<name>.hpp`)
-  that pulls in the sub-headers.
-- **Sub-headers** under `ginkgo/extensions/<name>/` for each concern
-  (Kokkos splits into `spaces.hpp`, `types.hpp`, `config.hpp`).
-- **A namespace**: `gko::ext::<name>`. The bridge functions and types
-  all live there.
-- **No `.cpp` file**: the extension is header-only and depends on
-  Ginkgo's public API plus the third-party package. The third-party
-  package is found by the consumer at configure time, not by Ginkgo's
-  build.
-- **Optional `config.hpp.in`** processed by `configure_file` so the
-  extension can see Ginkgo's compile-time switches (e.g. whether the
-  CUDA backend was built).
+- Lives under `namespace gko::ext::<name>` (e.g.
+  `gko::ext::kokkos`, `gko::ext::cuda::solver`). Internal details go
+  in a `detail` sub-namespace.
+- Has a public header tree under `include/ginkgo/extensions/<name>/`.
+  Header-only extensions usually expose a single umbrella header
+  `extensions/<name>.hpp` that pulls in the sub-headers.
+- Optionally has a `config.hpp.in` template processed by
+  `configure_file` so the extension can see Ginkgo's compile-time
+  switches.
 
-## Anatomy of the Kokkos extension
+Header-only extensions stop there. Compiled-library extensions
+additionally have:
 
-The umbrella header is the entry point users include:
+- One or more `.cpp` files under `extensions/<area>/` (e.g.
+  `extensions/cuda/solver/cudss.cpp`).
+- A library target produced by `add_library(...)` in the relevant
+  `extensions/<area>/CMakeLists.txt`, conventionally aliased as
+  `Ginkgo::<name>`.
+
+## Anatomy of the Kokkos extension (header-only)
+
+Umbrella header:
 
 ```cpp
 // include/ginkgo/extensions/kokkos.hpp
@@ -46,23 +57,18 @@ The umbrella header is the entry point users include:
 
 The two substantive sub-headers do the bridging:
 
-- `kokkos/spaces.hpp` defines `compatible_space<MemorySpace, ExecType>`
-  — a `std::integral_constant<bool, ...>` that answers "can this
-  Kokkos memory space be safely accessed from this Ginkgo executor?".
-  This is what `map_executor` uses internally to refuse mismatched
-  pairs at compile time.
-- `kokkos/types.hpp` defines `value_type<T>::type` — `Kokkos::complex<T>`
-  for `std::complex<T>`, identity for everything else — and a
-  `View`-returning helper that wraps a `gko::array<T>` or
-  `matrix::Dense<T>` storage region as a non-owning Kokkos `View`.
-
-Both files live under `namespace gko::ext::kokkos`, with internal
-implementation details in `namespace gko::ext::kokkos::detail`.
+- `kokkos/spaces.hpp` — defines `compatible_space<MemorySpace, ExecType>`,
+  a `std::integral_constant<bool, ...>` that answers "can this Kokkos
+  memory space be safely accessed from this Ginkgo executor?". Used
+  by `map_executor` to refuse mismatched pairs at compile time.
+- `kokkos/types.hpp` — defines `value_type<T>::type`
+  (`Kokkos::complex<T>` for `std::complex<T>`, identity otherwise)
+  plus helpers that wrap a `gko::array<T>` or `matrix::Dense<T>`
+  storage region as a non-owning Kokkos `View`.
 
 The `config.hpp.in` is processed by Ginkgo's top-level CMakeLists:
 
 ```cmake
-# CMakeLists.txt
 configure_file(
     ${Ginkgo_SOURCE_DIR}/include/ginkgo/extensions/kokkos/config.hpp.in
     ${Ginkgo_BINARY_DIR}/include/ginkgo/extensions/kokkos/config.hpp
@@ -70,35 +76,101 @@ configure_file(
 )
 ```
 
-It substitutes Ginkgo's build switches (e.g. `GINKGO_BUILD_CUDA`,
-`GINKGO_BUILD_OMP`) into the generated `config.hpp` so the Kokkos
-spaces header can guard CUDA-specific bridges behind the right macros.
+It substitutes `GINKGO_BUILD_CUDA` / `GINKGO_BUILD_OMP` / ... into the
+generated `config.hpp` so the Kokkos spaces header can guard
+backend-specific bridges behind the right macros.
+
+## Anatomy of the cuDSS extension (compiled library)
+
+cuDSS wraps NVIDIA's sparse direct solver as
+`gko::ext::cuda::solver::Cudss<V, I>` — an ordinary `LinOp` with the
+standard factory/parse scaffolding. Layout:
+
+```
+extensions/cuda/CMakeLists.txt                 ← find_package + add_library
+extensions/cuda/solver/cudss.cpp               ← implementation
+include/ginkgo/extensions/cuda/solver/cudss.hpp ← public LinOp class
+```
+
+The CMake target is built only when the prerequisites are present:
+
+```cmake
+# extensions/cuda/CMakeLists.txt
+if(NOT GINKGO_BUILD_CUDA)        return() endif()
+if(NOT cudss_FOUND)              return() endif()
+
+add_library(ginkgo_cudss solver/cudss.cpp)
+add_library(Ginkgo::ginkgo_cudss ALIAS ginkgo_cudss)
+
+target_link_libraries(ginkgo_cudss PUBLIC ginkgo)
+target_link_libraries(ginkgo_cudss PRIVATE cudss CUDA::cudart)
+
+ginkgo_default_includes(ginkgo_cudss)
+ginkgo_install_library(ginkgo_cudss)
+```
+
+The vendor dependency is discovered at the `extensions/` top level:
+
+```cmake
+# extensions/CMakeLists.txt
+if(GINKGO_BUILD_CUDA)
+    find_package(cudss 0.7.1 CONFIG)
+endif()
+add_subdirectory(cuda)
+```
+
+Notes on this pattern:
+
+- The library links **publicly** to `ginkgo` (so consumers get the
+  public Ginkgo headers transitively) and **privately** to the vendor
+  package and CUDA runtime (so consumers don't have to discover them).
+- The `Ginkgo::ginkgo_cudss` alias is what users link against.
+- `ginkgo_default_includes` + `ginkgo_install_library` give the
+  extension the same install layout and include-path setup as the
+  core Ginkgo target.
+
+The wrapped class itself is a regular `LinOp` — `Cudss` inherits from
+`EnableLinOp<Cudss>` and has the standard `parameters_type` / `Factory`
+/ `parse` triplet (see [Add a new solver](add-a-solver.md) for the
+scaffolding). The cuDSS handles and factorization state are private
+members, opaque to the public class.
 
 ## How extensions plug into the build
 
-The top-level Ginkgo CMakeLists has a single `add_subdirectory(extensions)`
-line (after the core build is in place). The `extensions/CMakeLists.txt`
-itself is one block:
+The top-level Ginkgo `CMakeLists.txt` calls
+`add_subdirectory(extensions)` after the core build. The
+`extensions/CMakeLists.txt` is small: it does the vendor-package
+discovery shared across sub-extensions, walks into the
+compiled-library subdirectories (e.g. `cuda/`), and conditionally
+walks into `test/` when `GINKGO_BUILD_TESTS=ON`:
 
 ```cmake
+# extensions/CMakeLists.txt
+if(GINKGO_BUILD_CUDA)
+    find_package(cudss 0.7.1 CONFIG)
+endif()
+
+add_subdirectory(cuda)
 if(GINKGO_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 ```
 
-There is **no library target for the extension itself** — it's
-header-only. The only thing the build system needs to do is build the
-tests, and that happens conditionally on `GINKGO_BUILD_TESTS`.
+What gets built depends on the extension:
 
-The per-extension test directories are where the third-party dependency
-is actually fetched. The JSON / YAML config test directory uses
-`FetchContent` to pull `yaml-cpp` if `find_package(yaml-cpp)` fails;
-the Kokkos test directory uses `find_package(Kokkos)` and asserts that
-the backends Kokkos was built with match the Ginkgo backends in use.
+- **Header-only extensions** contribute nothing to the build —
+  consumers just `#include` the header. Their tests live under
+  `extensions/test/<name>/` and pull the third-party dependency via
+  `find_package` (with `FetchContent` fallback for JSON / YAML).
+- **Compiled-library extensions** add a library target under
+  `extensions/<area>/CMakeLists.txt`, conditional on the vendor
+  package being found. The build silently skips the target when the
+  vendor dependency is missing (cuDSS prints an informational
+  `STATUS` message and returns).
 
 ## Adding a new extension
 
-The pattern for a new extension `<myext>` is fixed. You add:
+For a header-only extension `<myext>`:
 
 ```
 include/ginkgo/extensions/<myext>.hpp              ← umbrella include
@@ -115,42 +187,61 @@ CMake wiring:
 - If `<myext>` needs a generated `config.hpp`, add a `configure_file`
   block to the top-level `CMakeLists.txt` next to the Kokkos one.
 - Append your test subdirectory to `extensions/test/CMakeLists.txt`.
-- Inside `extensions/test/<myext>/CMakeLists.txt`, call
-  `find_package(<MyExtDep> REQUIRED)` (with a `FetchContent` fallback if
-  appropriate), define a `ginkgo_create_test` target for each test
-  file, and link `Ginkgo::ginkgo` plus the third-party target.
+- In `extensions/test/<myext>/CMakeLists.txt`, call
+  `find_package(<MyExtDep> REQUIRED)` (with a `FetchContent` fallback
+  if appropriate) and link `Ginkgo::ginkgo` plus the third-party
+  target.
 
-Because extensions are header-only, there is no `.cpp` file to register
-with the core build's source list. Users opting in to the extension
-include the corresponding header and call `find_package(Ginkgo)` plus
-`find_package(<MyExtDep>)` in their own CMake.
+For a compiled-library extension `<myext>` (vendor `LinOp` wrapper):
 
-## Wrapping a vendor library as a LinOp — where it lives today
+```
+include/ginkgo/extensions/<area>/<myext>.hpp       ← public LinOp class
+extensions/<area>/<myext>.cpp                      ← implementation
+extensions/<area>/CMakeLists.txt                   ← add_library + linking
+extensions/test/<area>/<myext>_test.cpp            ← tests
+```
 
-A different pattern that often comes up in the same context is wrapping
-a vendor library (cuSPARSE, cuSolverSp, MAGMA, ...) as a `LinOp` so it
-participates in Ginkgo's solver and preconditioner composition. The
-shipped examples — `solver::LowerTrs` / `solver::UpperTrs` with their
-cuSPARSE triangular-solve backend, `factorization::Cholesky` with its
-optional vendor path — live as ordinary core types in `core/solver/`
-and `core/factorization/`, with the vendor calls confined to backend
-kernel files (`cuda/solver/lower_trs_kernels.cu`,
-`cuda/factorization/cholesky_kernels.cu`).
+CMake wiring:
 
-In other words: today, the `extensions/` tree is for header-only
-framework interop. A vendor-library-backed `LinOp` is a regular core
-type, written the same way as any other solver (see [Add a new
-solver](add-a-solver.md)) or preconditioner (see [Add a new
-preconditioner](add-a-preconditioner.md)). The kernel files in the
-relevant backend (`cuda/`, `hip/`, `dpcpp/`) include the vendor headers
-and own the vendor handle as a private member, opaquely from the
-public class.
+- `find_package(<MyVendor> ...)` in `extensions/CMakeLists.txt` (so
+  every compiled sub-extension under `extensions/<area>/` can see
+  whether the dependency is present).
+- `add_subdirectory(<area>)` from `extensions/CMakeLists.txt`.
+- In `extensions/<area>/CMakeLists.txt`, early-return when the
+  required Ginkgo backend isn't enabled and when the vendor package
+  isn't found. Then `add_library(ginkgo_<myext> <myext>.cpp)`,
+  `add_library(Ginkgo::ginkgo_<myext> ALIAS ginkgo_<myext>)`, public
+  link to `ginkgo`, private link to the vendor target, and
+  `ginkgo_default_includes` + `ginkgo_install_library`.
+
+The class itself is built like any other `LinOp` — see [Add a new
+solver](add-a-solver.md) or [Add a new
+preconditioner](add-a-preconditioner.md) for the factory / parse
+scaffolding.
+
+## Vendor-LinOp wrappers: extensions vs core
+
+Vendor library wrappers can also live in `core/` if they belong to a
+shipped Ginkgo type, rather than in `extensions/`:
+
+- **In `core/`** — when the vendor path is one implementation among
+  several for a type that Ginkgo already exposes. Example:
+  `solver::LowerTrs` / `solver::UpperTrs` route triangular solves
+  through cuSPARSE on the CUDA executor and through Ginkgo's own
+  kernels on others; `factorization::Cholesky` has an optional
+  vendor path. The vendor calls live in
+  `cuda/solver/lower_trs_kernels.cu` etc., gated by the executor
+  type.
+- **In `extensions/`** — when the type is *only* the vendor wrapper
+  and would not exist without it. Example: `gko::ext::cuda::solver::Cudss`
+  has no non-cuDSS implementation, so it's its own extension library
+  that consumers opt into.
 
 :::{seealso}
-- [Add a new solver](add-a-solver.md) — for the LinOp + Factory + parse
+- [Add a new solver](add-a-solver.md) — LinOp + Factory + parse
   scaffolding that any vendor-backed solver also needs.
-- [Add a new preconditioner](add-a-preconditioner.md) — same scaffolding,
-  no workspace.
+- [Add a new preconditioner](add-a-preconditioner.md) — same
+  scaffolding, no workspace.
 - [Configure via JSON](../using/configure-via-json.md) — what the JSON
   config extension unlocks for the runtime registry.
 :::

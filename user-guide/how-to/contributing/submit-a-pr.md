@@ -99,10 +99,12 @@ The full label vocabulary is visible in
 
 User-facing changes need an entry in the [wiki
 Changelog](https://github.com/ginkgo-project/ginkgo/wiki/Changelog).
-The check is automated: `.github/check-wiki-changelog.sh` looks for a
-link of the form `[#1234](https://github.com/ginkgo-project/ginkgo/pull/1234)`
-in the wiki page. If the line is missing, the check fails and the PR
-can't be marked ready for merge.
+
+- The CI script `.github/check-wiki-changelog.sh` looks for a link of
+  the form `[#1234](https://github.com/ginkgo-project/ginkgo/pull/1234)`
+  in the wiki page.
+- If the line is missing, the check fails and the PR can't be marked
+  ready for merge.
 
 Two ways to satisfy the check:
 

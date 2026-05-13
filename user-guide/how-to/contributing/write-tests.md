@@ -68,7 +68,7 @@ TYPED_TEST(MyFormat, AppliesToDenseVector)
     mtx->apply(x, y);
 
     auto expected = gko::initialize<Dense>({/* hand-computed */}, this->exec);
-    GKO_ASSERT_MTX_NEAR(y, expected, gko::test::r<TypeParam>::value);
+    GKO_ASSERT_MTX_NEAR(y, expected, r<TypeParam>::value);
 }
 
 }  // namespace
@@ -80,7 +80,7 @@ Useful types and macros from `core/test/utils.hpp`:
 |---|---|
 | `gko::test::ValueTypes` | The supported value types (real + complex × float/double/half). Use with `TYPED_TEST_SUITE`. |
 | `gko::test::ValueIndexTypes` | Same, but also iterates over the supported index types. |
-| `gko::test::r<ValueType>::value` | Type-relative comparison tolerance. Tight for double, loose for half. |
+| `r<ValueType>::value` | Type-relative comparison tolerance (an alias for `gko::test::reduction_factor<ValueType>` injected at file scope by `utils.hpp`). Tight for double, loose for half. |
 | `gko::initialize<Dense>(...)` | Constructs a `Dense` literally from a brace-initialiser. |
 | `gko::test::generate_random_matrix<MtxType>(...)` | Random matrix generator with seed control. |
 
@@ -139,11 +139,15 @@ provides two executors per test:
 - `exec` — the target backend executor, type `gko::EXEC_TYPE` which is
   set per backend at compile time via `target_compile_definitions`.
 
-The build system stamps the same source into per-backend targets (e.g.
-`csr_kernels_cuda`, `csr_kernels_omp`) by setting `EXEC_TYPE`,
-`GKO_COMPILING_<BACKEND>`, and `GKO_DEVICE_NAMESPACE` per target.
-Tests use the device executor's results against the reference executor's
-results with `GKO_ASSERT_MTX_NEAR(dx, x, tol)`.
+The build stamps the same source into per-backend targets (e.g.
+`csr_kernels_cuda`, `csr_kernels_omp`), setting per-target macros:
+
+- `EXEC_TYPE` — `CudaExecutor`, `OmpExecutor`, ...
+- `GKO_COMPILING_<BACKEND>` — `GKO_COMPILING_CUDA`, ...
+- `GKO_DEVICE_NAMESPACE` — `cuda`, `omp`, ...
+
+Tests assert the device result against the reference with
+`GKO_ASSERT_MTX_NEAR(dx, x, tol)`.
 
 Backend-parity tests should use **at least the warp size of the GPU** —
 small enough still to be tractable, large enough that warp-boundary
@@ -205,11 +209,11 @@ registers it with CTest to run on 3 ranks. The `LABELS distributed`
 tag lets you select the distributed subset with
 `ctest -L distributed`.
 
-The test source itself uses the same `CommonTestFixture` as the
-non-MPI tests; the MPI environment is brought up by
-`gko::experimental::mpi::environment` (RAII) in the test's
-`main()` shim, which the build wires up automatically when `MPI_SIZE`
-is set.
+- The test source itself uses the same `CommonTestFixture` as the
+  non-MPI tests.
+- `gko::experimental::mpi::environment` (RAII) brings up the MPI
+  environment in the test's `main()` shim — wired up automatically by
+  the build when `MPI_SIZE` is set.
 
 ## Style rules (from `CONTRIBUTING.md`)
 

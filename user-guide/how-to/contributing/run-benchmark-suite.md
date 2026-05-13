@@ -1,12 +1,13 @@
 # Run the benchmark suite
 
-Ginkgo ships an extensive set of benchmark drivers under `benchmark/`.
-They cover SpMV, BLAS operations, conversions, solvers,
-preconditioners, sparse BLAS, and matrix statistics — single-device and
-distributed. The drivers all consume a JSON list of cases on stdin and
-emit a JSON list of results on stdout, so they compose: the format the
-SpMV benchmark picks as fastest can flow directly into the solver
-benchmark as input.
+Ginkgo ships a set of benchmark drivers under `benchmark/`:
+
+- **Coverage**: SpMV, BLAS, conversions, solvers, preconditioners,
+  sparse BLAS, matrix statistics — single-device and distributed.
+- **I/O**: each driver reads a JSON case list on stdin and emits a JSON
+  result list on stdout.
+- **Composable**: SpMV's "fastest format per matrix" output feeds
+  straight into the solver benchmark as its input.
 
 ## Build the suite
 
