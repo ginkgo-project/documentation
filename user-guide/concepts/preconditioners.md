@@ -109,16 +109,19 @@ Incomplete LU factorisation computes approximate triangular factors `L` and `U` 
 - **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
 
 :::{note}
-Ginkgo does **not** support classical ILU(k) for $k > 0$ — there is no
-`level_of_fill` or `fill_level` parameter on `gko::factorization::Ilu` (only
-`l_strategy`, `u_strategy`, `skip_sorting`, and `algorithm`). The closest user-facing
-fill-control knob is `ParIlut::with_fill_in_limit(ratio)`, which caps the
-non-zero count of $L + U$ at `ratio` × `nnz(A)`. That is *threshold*-based fill
-control, not the level-based fill control of ILU(k); the two produce different
-sparsity patterns and aim at different parts of the cost/quality trade-off. If you
-need level-based fill, you would have to factorise externally (e.g., with SuperLU
-in `level_of_fill` mode) and feed the resulting factors into Ginkgo as plain CSR
-matrices.
+Ginkgo does **not** support classical ILU(k) for $k > 0$:
+
+- `gko::factorization::Ilu` has no `level_of_fill` / `fill_level`
+  parameter — only `l_strategy`, `u_strategy`, `skip_sorting`, and
+  `algorithm`.
+- The closest fill-control knob is
+  `ParIlut::with_fill_in_limit(ratio)`, which caps `nnz(L + U)` at
+  `ratio × nnz(A)`. That is *threshold*-based fill control, not the
+  level-based fill control of ILU(k) — different sparsity patterns,
+  different cost/quality trade-offs.
+- For level-based fill, factorise externally (e.g., SuperLU in
+  `level_of_fill` mode) and feed the resulting `L`/`U` into Ginkgo as
+  plain CSR matrices.
 :::
 
 ```cpp

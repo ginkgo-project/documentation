@@ -39,23 +39,28 @@ solver->apply(distributed_b, distributed_x);
 
 ### Solvers that are not distributed-ready
 
-`gko::solver::Idr`, `gko::solver::Bicg`, and `gko::solver::CbGmres` do not currently dispatch
-distributed inputs and will not produce correct results if a distributed matrix is passed to
-them. `gko::solver::Minres` compiles against distributed inputs through the standard dispatch,
-but has no MPI test coverage and is not validated for production distributed runs — treat it as
-unsupported until that gap closes. Some other solvers (notably `Gcr` and `Cgs`) accept
-distributed inputs at the dispatch layer but are similarly not yet validated for production
-use; treat them as experimental for distributed problems.
+- **Will not work** — `gko::solver::Idr`, `gko::solver::Bicg`, and
+  `gko::solver::CbGmres` do not dispatch distributed inputs at all,
+  and silently produce wrong results if a distributed matrix is passed.
+- **Compiles but unvalidated** — `gko::solver::Minres` dispatches
+  distributed inputs through the standard path but has no MPI test
+  coverage. Treat as unsupported until that gap closes.
+- **Experimental** — `gko::solver::Gcr` and `gko::solver::Cgs` accept
+  distributed inputs at the dispatch layer but are not yet validated
+  for production runs.
 
 ### Why GMRES needs a specialised path
 
-GMRES' classical / classical-twice (CGS / CGS2) orthogonalisation paths fuse multiple dot
-products into a single batched kernel and produce only **partial** Hessenberg columns per rank.
-A separate `finish_reduce` overload runs the missing `MPI_Allreduce` for distributed vectors,
-staging through a host buffer when the MPI is not GPU-aware. The MGS path doesn't need this —
-each `compute_conj_dot` already reduces across ranks. Custom `LinOp` operations that do their
-own batched reductions on distributed vectors should follow the same pattern: compute locally,
-then `comm.all_reduce(...)` before consuming the reduced value.
+- **CGS / CGS2 paths** — fuse multiple dot products into a single
+  batched kernel and produce only **partial** Hessenberg columns per
+  rank. A separate `finish_reduce` overload runs the missing
+  `MPI_Allreduce`, staging through a host buffer when the MPI is not
+  GPU-aware.
+- **MGS path** — doesn't need any of this; each `compute_conj_dot`
+  already reduces across ranks.
+- **Custom `LinOp`** that do their own batched reductions on
+  distributed vectors should follow the same pattern: compute locally,
+  then `comm.all_reduce(...)` before consuming the reduced value.
 
 ## Preconditioners
 

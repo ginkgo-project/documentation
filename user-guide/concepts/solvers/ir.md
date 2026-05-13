@@ -148,14 +148,18 @@ IR's `default_initial_guess` defaults to `provided`, matching the rest of the
 Krylov family (CG, GMRES, BiCGSTAB, etc. all treat `x` as the initial guess).
 Multigrid is the outlier: it defaults to `zero`.
 
-The `zero` mode is worth knowing about: when IR knows `x` is identically zero,
-the initial residual is just $r_0 = b - A \cdot 0 = b$, so IR skips the initial
-`residual = b - A x` SpMV and aliases the residual pointer directly to `b`.
-This is the optimisation Multigrid uses when IR is the smoother — on coarse
-levels where `x` starts at zero, it calls `apply_with_initial_guess(...,
-initial_guess_mode::zero)` and saves one SpMV per smoothing pass. If you wire
-IR as a smoother by hand and can guarantee `x = 0` on entry, set
-`with_default_initial_guess(initial_guess_mode::zero)` to get the same saving.
+The `zero` mode is worth knowing about:
+
+- When IR knows `x` is identically zero, $r_0 = b - A \cdot 0 = b$.
+  IR skips the initial `residual = b - A x` SpMV and aliases the
+  residual pointer directly to `b`.
+- This is the optimisation Multigrid uses when IR is the smoother: on
+  coarse levels where `x` starts at zero, it calls
+  `apply_with_initial_guess(..., initial_guess_mode::zero)` and saves
+  one SpMV per smoothing pass.
+- If you wire IR as a smoother by hand and can guarantee `x = 0` on
+  entry, set `with_default_initial_guess(initial_guess_mode::zero)`
+  for the same saving.
 
 ## When to use IR
 

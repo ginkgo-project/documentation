@@ -54,13 +54,21 @@ cuDSS exposes two parameters that control how it interprets the supplied CSR mat
 | `matrix_view` | `0` FULL, `1` LOWER, `2` UPPER | What the CSR storage actually contains: full matrix, only lower triangle + diagonal, or only upper triangle + diagonal. |
 
 :::{attention}
-Ginkgo's `gko::matrix::Csr` stores the **full** matrix. cuDSS's symmetric / Hermitian /
-SPD / HPD modes assume only one triangle is stored. Passing a fully-stored symmetric
-matrix with `matrix_type` set to one of these symmetric modes is **not** the
-documented input contract and can produce incorrect results. To use the symmetric
-factorizations, extract the upper or lower triangle into a new CSR before
-constructing the solver. For a fully-stored matrix, use `matrix_type = 0` (GENERAL)
-together with `matrix_view = 0` (FULL).
+Storage-format mismatch between Ginkgo and cuDSS:
+
+- `gko::matrix::Csr` stores the **full** matrix.
+- cuDSS's symmetric / Hermitian / SPD / HPD modes assume **only one
+  triangle** is stored.
+- Passing a fully-stored symmetric matrix with `matrix_type` set to a
+  symmetric mode violates cuDSS's input contract and can produce
+  wrong results.
+
+Two correct paths:
+
+- **Fully-stored matrix** — `matrix_type = 0` (GENERAL),
+  `matrix_view = 0` (FULL).
+- **Symmetric factorisation** — extract one triangle into a new CSR
+  first, then construct the solver with the symmetric mode.
 :::
 
 ## Refactorization with the same sparsity pattern

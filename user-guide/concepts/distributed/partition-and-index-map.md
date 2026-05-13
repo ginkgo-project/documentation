@@ -7,15 +7,17 @@ data they expose.
 
 ## Partition
 
-A `Partition<L, G>` is templated on a local index type (`L`) and a global index type (`G`). It maps
-global row indices to ranks by storing ranges of contiguous global indices, each owned by one rank.
-The partition lives on whichever executor it was built on — backend kernels exist for Reference,
-OMP, CUDA, HIP, and SYCL, so a partition built directly on a device executor is valid. When
-passed to `read_distributed`, the matrix calls `make_temporary_clone(matrix_exec, partition)`
-internally, so any mismatch between the partition's executor and the matrix's executor is
-resolved transparently. Constructing on the host is the conventional choice for small
-partitions; constructing on the matrix's device avoids a host round-trip if the input arrays
-already live there.
+A `Partition<L, G>` is templated on a local index type (`L`) and a global index type (`G`). It
+maps global row indices to ranks by storing ranges of contiguous global indices, each owned by
+one rank.
+
+- **Executor support**: backend kernels exist for Reference, OMP, CUDA, HIP, and SYCL, so a
+  partition built directly on a device executor is valid.
+- **Cross-executor use**: `read_distributed` calls `make_temporary_clone(matrix_exec, partition)`
+  internally, so any mismatch between the partition's executor and the matrix's is resolved
+  transparently.
+- **Where to construct**: the host is conventional for small partitions; constructing on the
+  matrix's device avoids a host round-trip when the input arrays already live there.
 
 Three construction patterns cover the common cases:
 

@@ -20,7 +20,7 @@ the `develop` branch.
 
 The commit-message style from `CONTRIBUTING.md` is:
 
-```
+```text
 Summary of the changes in a sentence, max 50 chars.
 
 More detailed comments:
@@ -37,7 +37,7 @@ the diff already shows that.
 If you took an idea from a reviewer comment, attribute it with
 `Co-authored-by`:
 
-```
+```text
 Suggested by reviewer.
 
 Co-authored-by: Name <email@domain>

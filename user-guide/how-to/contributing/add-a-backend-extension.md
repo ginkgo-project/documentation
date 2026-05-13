@@ -86,7 +86,7 @@ cuDSS wraps NVIDIA's sparse direct solver as
 `gko::ext::cuda::solver::Cudss<V, I>` — an ordinary `LinOp` with the
 standard factory/parse scaffolding. Layout:
 
-```
+```text
 extensions/cuda/CMakeLists.txt                 ← find_package + add_library
 extensions/cuda/solver/cudss.cpp               ← implementation
 include/ginkgo/extensions/cuda/solver/cudss.hpp ← public LinOp class
@@ -96,8 +96,12 @@ The CMake target is built only when the prerequisites are present:
 
 ```cmake
 # extensions/cuda/CMakeLists.txt
-if(NOT GINKGO_BUILD_CUDA)        return() endif()
-if(NOT cudss_FOUND)              return() endif()
+if(NOT GINKGO_BUILD_CUDA)
+    return()
+endif()
+if(NOT cudss_FOUND)
+    return()
+endif()
 
 add_library(ginkgo_cudss solver/cudss.cpp)
 add_library(Ginkgo::ginkgo_cudss ALIAS ginkgo_cudss)
@@ -172,7 +176,7 @@ What gets built depends on the extension:
 
 For a header-only extension `<myext>`:
 
-```
+```text
 include/ginkgo/extensions/<myext>.hpp              ← umbrella include
 include/ginkgo/extensions/<myext>/types.hpp        ← per-concern headers
 include/ginkgo/extensions/<myext>/spaces.hpp
@@ -194,7 +198,7 @@ CMake wiring:
 
 For a compiled-library extension `<myext>` (vendor `LinOp` wrapper):
 
-```
+```text
 include/ginkgo/extensions/<area>/<myext>.hpp       ← public LinOp class
 extensions/<area>/<myext>.cpp                      ← implementation
 extensions/<area>/CMakeLists.txt                   ← add_library + linking
