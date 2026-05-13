@@ -201,7 +201,7 @@ Rank 1 (holds rows 2, 3):
   └────────────┘       └─────┘
 ```
 
-Note that `get_non_local_matrix()` on rank 0 returns a 2 × 1 sparse block, not a 2 × 2 block:
+Note that `get_off_diag_matrix()` on rank 0 returns a 2 × 1 sparse block, not a 2 × 2 block:
 the remote column the rank doesn't touch (global col 3) is simply not stored. The mapping
 from the compressed local column to its global index lives in
 `index_map::get_remote_global_idxs()` and is used during the halo exchange to know which
@@ -210,8 +210,8 @@ entries of $x$ this rank should expect from which other rank.
 Access the parts directly if needed:
 
 ```cpp
-auto diag_mat     = mat->get_local_matrix();      // shared_ptr<const LinOp>: the diagonal matrix
-auto off_diag_mat = mat->get_non_local_matrix();  // the off-diagonal matrix (compressed columns)
+auto diag_mat     = mat->get_diag_matrix();       // shared_ptr<const LinOp>: the diagonal matrix
+auto off_diag_mat = mat->get_off_diag_matrix();   // the off-diagonal matrix (compressed columns)
 
 // Vectors expose the rank-local Dense:
 auto local_x = x->get_local_vector();             // matrix::Dense<V> with rank-owned rows only

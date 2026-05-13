@@ -13,7 +13,7 @@ diagonal for the off-diagonal block).
 
 ## What you need to write
 
-For a new kernel `foo` on `matrix::Csr`, you touch four files:
+For a new kernel `foo` on `matrix::Csr`, you touch five files:
 
 | File | Purpose |
 |---|---|
@@ -21,6 +21,7 @@ For a new kernel `foo` on `matrix::Csr`, you touch four files:
 | `core/matrix/csr.cpp` | `GKO_REGISTER_OPERATION` + the public `LinOp` method that calls it |
 | `reference/matrix/csr_kernels.cpp` | The single-threaded reference implementation (correctness baseline) |
 | `common/unified/matrix/csr_kernels.cpp` *or* `cuda/`, `hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
+| `core/device_hooks/common_kernels.inc.cpp` | A `GKO_STUB_*` line that produces a `GKO_NOT_COMPILED` placeholder for backends that are disabled at configure time |
 
 The Reference implementation is mandatory; it's the parity baseline every
 other backend test compares against. The second performance implementation
@@ -163,6 +164,55 @@ implementation (`cuda/matrix/csr_kernels.cu`,
 `hip/matrix/csr_kernels.hip.cpp`, etc.) instead. Shared device code
 between CUDA and HIP usually lives in a `.hpp.inc` header that both files
 `#include`.
+
+## Step 5: Register a stub in `device_hooks`
+
+Ginkgo can be built with any subset of backends — `GINKGO_BUILD_CUDA=OFF`,
+`GINKGO_BUILD_HIP=OFF`, etc. When a backend is disabled, its symbol set
+still has to resolve, otherwise the link step fails. The
+`core/device_hooks/` tree provides placeholder libraries that
+substitute for each disabled backend: they expose the same kernel
+symbols, but each function body is `GKO_NOT_COMPILED(<backend>)` —
+calling it at runtime throws `NotCompiled` immediately. The per-backend
+hooks file does:
+
+```cpp
+// core/device_hooks/omp_hooks.cpp (and similar for cuda/, hip/, dpcpp/)
+#define GKO_HOOK_MODULE omp
+#include "core/device_hooks/common_kernels.inc.cpp"
+#undef GKO_HOOK_MODULE
+```
+
+`common_kernels.inc.cpp` is included once per disabled backend. Inside,
+each kernel is given a `GKO_STUB_*` line that stamps out the
+`GKO_NOT_COMPILED(GKO_HOOK_MODULE)` placeholder plus the matching
+`GKO_INSTANTIATE_FOR_EACH_*` block. The macro family is keyed on the
+kernel's template signature:
+
+| Stub macro | Use for kernels declared as |
+|---|---|
+| `GKO_STUB(_macro)` | Non-templated kernel |
+| `GKO_STUB_VALUE_TYPE(_macro)` | `<typename ValueType>` |
+| `GKO_STUB_INDEX_TYPE(_macro)` | `<typename IndexType>` |
+| `GKO_STUB_VALUE_AND_INDEX_TYPE(_macro)` | `<typename ValueType, typename IndexType>` (the common matrix case) |
+| `GKO_STUB_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE(_macro)` | Distributed `<V, L, G>` kernels |
+| `GKO_STUB_NON_COMPLEX_VALUE_TYPE(_macro)` | Real-only kernels |
+
+For the `row_wise_absolute_sum` example, the corresponding line in
+`common_kernels.inc.cpp` is:
+
+```cpp
+GKO_STUB_VALUE_AND_INDEX_TYPE(GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
+```
+
+Place it next to the other `csr` entries — the file groups stubs by
+module to mirror the kernel-header layout.
+
+If you forget this step, builds with the affected backend disabled
+fail at link time with an undefined-reference to your kernel. The
+build with every backend enabled succeeds, which makes the omission
+easy to miss locally — the CI's no-CUDA / no-OMP / no-GPU rows catch
+it.
 
 ## Reductions
 

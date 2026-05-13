@@ -86,7 +86,7 @@ When the input is a distributed matrix, Pgm runs the aggregation per rank and
 stitches the results together with a single all-to-all communication. The procedure:
 
 1. **Local aggregation.** Each rank runs the standard one-phase handshaking
-   algorithm on the *diagonal matrix* (`get_local_matrix()`) of its share of the
+   algorithm on the *diagonal matrix* (`get_diag_matrix()`) of its share of the
    matrix. Off-diagonal entries — couplings to rows owned by other ranks — are
    ignored at this step. Each rank ends up with a local-aggregate index per local
    row.
@@ -98,11 +98,11 @@ stitches the results together with a single all-to-all communication. The proced
    rank reads from (and that another rank owns), the other rank's aggregate ID for
    that row is needed in order to translate the off-diagonal matrix into coarse-row
    indices. Pgm uses the matrix's row-gatherer to issue an `i_all_to_all_v` so each
-   rank receives the coarse global aggregate IDs for the non-local columns it
-   touches (see `communicate_non_local_agg` in `core/multigrid/pgm.cpp`). When the executor
+   rank receives the coarse global aggregate IDs for the off-diagonal columns it
+   touches (see `communicate_off_diag_agg` in `core/multigrid/pgm.cpp`). When the executor
    does not support direct GPU-side MPI, the buffer is staged through host memory.
 4. **Coarse index map and matrix assembly.** Pgm builds a coarse-level
-   `experimental::distributed::index_map` from the received non-local aggregate
+   `experimental::distributed::index_map` from the received off-diagonal aggregate
    IDs, then constructs three new `distributed::Matrix`es: the coarse operator, the
    restriction, and the prolongation. Each carries the same communicator as the
    input matrix.

@@ -17,8 +17,8 @@ y_local = A_diag     * x_local     ← purely local work
 - `A_off_diag` is the *off-diagonal matrix*: entries whose row is owned by this rank but whose column is owned by some other rank. Stored compressed — only the remote columns this rank's local rows actually reference are kept, and those columns are renumbered $0..K-1$ via the matrix's `index_map`. Sized $n_\text{local rows} \times K$.
 - `x_halo` is the value buffer this rank receives during the halo exchange: one entry per remote column the off-diagonal matrix references, ordered to match the compressed column numbering of `A_off_diag`.
 
-Both blocks are accessible through the public API: `mat->get_local_matrix()` returns the
-diagonal matrix and `mat->get_non_local_matrix()` returns the off-diagonal matrix. The
+Both blocks are accessible through the public API: `mat->get_diag_matrix()` returns the
+diagonal matrix and `mat->get_off_diag_matrix()` returns the off-diagonal matrix. The
 "diagonal" prefix refers to the **block structure** of the partitioned global matrix — every
 rank's diagonal piece sits on the block-diagonal of the permuted global matrix — not to a
 matrix that is literally diagonal.
