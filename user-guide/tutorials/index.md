@@ -15,6 +15,11 @@ run.
   GPU with a three-line diff. Covers the host/device executor pattern,
   cross-executor data movement (`gko::clone`), and when GPU pays off vs.
   when CPU is faster.
+- [**Heat equation on a distributed grid**](heat-equation-distributed.md) —
+  Port the upstream 2D heat-conduction example to Ginkgo's distributed
+  types. Implicit-Euler time stepping, partition-by-stripes, Schwarz
+  preconditioner, and a per-rank-stripes output pattern that a short Python
+  script stitches into an animated GIF.
 
 ```{toctree}
 :maxdepth: 1
@@ -22,4 +27,5 @@ run.
 
 poisson-cpu
 poisson-gpu
+heat-equation-distributed
 ```
