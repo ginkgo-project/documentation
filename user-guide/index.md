@@ -9,8 +9,7 @@ The User Guide is organized by what you are trying to do:
 :::{tip}
 Looking for installation instructions or CMake build options? See
 [Getting Started](../getting-started/index.md) — it covers installing Ginkgo
-from source, package managers (Spack, Conda), and the per-backend build
-flags.
+from source, the Spack package, and the per-backend build flags.
 :::
 
 ```{toctree}
