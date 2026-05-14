@@ -1,0 +1,204 @@
+# Iterative Refinement
+
+The iterative refinement solver example.
+
+**Kind:** `basic`  
+**Builds on:** [`simple-solver`](simple-solver.md)  
+**Upstream source:** `examples/iterative-refinement/iterative-refinement.cpp` in the Ginkgo repository.
+
+## Introduction
+
+In this example, we first read in a matrix from file, then generate a
+right-hand side and an initial guess. An inaccurate CG solver is used as the
+inner solver to an iterative refinement (IR) method which solves a linear
+system. The example features the iteration count and runtime of the IR solver.
+
+## The commented program
+
+```cpp
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <string>
+
+#include <ginkgo/ginkgo.hpp>
+
+
+int main(int argc, char* argv[])
+{
+```
+
+Some shortcuts
+
+```cpp
+    using ValueType = double;
+    using RealValueType = gko::remove_complex<ValueType>;
+    using IndexType = int;
+    using vec = gko::matrix::Dense<ValueType>;
+    using real_vec = gko::matrix::Dense<RealValueType>;
+    using mtx = gko::matrix::Csr<ValueType, IndexType>;
+    using cg = gko::solver::Cg<ValueType>;
+    using ir = gko::solver::Ir<ValueType>;
+```
+
+Print version information
+
+```cpp
+    std::cout << gko::version_info::get() << std::endl;
+```
+
+Figure out where to run the code
+
+```cpp
+    if (argc == 2 && (std::string(argv[1]) == "--help")) {
+        std::cerr << "Usage: " << argv[0] << " [executor]" << std::endl;
+        std::exit(-1);
+    }
+
+    const auto executor_string = argc >= 2 ? argv[1] : "reference";
+    std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>>
+        exec_map{
+            {"omp", [] { return gko::OmpExecutor::create(); }},
+            {"cuda",
+             [] {
+                 return gko::CudaExecutor::create(0,
+                                                  gko::OmpExecutor::create());
+             }},
+            {"hip",
+             [] {
+                 return gko::HipExecutor::create(0, gko::OmpExecutor::create());
+             }},
+            {"dpcpp",
+             [] {
+                 return gko::DpcppExecutor::create(0,
+                                                   gko::OmpExecutor::create());
+             }},
+            {"reference", [] { return gko::ReferenceExecutor::create(); }}};
+```
+
+executor where Ginkgo will perform the computation
+
+```cpp
+    const auto exec = exec_map.at(executor_string)();  // throws if not valid
+```
+
+Read data
+
+```cpp
+    auto A = share(gko::read<mtx>(std::ifstream("data/A.mtx"), exec));
+```
+
+Create RHS and initial guess as 1
+
+```cpp
+    gko::size_type size = A->get_size()[0];
+    auto host_x = gko::matrix::Dense<ValueType>::create(exec->get_master(),
+                                                        gko::dim<2>(size, 1));
+    for (auto i = 0; i < size; i++) {
+        host_x->at(i, 0) = 1.;
+    }
+    auto x = gko::clone(exec, host_x);
+    auto b = gko::clone(exec, host_x);
+```
+
+Calculate initial residual by overwriting b
+
+```cpp
+    auto one = gko::initialize<vec>({1.0}, exec);
+    auto neg_one = gko::initialize<vec>({-1.0}, exec);
+    auto initres = gko::initialize<real_vec>({0.0}, exec);
+    A->apply(one, x, neg_one, b);
+    b->compute_norm2(initres);
+```
+
+copy b again
+
+```cpp
+    b->copy_from(host_x);
+```
+
+Create solver factory
+
+```cpp
+    gko::size_type max_iters = 10000u;
+    RealValueType outer_reduction_factor{1e-12};
+    RealValueType inner_reduction_factor{1e-2};
+    auto solver_gen =
+        ir::build()
+            .with_solver(cg::build().with_criteria(
+                gko::stop::ResidualNorm<ValueType>::build()
+                    .with_reduction_factor(inner_reduction_factor)))
+            .with_criteria(
+                gko::stop::Iteration::build().with_max_iters(max_iters),
+                gko::stop::ResidualNorm<ValueType>::build()
+                    .with_reduction_factor(outer_reduction_factor))
+            .on(exec);
+```
+
+Create solver
+
+```cpp
+    auto solver = solver_gen->generate(A);
+
+    std::shared_ptr<const gko::log::Convergence<ValueType>> logger =
+        gko::log::Convergence<ValueType>::create();
+    solver->add_logger(logger);
+```
+
+Solve system
+
+```cpp
+    exec->synchronize();
+    std::chrono::nanoseconds time(0);
+    auto tic = std::chrono::steady_clock::now();
+    solver->apply(b, x);
+    auto toc = std::chrono::steady_clock::now();
+    time += std::chrono::duration_cast<std::chrono::nanoseconds>(toc - tic);
+```
+
+Get residual
+
+```cpp
+    auto res = gko::as<real_vec>(logger->get_residual_norm());
+
+    std::cout << "Initial residual norm sqrt(r^T r):\n";
+    write(std::cout, initres);
+    std::cout << "Final residual norm sqrt(r^T r):\n";
+    write(std::cout, res);
+```
+
+Print solver statistics
+
+```cpp
+    std::cout << "IR iteration count:     " << logger->get_num_iterations()
+              << std::endl;
+    std::cout << "IR execution time [ms]: "
+              << static_cast<double>(time.count()) / 1000000.0 << std::endl;
+}
+```
+
+## Results
+
+This is the expected output:
+
+```text
+
+Initial residual norm sqrt(r^T r):
+%%MatrixMarket matrix array real general
+1 1
+194.679
+Final residual norm sqrt(r^T r):
+%%MatrixMarket matrix array real general
+1 1
+4.23821e-11
+IR iteration count:     24
+IR execution time [ms]: 0.794962
+
+```
+
+## The plain program
+
+```{literalinclude} /../upstream/examples/iterative-refinement/iterative-refinement.cpp
+:language: cpp
+```

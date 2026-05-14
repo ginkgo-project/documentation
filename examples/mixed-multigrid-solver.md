@@ -1,0 +1,312 @@
+# Mixed Multigrid Solver
+
+The mixed multigrid solver example.
+
+**Kind:** `mixed-precision`  
+**Builds on:** [`simple-solver`](simple-solver.md)  
+**Upstream source:** `examples/mixed-multigrid-solver/mixed-multigrid-solver.cpp` in the Ginkgo repository.
+
+## Introduction
+
+In this example, we first read in a matrix from a file, then generate a
+right-hand side and an initial guess. The multigrid solver can mix different precision of MultigridLevel. The example
+features the generating time and runtime of the multigrid solver.
+
+## The commented program
+
+```cpp
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <string>
+
+#include <ginkgo/ginkgo.hpp>
+
+
+int main(int argc, char* argv[])
+{
+```
+
+Some shortcuts
+
+```cpp
+    using ValueType = double;
+    using MixedType = float;
+    using IndexType = int;
+    using vec = gko::matrix::Dense<ValueType>;
+    using mtx = gko::matrix::Csr<ValueType, IndexType>;
+    using fcg = gko::solver::Fcg<ValueType>;
+    using cg = gko::solver::Cg<MixedType>;
+    using ir = gko::solver::Ir<ValueType>;
+    using ir2 = gko::solver::Ir<MixedType>;
+    using mg = gko::solver::Multigrid;
+    using bj = gko::preconditioner::Jacobi<ValueType, IndexType>;
+    using bj2 = gko::preconditioner::Jacobi<MixedType, IndexType>;
+    using pgm = gko::multigrid::Pgm<ValueType, IndexType>;
+    using pgm2 = gko::multigrid::Pgm<MixedType, IndexType>;
+```
+
+Print version information
+
+```cpp
+    std::cout << gko::version_info::get() << std::endl;
+
+    const auto executor_string = argc >= 2 ? argv[1] : "reference";
+```
+
+Figure out where to run the code
+
+```cpp
+    std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>>
+        exec_map{
+            {"omp", [] { return gko::OmpExecutor::create(); }},
+            {"cuda",
+             [] {
+                 return gko::CudaExecutor::create(0,
+                                                  gko::OmpExecutor::create());
+             }},
+            {"hip",
+             [] {
+                 return gko::HipExecutor::create(0, gko::OmpExecutor::create());
+             }},
+            {"dpcpp",
+             [] {
+                 return gko::DpcppExecutor::create(
+                     0, gko::ReferenceExecutor::create());
+             }},
+            {"reference", [] { return gko::ReferenceExecutor::create(); }}};
+```
+
+executor where Ginkgo will perform the computation
+
+```cpp
+    const auto exec = exec_map.at(executor_string)();  // throws if not valid
+    const int mixed_int = argc >= 3 ? std::atoi(argv[2]) : 1;
+    const bool use_mixed = mixed_int != 0;  // nonzero uses mixed
+    std::cout << "Using mixed precision? " << use_mixed << std::endl;
+```
+
+Read data
+
+```cpp
+    auto A = share(gko::read<mtx>(std::ifstream("data/A.mtx"), exec));
+```
+
+Create RHS as 1 and initial guess as 0
+
+```cpp
+    gko::size_type size = A->get_size()[0];
+    auto host_x = vec::create(exec->get_master(), gko::dim<2>(size, 1));
+    auto host_b = vec::create(exec->get_master(), gko::dim<2>(size, 1));
+    for (auto i = 0; i < size; i++) {
+        host_x->at(i, 0) = 0.;
+        host_b->at(i, 0) = 1.;
+    }
+    auto x = vec::create(exec);
+    auto b = vec::create(exec);
+    x->copy_from(host_x);
+    b->copy_from(host_b);
+```
+
+Calculate initial residual by overwriting b
+
+```cpp
+    auto one = gko::initialize<vec>({1.0}, exec);
+    auto neg_one = gko::initialize<vec>({-1.0}, exec);
+    auto initres = gko::initialize<vec>({0.0}, exec);
+    A->apply(one, x, neg_one, b);
+    b->compute_norm2(initres);
+```
+
+copy b again
+
+```cpp
+    b->copy_from(host_b);
+```
+
+Prepare the stopping criteria
+
+```cpp
+    const gko::remove_complex<ValueType> tolerance = 1e-12;
+    auto iter_stop =
+        gko::share(gko::stop::Iteration::build().with_max_iters(100u).on(exec));
+    auto tol_stop = gko::share(gko::stop::ResidualNorm<ValueType>::build()
+                                   .with_baseline(gko::stop::mode::absolute)
+                                   .with_reduction_factor(tolerance)
+                                   .on(exec));
+```
+
+Create smoother factory (ir with bj)
+
+```cpp
+    auto smoother_gen = gko::share(
+        ir::build()
+            .with_solver(bj::build().with_max_block_size(1u))
+            .with_relaxation_factor(static_cast<ValueType>(0.9))
+            .with_criteria(gko::stop::Iteration::build().with_max_iters(1u))
+            .on(exec));
+    auto smoother_gen2 = gko::share(
+        ir2::build()
+            .with_solver(bj2::build().with_max_block_size(1u))
+            .with_relaxation_factor(static_cast<MixedType>(0.9))
+            .with_criteria(gko::stop::Iteration::build().with_max_iters(1u))
+            .on(exec));
+```
+
+Create RestrictProlong factory
+
+```cpp
+    auto mg_level_gen =
+        gko::share(pgm::build().with_deterministic(true).on(exec));
+    auto mg_level_gen2 =
+        gko::share(pgm2::build().with_deterministic(true).on(exec));
+```
+
+Create CoarsesSolver factory
+
+```cpp
+    auto coarsest_solver_gen = gko::share(
+        ir::build()
+            .with_solver(bj::build().with_max_block_size(1u))
+            .with_relaxation_factor(static_cast<ValueType>(0.9))
+            .with_criteria(gko::stop::Iteration::build().with_max_iters(4u))
+            .on(exec));
+    auto coarsest_solver_gen2 = gko::share(
+        ir2::build()
+            .with_solver(bj2::build().with_max_block_size(1u))
+            .with_relaxation_factor(static_cast<MixedType>(0.9))
+            .with_criteria(gko::stop::Iteration::build().with_max_iters(4u))
+            .on(exec));
+```
+
+Create multigrid factory
+
+```cpp
+    std::shared_ptr<gko::LinOpFactory> multigrid_gen;
+    if (use_mixed) {
+        multigrid_gen =
+            mg::build()
+                .with_max_levels(10u)
+                .with_min_coarse_rows(2u)
+                .with_pre_smoother(smoother_gen, smoother_gen2)
+                .with_post_uses_pre(true)
+                .with_mg_level(mg_level_gen, mg_level_gen2)
+                .with_level_selector([](const gko::size_type level,
+                                        const gko::LinOp*) -> gko::size_type {
+```
+
+The first (index 0) level will use the first
+mg_level_gen, smoother_gen which are the factories with
+ValueType. The rest of levels (>= 1) will use the second
+(index 1) mg_level_gen2 and smoother_gen2 which use the
+MixedType. The rest of levels will use different type
+than the normal multigrid.
+
+```cpp
+                    return level >= 1 ? 1 : 0;
+                })
+                .with_coarsest_solver(coarsest_solver_gen2)
+                .with_criteria(iter_stop, tol_stop)
+                .on(exec);
+    } else {
+        multigrid_gen = mg::build()
+                            .with_max_levels(10u)
+                            .with_min_coarse_rows(2u)
+                            .with_pre_smoother(smoother_gen)
+                            .with_post_uses_pre(true)
+                            .with_mg_level(mg_level_gen)
+                            .with_coarsest_solver(coarsest_solver_gen)
+                            .with_criteria(iter_stop, tol_stop)
+                            .on(exec);
+    }
+    std::chrono::nanoseconds gen_time(0);
+    auto gen_tic = std::chrono::steady_clock::now();
+```
+
+auto solver = solver_gen->generate(A);
+
+```cpp
+    auto solver = multigrid_gen->generate(A);
+    exec->synchronize();
+    auto gen_toc = std::chrono::steady_clock::now();
+    gen_time +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(gen_toc - gen_tic);
+```
+
+Add logger
+
+```cpp
+    std::shared_ptr<const gko::log::Convergence<ValueType>> logger =
+        gko::log::Convergence<ValueType>::create();
+    solver->add_logger(logger);
+```
+
+Solve system
+
+```cpp
+    exec->synchronize();
+    std::chrono::nanoseconds time(0);
+    auto tic = std::chrono::steady_clock::now();
+    solver->apply(b, x);
+    exec->synchronize();
+    auto toc = std::chrono::steady_clock::now();
+    time += std::chrono::duration_cast<std::chrono::nanoseconds>(toc - tic);
+```
+
+Calculate residual explicitly, because the residual is not
+available inside of the multigrid solver
+
+```cpp
+    auto res = gko::initialize<vec>({0.0}, exec);
+    A->apply(one, x, neg_one, b);
+    b->compute_norm2(res);
+
+    std::cout << "Initial residual norm sqrt(r^T r): \n";
+    write(std::cout, initres);
+    std::cout << "Final residual norm sqrt(r^T r): \n";
+    write(std::cout, res);
+```
+
+Print solver statistics
+
+```cpp
+    std::cout << "Multigrid iteration count:     "
+              << logger->get_num_iterations() << std::endl;
+    std::cout << "Multigrid generation time [ms]: "
+              << static_cast<double>(gen_time.count()) / 1000000.0 << std::endl;
+    std::cout << "Multigrid execution time [ms]: "
+              << static_cast<double>(time.count()) / 1000000.0 << std::endl;
+    std::cout << "Multigrid execution time per iteration[ms]: "
+              << static_cast<double>(time.count()) / 1000000.0 /
+                     logger->get_num_iterations()
+              << std::endl;
+}
+```
+
+## Results
+
+This is the expected output:
+
+```text
+
+Initial residual norm sqrt(r^T r):
+%%MatrixMarket matrix array real general
+1 1
+4.3589
+Final residual norm sqrt(r^T r):
+%%MatrixMarket matrix array real general
+1 1
+6.31088e-14
+Multigrid iteration count:     9
+Multigrid generation time [ms]: 3.35361
+Multigrid execution time [ms]: 10.048
+Multigrid execution time per iteration[ms]: 1.11644
+
+```
+
+## The plain program
+
+```{literalinclude} /../upstream/examples/mixed-multigrid-solver/mixed-multigrid-solver.cpp
+:language: cpp
+```

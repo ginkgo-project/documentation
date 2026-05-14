@@ -602,3 +602,42 @@ html[data-theme="light"] .highlight {
     color: var(--pst-color-primary);
     font-weight: 600;
 }
+
+/* Mermaid graphs (example navigation graph):
+   sphinxcontrib-mermaid 2.x injects an inline <style> that forces
+       pre.mermaid > svg { height: 500px; width: 100%; max-width: 100% !important; }
+   which crushes large diagrams into a tiny strip. Override with higher
+   specificity (matching exactly + !important) so the SVG renders at its
+   natural size and the container scrolls horizontally on overflow. */
+.mermaid-container,
+pre.mermaid,
+.mermaid {
+    overflow-x: auto !important;
+    max-width: 100%;
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.mermaid-container > pre.mermaid,
+pre.mermaid {
+    width: -webkit-max-content !important;
+    width: max-content !important;
+    min-width: 100% !important;
+}
+
+.mermaid-container > pre.mermaid > svg,
+pre.mermaid > svg,
+.mermaid svg {
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+}
+
+html[data-theme="dark"] .mermaid-container,
+html[data-theme="dark"] pre.mermaid,
+html[data-theme="dark"] .mermaid {
+    background: #0f172a;
+}

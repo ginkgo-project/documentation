@@ -1,0 +1,149 @@
+# GINKGO Ranges
+
+The ranges and accessor example.
+
+**Kind:** `techniques`  
+**Upstream source:** `examples/ginkgo-ranges/ginkgo-ranges.cpp` in the Ginkgo repository.
+
+## The commented program
+
+```cpp
+#include <iomanip>
+#include <iostream>
+
+#include <ginkgo/ginkgo.hpp>
+```
+
+LU factorization implementation using Ginkgo ranges
+For simplicity, we only consider square matrices, and no pivoting.
+
+```cpp
+template <typename Accessor>
+void factorize(const gko::range<Accessor>& A)
+```
+
+note: const means that the range (i.e. the data handler) is constant,
+      not that the underlying data is constant!
+
+```cpp
+{
+    using gko::span;
+    assert(A.length(0) == A.length(1));
+    for (gko::size_type i = 0; i < A.length(0) - 1; ++i) {
+        const auto trail = span{i + 1, A.length(0)};
+```
+
+note: neither of the lines below need additional memory to store
+      intermediate arrays, all computation is done at the point of
+      assignment
+
+```cpp
+        A(trail, i) = A(trail, i) / A(i, i);
+```
+
+caveat: operator * is element-wise multiplication, mmul is matrix
+        multiplication
+
+```cpp
+        A(trail, trail) = A(trail, trail) - mmul(A(trail, i), A(i, trail));
+    }
+}
+```
+
+a utility function for printing the factorization on screen
+
+```cpp
+template <typename Accessor>
+void print_lu(const gko::range<Accessor>& A)
+{
+    std::cout << std::setprecision(2) << std::fixed;
+    std::cout << "L = [";
+    for (int i = 0; i < A.length(0); ++i) {
+        std::cout << "\n  ";
+        for (int j = 0; j < A.length(1); ++j) {
+            std::cout << (i > j ? A(i, j) : (i == j) * 1.) << " ";
+        }
+    }
+    std::cout << "\n]\n\nU = [";
+    for (int i = 0; i < A.length(0); ++i) {
+        std::cout << "\n  ";
+        for (int j = 0; j < A.length(1); ++j) {
+            std::cout << (i <= j ? A(i, j) : 0.) << " ";
+        }
+    }
+    std::cout << "\n]" << std::endl;
+}
+
+
+int main(int argc, char* argv[])
+{
+    using ValueType = double;
+    using IndexType = int;
+```
+
+Print version information
+
+```cpp
+    std::cout << gko::version_info::get() << std::endl;
+```
+
+Create some test data, add some padding just to demonstrate how to use it
+with ranges.
+clang-format off
+
+```cpp
+    ValueType data[] = {
+        2.,  4.,  5., -1.0,
+        4., 11., 12., -1.0,
+        6., 24., 24., -1.0
+    };
+```
+
+clang-format on
+
+Create a 3-by-3 range, with a 2D row-major accessor using data as the
+underlying storage. Set the stride (a.k.a. "LDA") to 4.
+
+```cpp
+    auto A =
+        gko::range<gko::accessor::row_major<ValueType, 2>>(data, 3u, 3u, 4u);
+```
+
+use the LU factorization routine defined above to factorize the matrix
+
+```cpp
+    factorize(A);
+```
+
+print the factorization on screen
+
+```cpp
+    print_lu(A);
+}
+```
+
+## Results
+
+This is the expected output:
+
+```text
+
+L = [
+  1.00 0.00 0.00
+  2.00 1.00 0.00
+  3.00 4.00 1.00
+]
+
+U = [
+  2.00 4.00 5.00
+  0.00 3.00 2.00
+  0.00 0.00 1.00
+]
+
+```
+
+## The plain program
+
+```{literalinclude} /../upstream/examples/ginkgo-ranges/ginkgo-ranges.cpp
+:language: cpp
+```
