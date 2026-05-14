@@ -178,26 +178,6 @@ for an analogous operator. Then add a case to the suite's CI matrix
 (see [Submit a pull request](submit-a-pr.md)) so the new operator is
 covered going forward.
 
-## Publishing results
-
-Result JSON files land in `<build>/benchmark/results/`. The repository
-[`ginkgo-data`](https://github.com/ginkgo-project/ginkgo-data) collects
-results across systems. The convention to push your run there:
-
-```sh
-git clone https://github.com/<you>/ginkgo-data.git ~/ginkgo_benchmark/ginkgo-data
-rsync -rtv <build>/benchmark/results/ ~/ginkgo_benchmark/ginkgo-data/data/
-cd ~/ginkgo_benchmark/ginkgo-data/data/
-./build-list . > list.json
-./agregate < list.json > agregate.json
-./represent . > represent.json
-git commit -am "Benchmark ${BENCHMARK} on ${SYSTEM_NAME}"
-git push
-```
-
-Then point the [GPE viewer](https://ginkgo-project.github.io/gpe/) at
-your fork to plot the results.
-
 :::{seealso}
 - `BENCHMARKING.md` in the Ginkgo source tree — the authoritative
   reference, including the full SuiteSparse setup loop.

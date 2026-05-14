@@ -2,7 +2,7 @@
 
 Ginkgo's contribution flow is GitHub-based, but the heavy CI is mirrored
 to GitLab. A PR has to clear both pipelines plus formatting / lint /
-spell-check checks before two maintainers can approve and merge it onto
+spell-check checks before a project member can approve and merge it onto
 the `develop` branch.
 
 ## Branch and base
@@ -34,8 +34,8 @@ The first line is a verb-led summary at most 50 characters. Empty line.
 Then a description that walks through what changed and why — not how;
 the diff already shows that.
 
-If you took an idea from a reviewer comment, attribute it with
-`Co-authored-by`:
+If you took an idea from a reviewer comment, it is suggested to attribute
+the reviewer with `Co-authored-by`:
 
 ```text
 Suggested by reviewer.
@@ -118,13 +118,13 @@ Release branches (`release-*`) skip the check automatically.
 
 ## Review and merge
 
-- **Two approvals** from project maintainers are required before merge.
+- **One approval** from a project member is required before merge.
 - The assignee is the person responsible for the merge — currently this
   must be a member of the `ginkgo-project` organisation, because GitHub
   doesn't allow assigning users outside the org.
-- Once the PR has two approvals and the CI is green, a maintainer marks
-  it `READY TO MERGE`. At that point you (the PR author) rebase onto
-  the current `develop` if needed and force-push the result.
+- Once the PR has the required approval and the CI is green, a project
+  member marks it `READY TO MERGE`. At that point you (the PR author)
+  rebase onto the current `develop` if needed and force-push the result.
 - Merges land via rebase. There are no merge commits on `develop`.
 
 ## A typical PR walkthrough
@@ -142,8 +142,8 @@ Release branches (`release-*`) skip the check automatically.
 6. Add a wiki-changelog entry if the change is user-visible.
 7. CI runs. Iterate on failures by pushing fixes — don't amend the
    review-history commits, push new commits.
-8. Address review comments. Maintainers can suggest changes
-   through GitHub's suggestion blocks; accept them or reply.
+8. Address review comments. Reviewers can suggest changes through
+   GitHub's suggestion blocks; accept them or reply.
 9. Once approved and green, rebase onto current `develop`, force-push,
    and one of the assignees performs the rebase-merge.
 
