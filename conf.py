@@ -2,6 +2,9 @@
 import os
 from datetime import date
 
+from docutils import nodes
+from sphinx import addnodes
+
 project = "Ginkgo"
 author = "The Ginkgo authors"
 copyright = f"{date.today().year}, {author}"
@@ -26,11 +29,34 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.mathjax",
     "sphinxcontrib.mermaid",
+    "breathe",
 ]
 
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 master_doc = "index"
-exclude_patterns = ["_build", ".venv", "Thumbs.db", ".DS_Store", "docs/superpowers", "README.md", "feedback.md"]
+
+# Signatures longer than this render with one parameter per line — much
+# easier to scan for functions with many template / formal parameters
+# (e.g., distributed-matrix constructors, factory `create` overloads).
+# Sphinx auto-indents the continuation lines to align under the opening
+# parenthesis.
+maximum_signature_line_length = 70
+exclude_patterns = [
+    "_build", ".venv", "Thumbs.db", ".DS_Store",
+    "docs/superpowers", "README.md", "feedback.md",
+    "_doxygen/xml", "_doxygen/Doxyfile",
+]
+
+# Breathe: bridges Doxygen XML into Sphinx. The XML directory is produced by
+# `make doxygen-xml` (which runs Doxygen against a Ginkgo source checkout
+# pointed to by $GINKGO_SOURCE_DIR). If the directory is missing, the rest of
+# the site still builds — only pages that embed `{doxygenclass}` / friends
+# will emit warnings. See README for the workflow.
+_doxygen_xml_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_doxygen", "xml")
+breathe_projects = {"ginkgo": _doxygen_xml_dir}
+breathe_default_project = "ginkgo"
+breathe_show_include = False
+breathe_domain_by_extension = {"hpp": "cpp", "h": "cpp", "cuh": "cpp"}
 
 # Treat warnings as errors during CI builds.
 nitpicky = False
@@ -58,6 +84,24 @@ extlinks = {
 
 # MyST roles need to be allowed for inline use.
 myst_enable_extensions = ["colon_fence", "dollarmath", "amsmath"]
+
+# MathJax: MyST's dollarmath extension wraps every page body in a
+# `tex2jax_ignore` container so it can pre-render `$...$` itself without
+# MathJax double-processing. That blanket ignore also swallows the math
+# Breathe emits from Doxygen `\f$...\f$` comments. Expanding
+# `processHtmlClass` to include `math` rescues those spans (Sphinx writes
+# them as `<span class="math notranslate nohighlight">…</span>`) without
+# disturbing MyST's own pre-rendering pipeline.
+mathjax3_config = {
+    "options": {
+        "ignoreHtmlClass": "tex2jax_ignore",
+        "processHtmlClass": "tex2jax_process|mathjax_process|math",
+    },
+}
+# myst-parser also rewrites processHtmlClass to add its own `output_area`
+# entry; the merged result still includes `math`, so the override warning
+# is harmless. Silence it.
+suppress_warnings = ["myst.mathjax"]
 # Auto-generate URL-anchor IDs for headings up to h3 so cross-page section links
 # (e.g., [Allocators](executor-model.md#allocators) or
 # [A worked example](distributed.md#a-worked-example)) resolve.
@@ -96,3 +140,147 @@ html_theme_options = {
     "secondary_sidebar_items": ["page-toc"],
     "show_toc_level": 2,
 }
+
+
+def _split_class_bases(app, doctree, fromdocname):
+    """Move long base-class clauses out of class signatures.
+
+    Sphinx's C++ domain renders `class Foo : public Bar, public Baz, ...`
+    inline in a single declaration line. For mixin-heavy types like
+    `gko::matrix::Csr` (11+ bases) the resulting heading is a wall of
+    tokens. This walks every class/struct desc node, locates the `:`
+    that introduces the inheritance list, captures the nodes from there
+    up to (but excluding) the trailing headerlink, and reinserts them
+    as a styled `Inherits from: …` paragraph at the top of the desc
+    content — matching the layout Doxygen produces.
+    """
+    for desc in doctree.traverse(addnodes.desc):
+        if desc.get("objtype") not in ("class", "struct"):
+            continue
+        sig = next(
+            (c for c in desc.children if isinstance(c, addnodes.desc_signature)),
+            None,
+        )
+        if sig is None:
+            continue
+        content = next(
+            (c for c in desc.children if isinstance(c, addnodes.desc_content)),
+            None,
+        )
+
+        # The class declaration sits on the last desc_signature_line when
+        # template lines wrap above; otherwise the signature itself holds
+        # the inline tokens directly.
+        if sig.children and isinstance(sig.children[-1], addnodes.desc_signature_line):
+            line = sig.children[-1]
+        else:
+            line = sig
+
+        # Locate the `:` punctuation that introduces inheritance — must
+        # come AFTER a desc_name (the class name) so we don't confuse it
+        # with template-parameter colons or scope resolutions.
+        colon_idx = None
+        for i, child in enumerate(line.children):
+            if (
+                isinstance(child, addnodes.desc_sig_punctuation)
+                and child.astext().strip() == ":"
+                and any(isinstance(s, addnodes.desc_name) for s in line.children[:i])
+            ):
+                colon_idx = i
+                break
+        if colon_idx is None:
+            continue
+
+        # Preserve the trailing headerlink in the signature.
+        end_idx = len(line.children)
+        for j in range(len(line.children) - 1, colon_idx, -1):
+            ch = line.children[j]
+            if isinstance(ch, nodes.reference) and "headerlink" in ch.get("classes", []):
+                end_idx = j
+                break
+
+        extracted = list(line.children[colon_idx:end_idx])
+        if not extracted:
+            continue
+        del line.children[colon_idx:end_idx]
+
+        # Skip the leading `:` and surrounding whitespace — the "Inherits
+        # from:" label replaces them.
+        i = 0
+        while i < len(extracted):
+            ch = extracted[i]
+            if (
+                isinstance(ch, addnodes.desc_sig_punctuation)
+                and ch.astext().strip() == ":"
+            ):
+                i += 1
+                continue
+            if isinstance(ch, (addnodes.desc_sig_space,)):
+                i += 1
+                continue
+            if isinstance(ch, nodes.Text) and not ch.astext().strip():
+                i += 1
+                continue
+            break
+
+        # Split the extracted nodes into one group per top-level base.
+        # Top-level commas are commas at angle-bracket depth 0 — the
+        # commas inside template arguments like `Csr<default_precision,
+        # int32>` must stay attached to their group.
+        groups = [[]]
+        depth = 0
+        for ch in extracted[i:]:
+            text = ch.astext().strip() if hasattr(ch, "astext") else ""
+            if isinstance(ch, addnodes.desc_sig_punctuation):
+                if text == "<":
+                    depth += 1
+                    groups[-1].append(ch)
+                    continue
+                if text == ">":
+                    depth -= 1
+                    groups[-1].append(ch)
+                    continue
+                if text == "," and depth == 0:
+                    groups.append([])
+                    continue
+            # Drop leading whitespace/space nodes that follow a comma
+            # boundary so each line starts at the access specifier.
+            if not groups[-1] and isinstance(
+                ch, (addnodes.desc_sig_space, nodes.Text)
+            ) and not text:
+                continue
+            groups[-1].append(ch)
+
+        # Drop trailing empty group if the extracted slice happened to
+        # end on a comma.
+        groups = [g for g in groups if g]
+
+        label = nodes.paragraph(classes=["cpp-inherits-label-line"])
+        label += nodes.inline(
+            text="Inherits from",
+            classes=["cpp-inherits-label"],
+        )
+
+        base_list = nodes.bullet_list(classes=["cpp-inherits-list"])
+        for group in groups:
+            item = nodes.list_item()
+            line = nodes.paragraph(classes=["cpp-inherits-item"])
+            for node in group:
+                line += node
+            item += line
+            base_list += item
+
+        if content is None:
+            content = addnodes.desc_content()
+            desc += content
+        content.insert(0, base_list)
+        content.insert(0, label)
+
+
+def setup(app):
+    app.connect("doctree-resolved", _split_class_bases)
+    return {
+        "version": "0.1",
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }

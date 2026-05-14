@@ -154,6 +154,15 @@ p, li {
     max-width: 88ch;
 }
 
+/* API-reference pages embed wide C++ signatures (heavy template chains
+   with multi-base inheritance). Widen the column when `dl.cpp` is present
+   so signatures don't wrap aggressively and the page stops feeling
+   cramped. The CSS `:has()` selector is supported in all evergreen
+   browsers we target. */
+.bd-main .bd-content .bd-article-container:has(dl.cpp) {
+    max-width: 120ch;
+}
+
 /* Tables — auto layout sizes columns to content; tables that declare a
    `<colgroup>` (i.e. list-table with explicit `:widths:`) switch to fixed
    layout so the configured widths become authoritative and content wraps
@@ -646,4 +655,300 @@ html[data-theme="dark"] .mermaid-container,
 html[data-theme="dark"] pre.mermaid,
 html[data-theme="dark"] .mermaid {
     background: #0f172a;
+}
+
+/* C++ API (Breathe + sphinx.cpp domain).
+   Default PyData theme barely styles the C++ domain: classes with many bases
+   render as one unbreakable horizontal line, and member functions blend into
+   the surrounding prose with no card boundary. The rules below give every
+   declaration a code-surface card, allow long signatures to wrap on commas
+   and angle brackets, and surface the "Public Types / Functions / Static
+   Functions" group headers that Breathe emits via .breathe-sectiondef. */
+
+/* Every C++ definition list (class, struct, function, type, var, enum,
+   enumerator). Tighten vertical rhythm and stop browsers from inheriting
+   prose paragraph margins inside descriptions. */
+dl.cpp {
+    margin: 1rem 0;
+}
+
+dl.cpp + dl.cpp {
+    margin-top: 0.5rem;
+}
+
+/* Declaration row — the <dt> that holds the signature. Treat as a code
+   surface: warm tint, accent bar on the left, monospace, and (crucially)
+   normal whitespace so the long base-class clauses wrap. */
+dl.cpp > dt {
+    background: var(--pst-color-surface);
+    border-left: 3px solid var(--pst-color-accent, #c79a3a);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    font-family: var(--pst-font-family-monospace);
+    font-size: 0.875rem;
+    line-height: 1.55;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+dl.cpp.cpp-class > dt,
+dl.cpp.cpp-struct > dt {
+    /* Classes/structs are the heaviest entries — give them a little more
+       breathing room and a stronger accent. */
+    background: var(--pst-color-surface);
+    border-left-width: 4px;
+    font-size: 0.9rem;
+    padding: 0.65rem 0.85rem;
+}
+
+/* Sphinx wraps every signature token in <span class="pre">…</span> with
+   inline white-space:pre. Override at the parent dt level so the inner
+   spans break at natural points (commas, angle brackets, ::). */
+dl.cpp > dt span.pre {
+    white-space: normal;
+}
+
+/* Multi-line parameter lists. With `maximum_signature_line_length` set
+   in conf.py, Sphinx breaks long signatures so each parameter sits on
+   its own line, wrapped in a nested <dl><dd>…</dd></dl> inside the
+   signature's <dt>. Default browser <dd> styling indents 40px but loses
+   the alignment with the opening parenthesis and doesn't share the
+   signature's monospace face. The rules below make the multi-line form
+   read like canonical hand-formatted C++:
+
+       ReturnType  function_name(
+           ParamType1 name1,
+           ParamType2 name2,
+           ParamType3 name3 = default
+       )
+
+   Sphinx places the opening `(` at the end of the line that holds the
+   function name, and the closing `)` on its own line after the nested
+   <dl>, so we don't need to move the parens — only style the params. */
+dl.cpp > dt > dl {
+    margin: 0;
+    padding: 0;
+    display: block;
+}
+
+dl.cpp > dt > dl > dd {
+    margin: 0 0 0 2em;
+    padding: 0;
+    border: none;
+    background: none;
+    text-indent: 0;
+    white-space: normal;
+}
+
+dl.cpp > dt > dl > dd > .sig-param {
+    display: inline;
+}
+
+/* The closing `)` after the nested <dl> sits on its own logical line —
+   give it a touch of left padding so it visually aligns with the
+   function name rather than indented under the params. */
+dl.cpp > dt > dl + .sig-paren {
+    display: inline-block;
+    margin-left: 0;
+}
+
+/* Syntax colouring for C++ signatures. Sphinx tags every token with a
+   Pygments class (k = keyword, kt = keyword type, n = name, nf = function
+   name, nc = class name, p = punctuation, o = operator, mi = number,
+   s = string, cp = preprocessor). Pygments' own stylesheet only scopes
+   these inside `.highlight` blocks, so we re-apply the palette here using
+   the botanical theme tokens. */
+dl.cpp > dt .k,
+dl.cpp > dt .kt,
+dl.cpp > dt .kr {
+    color: var(--pst-color-primary);
+    font-weight: 600;
+}
+
+dl.cpp > dt .nf,
+dl.cpp > dt .sig-name {
+    color: var(--pst-color-secondary);
+    font-weight: 600;
+}
+
+dl.cpp > dt .nc,
+dl.cpp > dt .nn {
+    color: var(--pst-color-primary);
+}
+
+dl.cpp > dt .p,
+dl.cpp > dt .o {
+    color: var(--pst-color-text-muted);
+}
+
+dl.cpp > dt .mi,
+dl.cpp > dt .mf,
+dl.cpp > dt .s,
+dl.cpp > dt .s1,
+dl.cpp > dt .s2 {
+    color: var(--pst-color-warning, #c9974a);
+}
+
+dl.cpp > dt .cp,
+dl.cpp > dt .cpf {
+    color: var(--pst-color-text-muted);
+    font-style: italic;
+}
+
+dl.cpp > dt .c1,
+dl.cpp > dt .c {
+    color: var(--pst-color-text-muted);
+    font-style: italic;
+}
+
+/* Dark-mode token contrast — primary/secondary are already lifted in the
+   dark palette so the rules above carry over, but punctuation needs a
+   little more presence against the darker surface. */
+html[data-theme="dark"] dl.cpp > dt .p,
+html[data-theme="dark"] dl.cpp > dt .o {
+    color: var(--pst-color-text-base);
+    opacity: 0.65;
+}
+
+/* Description body. Indent so the member visually nests under its
+   signature, and trim trailing margin so member-to-member spacing is
+   driven by the parent <dl> rather than paragraph margins. */
+dl.cpp > dd {
+    margin: 0.25rem 0 0.75rem 1rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid var(--pst-color-border, #e5e7eb);
+}
+
+dl.cpp > dd > p:last-child {
+    margin-bottom: 0;
+}
+
+/* Empty <dd></dd> (undocumented member). Hide the empty body and pull the
+   next entry tight, so a sequence of typedef-only entries doesn't sprawl. */
+dl.cpp > dd:empty {
+    display: none;
+}
+
+/* "Inherits from" block — injected by the _split_class_bases handler
+   in conf.py. The long base-class chain that the C++ domain would
+   otherwise render inline in the class signature ends up here, one
+   base per line, prefixed by a tiny uppercase label. */
+p.cpp-inherits-label-line {
+    margin: 0.5rem 0 0.25rem;
+    padding: 0;
+}
+
+p.cpp-inherits-label-line .cpp-inherits-label {
+    font-family: var(--pst-font-family-base);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pst-color-text-muted);
+}
+
+ul.cpp-inherits-list {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+}
+
+ul.cpp-inherits-list > li {
+    margin: 0;
+    padding: 0.1rem 0 0.1rem 0.75rem;
+    border-left: 2px solid var(--pst-color-border);
+}
+
+ul.cpp-inherits-list > li > p.cpp-inherits-item {
+    margin: 0;
+    font-family: var(--pst-font-family-monospace);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--pst-color-text-base);
+}
+
+ul.cpp-inherits-list .k,
+ul.cpp-inherits-list .kr {
+    /* `public` / `protected` access specifier — quiet so the base-class
+       name leads visually. */
+    color: var(--pst-color-text-muted);
+    font-weight: 400;
+    font-style: italic;
+    opacity: 0.75;
+    margin-right: 0.25rem;
+}
+
+ul.cpp-inherits-list .p,
+ul.cpp-inherits-list .o {
+    color: var(--pst-color-text-muted);
+}
+
+/* Breathe section groups: "Public Types", "Public Functions", … */
+.breathe-sectiondef {
+    margin: 1.5rem 0;
+    padding: 0;
+    border: none;
+}
+
+.breathe-sectiondef-title {
+    font-family: var(--pst-font-family-base);
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pst-color-text-muted, #6b7280);
+    margin: 1.25rem 0 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--pst-color-border, #e5e7eb);
+}
+
+/* Field lists inside descriptions — "Template Parameters", "Parameters",
+   "Returns". Make the label column compact and visually distinct from the
+   surrounding prose. */
+dl.cpp dl.field-list > dt {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-family: var(--pst-font-family-base);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--pst-color-text-muted, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+dl.cpp dl.field-list > dd {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
+dl.cpp dl.field-list ul.simple {
+    margin: 0.25rem 0;
+}
+
+/* Headerlink (#) inside C++ definitions — softer, less screaming than
+   the default. */
+dl.cpp > dt .headerlink {
+    color: var(--pst-color-text-muted, #6b7280);
+    font-weight: 400;
+    margin-left: 0.4rem;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+}
+
+dl.cpp > dt:hover .headerlink {
+    opacity: 1;
+}
+
+/* Dark mode — soften the card so it doesn't look like a tab. */
+html[data-theme="dark"] dl.cpp > dt {
+    background: rgba(255, 255, 255, 0.04);
+    border-left-color: var(--pst-color-accent, #d6b25a);
+}
+
+html[data-theme="dark"] dl.cpp > dd {
+    border-left-color: rgba(255, 255, 255, 0.12);
 }

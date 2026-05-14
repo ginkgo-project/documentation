@@ -14,6 +14,9 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  DOXYGEN_VERSION: "1.17.0"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,6 +34,37 @@ jobs:
           path: develop-src
         continue-on-error: true
 
+      # The stable docs render API pages against Ginkgo's main branch
+      # (the latest release line). The develop docs render against
+      # Ginkgo's develop branch (in-flight work). Each Sphinx build
+      # consumes its sibling Doxygen XML, produced from these
+      # checkouts via `make doxygen-xml`.
+      - name: Checkout Ginkgo source (stable → ginkgo main)
+        uses: actions/checkout@v4
+        with:
+          repository: ginkgo-project/ginkgo
+          ref: main
+          path: stable-src/upstream
+
+      - name: Checkout Ginkgo source (develop → ginkgo develop)
+        uses: actions/checkout@v4
+        with:
+          repository: ginkgo-project/ginkgo
+          ref: develop
+          path: develop-src/upstream
+        continue-on-error: true
+
+      # Ubuntu's apt Doxygen lags upstream by ~2 years (current apt is
+      # 1.9.8) and stumbles on Ginkgo's template-heavy headers. The
+      # upstream prebuilt Linux tarball pins a known-good version.
+      - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
+        run: |
+          tag="Release_${DOXYGEN_VERSION//./_}"
+          url="https://github.com/doxygen/doxygen/releases/download/${tag}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          curl -sSL "$url" -o doxygen.tar.gz
+          tar xzf doxygen.tar.gz
+          echo "$PWD/doxygen-${DOXYGEN_VERSION}/bin" >> "$GITHUB_PATH"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,6 +77,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Build Doxygen XML (stable)
+        working-directory: stable-src
+        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
+
       - name: Build stable
         working-directory: stable-src
         env:
@@ -53,6 +91,11 @@ jobs:
         if: hashFiles('develop-src/requirements.txt') != ''
         working-directory: develop-src
         run: pip install -r requirements.txt
+
+      - name: Build Doxygen XML (develop)
+        if: hashFiles('develop-src/conf.py') != '' && hashFiles('develop-src/upstream/include/ginkgo/ginkgo.hpp') != ''
+        working-directory: develop-src
+        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
 
       - name: Build develop
         if: hashFiles('develop-src/conf.py') != ''

@@ -4,11 +4,32 @@ on:
   pull_request:
     branches: [main, develop]
 
+env:
+  DOXYGEN_VERSION: "1.17.0"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # API reference pages use Breathe to ingest Doxygen XML. The XML
+      # is produced from the Ginkgo source — clone the develop branch
+      # so the PR build validates against current public API.
+      - name: Checkout Ginkgo source
+        uses: actions/checkout@v4
+        with:
+          repository: ginkgo-project/ginkgo
+          ref: develop
+          path: upstream
+
+      - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
+        run: |
+          tag="Release_${DOXYGEN_VERSION//./_}"
+          url="https://github.com/doxygen/doxygen/releases/download/${tag}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          curl -sSL "$url" -o doxygen.tar.gz
+          tar xzf doxygen.tar.gz
+          echo "$PWD/doxygen-${DOXYGEN_VERSION}/bin" >> "$GITHUB_PATH"
 
       - uses: actions/setup-python@v5
         with:
@@ -19,6 +40,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Build Doxygen XML
+        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
 
       - name: Strict build (warnings as errors)
         run: sphinx-build -W -b html . _build/html

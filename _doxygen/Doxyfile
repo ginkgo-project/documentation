@@ -1,0 +1,94 @@
+# Minimal Doxyfile that emits XML only, for the Breathe → Sphinx pipeline.
+# The XML is consumed by the docs build (see conf.py / Makefile target
+# `doxygen-xml`). The standalone Doxygen HTML deploy is built separately
+# from Ginkgo's own CMake (`9ginkgo/doc/conf/Doxyfile.in` and friends).
+
+PROJECT_NAME           = Ginkgo
+# Doxygen is invoked from this directory (see Makefile), so paths are relative
+# to _doxygen/. A `.` here places output under _doxygen/xml/ as configured.
+OUTPUT_DIRECTORY       = .
+
+# Tell Doxygen to read the source location from the environment. The
+# Makefile sets GINKGO_SOURCE_DIR before invoking doxygen; locally you can
+# also export it yourself.
+INPUT                  = $(GINKGO_SOURCE_DIR)/include
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.h *.cuh
+
+# We only want XML — Sphinx renders the HTML. Skip every other backend so
+# the build stays fast and the output directory stays small.
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+XML_PROGRAMLISTING     = YES
+
+# Public API surface only. We don't want private members leaking into the
+# user-facing site, and undocumented internals just add noise.
+EXTRACT_ALL            = NO
+EXTRACT_PUBLIC         = YES
+EXTRACT_PROTECTED      = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+
+# Template-heavy code: let Doxygen expand the preprocessor so Breathe sees
+# the resolved declarations instead of macro soup.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+SKIP_FUNCTION_MACROS   = NO
+
+# Strip Ginkgo's attribute-style macros before XML emission. Without these
+# entries, tokens like `GKO_DEPRECATED("...")` and `GKO_ATTRIBUTES` end up
+# in the signatures Doxygen writes out, which then breaks Sphinx's strict
+# C++ domain parser ("Expected identifier in nested name"). Mapping each
+# to an empty replacement here removes them from the rendered API surface
+# while leaving the underlying declaration intact.
+PREDEFINED            += "GKO_DEPRECATED(x)="
+PREDEFINED            += "GKO_ATTRIBUTES="
+PREDEFINED            += "GKO_INLINE=inline"
+PREDEFINED            += "GKO_ACC_INLINE=inline"
+PREDEFINED            += "GKO_ACC_ATTRIBUTES="
+PREDEFINED            += "GKO_KERNEL="
+PREDEFINED            += "__host__="
+PREDEFINED            += "__device__="
+PREDEFINED            += "__forceinline__=inline"
+
+# Factory-parameter macros expand to member declarations like
+# `Type name{default};` — collapse them to just `name` so the rendered
+# field has a parseable C++ signature (e.g., `size_type krylov_dim`
+# instead of `size_type GKO_FACTORY_PARAMETER_SCALAR(krylov_dim, 0u)`).
+PREDEFINED            += "GKO_FACTORY_PARAMETER(name, def)=name"
+PREDEFINED            += "GKO_FACTORY_PARAMETER_SCALAR(name, def)=name"
+PREDEFINED            += "GKO_FACTORY_PARAMETER_VECTOR(name, def)=name"
+PREDEFINED            += "GKO_DEFERRED_FACTORY_PARAMETER(name)=name"
+PREDEFINED            += "GKO_DEFERRED_FACTORY_VECTOR_PARAMETER(name)=name"
+
+# Boilerplate macros that emit class-internal helpers (build method,
+# factory typedef, kernel registration). They add noise to the API ref
+# without conveying user-relevant information — strip entirely.
+PREDEFINED            += "GKO_ENABLE_BUILD_METHOD(name)="
+PREDEFINED            += "GKO_ENABLE_LIN_OP_FACTORY(op, p, f)="
+PREDEFINED            += "GKO_ENABLE_BATCH_LIN_OP_FACTORY(op, p, f)="
+PREDEFINED            += "GKO_CREATE_FACTORY_PARAMETERS(p, f)=struct parameters_type"
+PREDEFINED            += "GKO_REGISTER_OPERATION(name, kernel)="
+
+# Static-assert macros that constrain solver / matrix value-type
+# parameters. Strip them so Doxygen sees a clean class body — leaving
+# them in confuses the class-scope tracker (e.g. `gko::solver::Ir`
+# silently disappears from the namespace listing without this).
+PREDEFINED            += "GKO_ASSERT_SUPPORTED_VALUE_TYPE="
+PREDEFINED            += "GKO_ASSERT_SUPPORTED_INDEX_TYPE="
+PREDEFINED            += "GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE="
+PREDEFINED            += "GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE="
+
+# Speed/noise knobs. Surface real errors, ignore the cosmetic ones.
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_AS_ERROR          = NO
+
+EXCLUDE_PATTERNS       = */test/* */benchmarks/* */examples/* */third_party/*

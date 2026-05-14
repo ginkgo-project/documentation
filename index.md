@@ -17,7 +17,7 @@ user-guide/index
 ```{toctree}
 :hidden:
 :caption: API Reference
-_redirects/api
+api-reference/index
 ```
 
 ```{toctree}
