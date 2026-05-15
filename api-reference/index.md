@@ -21,10 +21,13 @@ entry points.
 - [`gko::preconditioner`](preconditioner/index.md) — block-Jacobi,
   incomplete factorisation preconditioners (IC, ILU, ISAI), and
   relaxation methods (Gauss-Seidel, SOR / SSOR).
+- [`gko::factorization`](factorization/index.md) — exact (Cholesky, LU)
+  and incomplete factorisations (IC(0), ILU(0), ParIC, ParILU, ParICT,
+  ParILUT) that produce a `Factorization` LinOp.
 
 More namespace pages (`gko::log`, `gko::experimental::distributed`,
-`gko::batch`, `gko::stop`, `gko::reorder`, `gko::factorization`)
-will land in subsequent passes.
+`gko::batch`, `gko::stop`, `gko::reorder`) will land in subsequent
+passes.
 
 ```{toctree}
 :hidden:
@@ -33,4 +36,5 @@ will land in subsequent passes.
 matrix/index
 solver/index
 preconditioner/index
+factorization/index
 ```
