@@ -85,6 +85,16 @@ PREDEFINED            += "GKO_ASSERT_SUPPORTED_INDEX_TYPE="
 PREDEFINED            += "GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE="
 PREDEFINED            += "GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE="
 
+# Optional-dependency feature flags. The classes / methods behind these
+# guards (NestedDissection → METIS, papi.hpp → PAPI-SDE,
+# MachineTopology methods → HWLOC) are part of the public API when the
+# corresponding library is enabled. Define the flags here so docs build
+# with the full surface regardless of how the local Ginkgo was
+# configured.
+PREDEFINED            += GKO_HAVE_METIS=1
+PREDEFINED            += GKO_HAVE_PAPI_SDE=1
+PREDEFINED            += GKO_HAVE_HWLOC=1
+
 # Speed/noise knobs. Surface real errors, ignore the cosmetic ones.
 QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO

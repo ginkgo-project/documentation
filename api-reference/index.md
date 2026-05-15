@@ -24,10 +24,18 @@ entry points.
 - [`gko::factorization`](factorization/index.md) — exact (Cholesky, LU)
   and incomplete factorisations (IC(0), ILU(0), ParIC, ParILU, ParICT,
   ParILUT) that produce a `Factorization` LinOp.
+- [`gko::log`](log/index.md) — loggers that observe solver and
+  executor events: Convergence, Stream, Record, SolverProgress,
+  ProfilerHook, PerformanceHint.
+- [`gko::stop`](stop/index.md) — stopping criteria for iterative
+  solvers: Iteration, Time, residual-norm variants, and the Combined
+  meta-criterion.
+- [`gko::reorder`](reorder/index.md) — permutation generators for
+  sparse matrices: RCM, AMD, MC64, nested dissection, and the
+  ScaledReordered composition wrapper.
 
-More namespace pages (`gko::log`, `gko::experimental::distributed`,
-`gko::batch`, `gko::stop`, `gko::reorder`) will land in subsequent
-passes.
+More namespace pages (`gko::experimental::distributed`, `gko::batch`)
+will land in subsequent passes.
 
 ```{toctree}
 :hidden:
@@ -37,4 +45,7 @@ matrix/index
 solver/index
 preconditioner/index
 factorization/index
+log/index
+stop/index
+reorder/index
 ```
