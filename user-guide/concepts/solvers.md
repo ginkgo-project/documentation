@@ -131,5 +131,5 @@ solvers/direct
 - [Preconditioners — taxonomy](preconditioners.md) — what plugs into Krylov solvers.
 - [Stopping criteria](stopping-criteria.md) — how to tell a Krylov solver when to stop.
 - [LinOp and composition](linop-and-composition.md) — the factory pattern in depth.
-- API reference: [`gko::solver`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1solver.html)
+- API reference: [`gko::solver`](../../api-reference/solver/index.md)
 :::

@@ -186,5 +186,5 @@ batched/convergence
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — single-system solvers; batched lives in parallel.
 - [Stopping criteria](stopping-criteria.md) — batched uses simpler compile-time criteria.
-- API reference: [`gko::batch`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1batch.html)
+- API reference: [`gko::batch`](../../api-reference/batch/index.md)
 :::

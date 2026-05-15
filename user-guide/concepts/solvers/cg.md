@@ -106,5 +106,5 @@ on bandwidth-bound hardware.
 - [FCG](fcg.md) — variable-preconditioner extension of CG.
 - [Preconditioners — taxonomy](../preconditioners.md) — what to pair with CG.
 - [Stopping criteria](../stopping-criteria.md) — required configuration.
-- API reference: [`gko::solver::Cg`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Cg.html)
+- API reference: [`gko::solver::Cg`](../../../api-reference/solver/cg.md)
 :::

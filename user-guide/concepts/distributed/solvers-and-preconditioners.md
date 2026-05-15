@@ -227,5 +227,5 @@ separate code paths.
 - [Preconditioners — taxonomy](../preconditioners.md) — local preconditioners that go inside the
   Schwarz wrapper.
 - [Distributed computing — overview](../distributed.md) — the assembly and executor pattern.
-- API reference: [`gko::experimental::distributed::preconditioner::Schwarz`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1preconditioner_1_1Schwarz.html)
+- API reference: [`gko::experimental::distributed::preconditioner::Schwarz`](../../../api-reference/distributed/schwarz.md)
 :::

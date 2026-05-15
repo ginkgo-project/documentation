@@ -110,5 +110,5 @@ stiff problems).
 - [GMRES](gmres.md), [IDR(s)](idr.md) — alternative non-symmetric solvers.
 - [Preconditioners — taxonomy](../preconditioners.md) — what to pair with BiCGSTAB.
 - [Stopping criteria](../stopping-criteria.md) — required configuration.
-- API reference: [`gko::solver::Bicgstab`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Bicgstab.html)
+- API reference: [`gko::solver::Bicgstab`](../../../api-reference/solver/bicgstab.md)
 :::

@@ -177,5 +177,5 @@ IDR(s) — both have bounded per-iteration memory.
 - [Preconditioners — taxonomy](../preconditioners.md) — what to pair with GMRES,
   including the right-preconditioning placement.
 - [Stopping criteria](../stopping-criteria.md) — required configuration.
-- API reference: [`gko::solver::Gmres`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Gmres.html)
+- API reference: [`gko::solver::Gmres`](../../../api-reference/solver/gmres.md)
 :::

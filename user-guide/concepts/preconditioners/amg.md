@@ -56,5 +56,5 @@ counts are clearly the bottleneck.
 - [Multigrid](../solvers/multigrid.md) — the full architectural treatment.
 - [Solvers — taxonomy](../solvers.md) — where multigrid sits among solver families.
 - [Preconditioners — taxonomy](../preconditioners.md) — when to pick AMG vs the alternatives.
-- API reference: [`gko::solver::Multigrid`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Multigrid.html)
+- API reference: [`gko::solver::Multigrid`](../../../api-reference/solver/multigrid.md)
 :::

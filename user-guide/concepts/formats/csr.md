@@ -168,5 +168,5 @@ pre-converting to CSR yourself avoids repeated silent conversions.
 :::{seealso}
 - [Matrix formats — overview](../matrix-formats.md) — when to pick CSR vs alternatives.
 - [COO](coo.md) — the assembly-friendly format that often feeds into CSR.
-- API reference: [`gko::matrix::Csr`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1matrix_1_1Csr.html)
+- API reference: [`gko::matrix::Csr`](../../../api-reference/matrix/csr.md)
 :::

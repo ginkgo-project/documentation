@@ -8,17 +8,17 @@ with its conjugate-transpose backward solve.
 
 Three pieces work together:
 
-- [`gko::factorization::Ic`](../../api-reference/factorization/ic.md) — sequential
+- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — sequential
   IC(0): incomplete Cholesky with the input matrix's own sparsity pattern.
-- [`gko::factorization::ParIc`](../../api-reference/factorization/par-ic.md) —
+- [`gko::factorization::ParIc`](../../../api-reference/factorization/par-ic.md) —
   fine-grained parallel IC(0); asynchronous fixed-point iteration of
   Chow & Patel.
-- [`gko::factorization::ParIct`](../../api-reference/factorization/par-ict.md) —
+- [`gko::factorization::ParIct`](../../../api-reference/factorization/par-ict.md) —
   threshold-based IC; refines the sparsity pattern of $L$ iteratively
   alongside the numerical values.
 
 The matching preconditioner LinOp,
-[`gko::preconditioner::Ic`](../../api-reference/preconditioner/ic.md), wraps
+[`gko::preconditioner::Ic`](../../../api-reference/preconditioner/ic.md), wraps
 the factorisation result and configures the triangular-solve LinOp used at
 `apply` time. The default solver is a direct
 [`LowerTrs`](../solvers/direct.md); a Krylov inner solver can be

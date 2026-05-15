@@ -8,17 +8,17 @@ solve with $U$.
 
 Three pieces work together:
 
-- [`gko::factorization::Ilu`](../../api-reference/factorization/ilu.md) — sequential
+- [`gko::factorization::Ilu`](../../../api-reference/factorization/ilu.md) — sequential
   ILU(0): incomplete LU with the input matrix's own sparsity pattern.
-- [`gko::factorization::ParIlu`](../../api-reference/factorization/par-ilu.md) —
+- [`gko::factorization::ParIlu`](../../../api-reference/factorization/par-ilu.md) —
   fine-grained parallel ILU(0); asynchronous fixed-point iteration of
   Chow & Patel.
-- [`gko::factorization::ParIlut`](../../api-reference/factorization/par-ilut.md) —
+- [`gko::factorization::ParIlut`](../../../api-reference/factorization/par-ilut.md) —
   threshold-based ILU; refines the sparsity patterns of $L$ and $U$
   iteratively alongside the numerical values.
 
 The matching preconditioner LinOp,
-[`gko::preconditioner::Ilu`](../../api-reference/preconditioner/ilu.md), wraps
+[`gko::preconditioner::Ilu`](../../../api-reference/preconditioner/ilu.md), wraps
 the factorisation result and configures the two triangular-solve LinOps used
 at `apply` time. Default solvers are direct
 [`LowerTrs`](../solvers/direct.md) / `UpperTrs`; Krylov inner solvers can be

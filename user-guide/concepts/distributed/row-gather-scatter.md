@@ -128,5 +128,5 @@ Placeholder for future.
 - [Collective communicators](collective-communicator.md) — the layer beneath the gatherer.
 - [Partitions and index maps](partition-and-index-map.md) — the bookkeeping that defines which
   rows get gathered.
-- API reference: [`gko::experimental::distributed::RowGatherer`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1RowGatherer.html)
+- API reference: [`gko::experimental::distributed::RowGatherer`](../../../api-reference/distributed/row-gatherer.md)
 :::

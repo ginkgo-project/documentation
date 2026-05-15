@@ -186,5 +186,5 @@ Avoid IR when:
 - [Mixed-precision design](../mixed-precision.md) — the dominant IR use case.
 - [Multigrid](multigrid.md) — IR as a smoother (`build_smoother`).
 - [Stopping criteria](../stopping-criteria.md) — required configuration.
-- API reference: [`gko::solver::Ir`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Ir.html)
+- API reference: [`gko::solver::Ir`](../../../api-reference/solver/ir.md)
 :::

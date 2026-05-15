@@ -111,5 +111,5 @@ Prefer explicit residual norms in production runs where correctness is paramount
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes stopping criteria.
-- API reference: [`gko::stop`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1stop.html)
+- API reference: [`gko::stop`](../../api-reference/stop/index.md)
 :::

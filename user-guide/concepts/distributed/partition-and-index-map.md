@@ -106,5 +106,5 @@ from a smaller off-diagonal matrix typically outweighs the setup cost.
   `Partition`.
 - [Communication primitives](communication-primitives.md) — what the index map drives during
   the distributed apply.
-- API reference: [`gko::experimental::distributed::Partition`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1Partition.html)
+- API reference: [`gko::experimental::distributed::Partition`](../../../api-reference/distributed/partition.md)
 :::

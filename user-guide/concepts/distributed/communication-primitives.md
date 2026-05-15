@@ -130,5 +130,5 @@ while the exchange is in flight.
   construction.
 - [Distributed solvers and preconditioners](solvers-and-preconditioners.md) — what consumes the
   distributed apply.
-- API reference: [`gko::experimental::distributed::Matrix`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1Matrix.html)
+- API reference: [`gko::experimental::distributed::Matrix`](../../../api-reference/distributed/matrix.md)
 :::

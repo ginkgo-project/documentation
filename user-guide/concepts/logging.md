@@ -189,5 +189,5 @@ The key rule: do not block inside a logger. Loggers run in the hot path of `appl
 - [Stopping criteria](stopping-criteria.md) — `Convergence` reports the criterion's outcome.
 - [The Executor model](executor-model.md) — loggers attach to executors too.
 - [Batched solvers](batched.md) — `BatchConvergence` is the analogue for batched workloads.
-- API reference: [`gko::log`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1log.html)
+- API reference: [`gko::log`](../../api-reference/log/index.md)
 :::

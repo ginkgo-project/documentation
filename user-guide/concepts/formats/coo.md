@@ -147,5 +147,5 @@ prefix-sum over row counts to build `row_ptrs`, then copies `col_idxs` and `valu
 :::{seealso}
 - [Matrix data and assembly](../matrix-data.md) — `matrix_data` reads naturally into COO.
 - [CSR](csr.md) — the conversion target for repeated SpMV.
-- API reference: [`gko::matrix::Coo`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1matrix_1_1Coo.html)
+- API reference: [`gko::matrix::Coo`](../../../api-reference/matrix/coo.md)
 :::

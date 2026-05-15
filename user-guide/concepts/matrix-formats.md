@@ -199,5 +199,5 @@ formats/sparsity-csr
 :::{seealso}
 - [Matrix data and assembly](matrix-data.md) — getting data into a format.
 - [CSR](formats/csr.md), [COO](formats/coo.md) — the two filled format pages.
-- API reference: [`gko::matrix`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1matrix.html)
+- API reference: [`gko::matrix`](../../api-reference/matrix/index.md)
 :::

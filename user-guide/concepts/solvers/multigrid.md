@@ -197,5 +197,5 @@ simpler preconditioners on the right class of problems.
 - [Solvers — taxonomy](../solvers.md) — multigrid in context of the other families.
 - [Preconditioners — taxonomy](../preconditioners.md) — what plugs into the smoother slots.
 - [LinOp and composition](../linop-and-composition.md) — the factory pattern multigrid uses.
-- API reference: [`gko::solver::Multigrid`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Multigrid.html), [`gko::multigrid::MultigridLevel`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1multigrid_1_1MultigridLevel.html)
+- API reference: [`gko::solver::Multigrid`](../../../api-reference/solver/multigrid.md), [`gko::multigrid::MultigridLevel`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1multigrid_1_1MultigridLevel.html)
 :::

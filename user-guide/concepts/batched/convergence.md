@@ -77,5 +77,5 @@ across batch sizes is automatic but allocates fresh memory.
 - [Batched CG](cg.md) and [Batched BiCGSTAB](bicgstab.md) — the solvers this logger observes.
 - [Logging and observability](../logging.md) — the broader logger framework on the
   single-system side.
-- API reference: [`gko::batch::log::BatchConvergence`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1batch_1_1log_1_1BatchConvergence.html)
+- API reference: [`gko::batch::log::BatchConvergence`](../../../api-reference/batch/log-batch-convergence.md)
 :::

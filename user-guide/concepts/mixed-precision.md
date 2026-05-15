@@ -164,5 +164,5 @@ When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-prec
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — IR is one of the Krylov solvers.
 - [Preconditioners — taxonomy](preconditioners.md) — `AdaptivePrecisionJacobi` and block Jacobi storage options.
-- API reference: [`gko::solver::Ir`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1solver_1_1Ir.html)
+- API reference: [`gko::solver::Ir`](../../api-reference/solver/ir.md)
 :::

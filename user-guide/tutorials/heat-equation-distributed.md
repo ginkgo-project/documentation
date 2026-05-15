@@ -688,9 +688,9 @@ pattern.
   executor patterns used here.
 
 :::{seealso}
-- [`gko::experimental::distributed::Matrix`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1Matrix.html)
+- [`gko::experimental::distributed::Matrix`](../../api-reference/distributed/matrix.md)
   — full API reference.
-- [`gko::experimental::distributed::preconditioner::Schwarz`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1distributed_1_1preconditioner_1_1Schwarz.html)
+- [`gko::experimental::distributed::preconditioner::Schwarz`](../../api-reference/distributed/schwarz.md)
   — the one- and two-level Schwarz preconditioner reference.
 - Upstream `examples/heat-equation` and `examples/distributed-solver` —
   the source examples this tutorial is derived from.

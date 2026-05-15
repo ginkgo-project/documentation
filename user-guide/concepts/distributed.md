@@ -257,5 +257,5 @@ distributed/solvers-and-preconditioners
 :::{seealso}
 - [The Executor model](executor-model.md) — distributed objects still bind to an executor per rank.
 - [Matrix data and assembly](matrix-data.md) — `matrix_data` for host-side assembly.
-- API reference: [`gko::experimental::distributed`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1experimental_1_1distributed.html)
+- API reference: [`gko::experimental::distributed`](../../api-reference/distributed/index.md)
 :::

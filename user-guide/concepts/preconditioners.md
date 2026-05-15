@@ -239,5 +239,5 @@ preconditioners/amg
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
 - [Mixed-precision design](mixed-precision.md) — `AdaptivePrecisionJacobi` lives in this space.
-- API reference: [`gko::preconditioner`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1preconditioner.html)
+- API reference: [`gko::preconditioner`](../../api-reference/preconditioner/index.md)
 :::

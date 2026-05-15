@@ -84,5 +84,5 @@ convergence information is discarded.
 - [Batched convergence logger](convergence.md) — extracting per-item iteration counts and
   residuals.
 - [Single-system CG](../solvers/cg.md) — the same algorithm without the batch dimension.
-- API reference: [`gko::batch::solver::Cg`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1batch_1_1solver_1_1Cg.html)
+- API reference: [`gko::batch::solver::Cg`](../../../api-reference/batch/solver-cg.md)
 :::

@@ -121,5 +121,5 @@ expects it.
 - [Matrix formats — overview](../matrix-formats.md) — where SparsityCsr fits relative to the value-bearing formats.
 - [CSR](csr.md) — the value-bearing format SparsityCsr converts to and from.
 - [Reordering and permutations](../reordering.md) — the typical consumer of `to_adjacency_matrix()`.
-- API reference: [`gko::matrix::SparsityCsr`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1matrix_1_1SparsityCsr.html)
+- API reference: [`gko::matrix::SparsityCsr`](../../../api-reference/matrix/sparsity-csr.md)
 :::

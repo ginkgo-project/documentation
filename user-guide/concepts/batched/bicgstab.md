@@ -86,5 +86,5 @@ iteration counts and final residual norms after the solve.
   residuals.
 - [Single-system BiCGSTAB](../solvers/bicgstab.md) — the same algorithm without the batch
   dimension.
-- API reference: [`gko::batch::solver::Bicgstab`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1batch_1_1solver_1_1Bicgstab.html)
+- API reference: [`gko::batch::solver::Bicgstab`](../../../api-reference/batch/solver-bicgstab.md)
 :::
