@@ -95,6 +95,15 @@ PREDEFINED            += GKO_HAVE_METIS=1
 PREDEFINED            += GKO_HAVE_PAPI_SDE=1
 PREDEFINED            += GKO_HAVE_HWLOC=1
 
+# Build-time feature flags. The distributed-memory primitives
+# (Matrix, Vector, Partition, Schwarz, …) live behind GINKGO_BUILD_MPI,
+# and several converters surface under GINKGO_ENABLE_HALF /
+# GINKGO_ENABLE_BFLOAT16.  Define them so the rendered docs show the
+# full public surface regardless of how the local build is configured.
+PREDEFINED            += GINKGO_BUILD_MPI=1
+PREDEFINED            += GINKGO_ENABLE_HALF=1
+PREDEFINED            += GINKGO_ENABLE_BFLOAT16=1
+
 # Speed/noise knobs. Surface real errors, ignore the cosmetic ones.
 QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO

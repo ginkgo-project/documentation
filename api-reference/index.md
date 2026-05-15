@@ -33,9 +33,13 @@ entry points.
 - [`gko::reorder`](reorder/index.md) — permutation generators for
   sparse matrices: RCM, AMD, MC64, nested dissection, and the
   ScaledReordered composition wrapper.
-
-More namespace pages (`gko::experimental::distributed`, `gko::batch`)
-will land in subsequent passes.
+- [`gko::experimental::distributed`](distributed/index.md) —
+  MPI-based distributed-memory primitives: Matrix, Vector, Partition,
+  RowGatherer, the Schwarz preconditioner, and assembly helpers.
+- [`gko::batch`](batch/index.md) — batched linear algebra: MultiVector
+  and matrix formats (CSR, Dense, ELL, Identity), the CG and BiCGSTAB
+  solvers, block-Jacobi preconditioning, and the BatchConvergence
+  logger.
 
 ```{toctree}
 :hidden:
@@ -48,4 +52,6 @@ factorization/index
 log/index
 stop/index
 reorder/index
+distributed/index
+batch/index
 ```

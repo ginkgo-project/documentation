@@ -16,12 +16,9 @@ on each iteration. Multiple criteria can be combined.
 
 - [`Iteration`](iteration.md) — fixed iteration cap.
 - [`Time`](time.md) — wall-clock cap.
-- [`ResidualNorm`](residual-norm.md) — the explicit residual-norm
-  family (`AbsoluteResidualNorm`, `RelativeResidualNorm`,
-  `ImplicitResidualNorm`) for solver tolerance tests.
-- [`ResidualNormReduction`](residual-norm-reduction.md) — deprecated
-  alias that stops on `‖r_k‖ / ‖r_0‖ < tol`; prefer the explicit
-  variants in `ResidualNorm` instead.
+- [`ResidualNorm`](residual-norm.md) — explicit and implicit
+  residual-norm criteria for solver tolerance tests, with three
+  baseline modes (right-hand-side, initial-residual, absolute).
 
 ```{toctree}
 :hidden:
@@ -32,5 +29,4 @@ combined
 iteration
 time
 residual-norm
-residual-norm-reduction
 ```
