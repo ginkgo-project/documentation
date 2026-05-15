@@ -362,13 +362,28 @@ html[data-theme="light"] .highlight {
 /* Feature strip */
 .ginkgo-feature-strip {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 1.5rem;
-    padding: 2.4rem 1rem 3rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem 3rem;
+    padding: 2.4rem 3rem 2.8rem;
     background: var(--pst-color-on-background);
-    border-top: 1px solid var(--pst-color-border);
-    margin: 0 -1rem;
+    border: 1px solid var(--pst-color-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px var(--pst-color-shadow);
+    max-width: 56rem;
+    margin: 1.5rem auto 2rem;
     flex: 0 0 auto;
+}
+
+.ginkgo-feature {
+    max-width: 22rem;
+    margin-inline: auto;
+}
+
+@media (max-width: 640px) {
+    .ginkgo-feature-strip {
+        grid-template-columns: 1fr;
+        padding: 1.8rem 1.6rem 2rem;
+    }
 }
 
 .ginkgo-feature h3 {
