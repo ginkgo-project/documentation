@@ -25,6 +25,7 @@ and how to pick a solver see the
 
 ## Stationary and miscellaneous
 
+- [`Ir`](ir.md) — iterative refinement / Richardson iteration.
 - [`Chebyshev`](chebyshev.md) — Chebyshev iteration.
 
 ## Triangular substitution
@@ -51,6 +52,7 @@ gmres
 cb-gmres
 idr
 gcr
+ir
 chebyshev
 lower-trs
 upper-trs

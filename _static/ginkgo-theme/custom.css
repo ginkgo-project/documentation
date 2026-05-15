@@ -885,6 +885,87 @@ ul.cpp-inherits-list .o {
     color: var(--pst-color-text-muted);
 }
 
+/* `@par References` blocks (and any other `@par` section like `Note`,
+   `Algorithm`, `Remarks`) inside C++ descriptions. Sphinx renders these
+   as `<dl class="simple">` with a `<dt><strong>Label</strong></dt>`.
+   We piggy-back on the same `:has()` pattern as the `cpp-inherits` rules
+   to skip the `field-list simple` variants Sphinx uses for Template
+   Parameters / Parameters / Returns. */
+dl.cpp dl.simple:not(.field-list) {
+    margin: 1rem 0 0.5rem;
+    padding: 0;
+}
+
+dl.cpp dl.simple:not(.field-list) > dt {
+    font-family: var(--pst-font-family-base);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pst-color-text-muted);
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0 0 0.25rem 0;
+}
+
+dl.cpp dl.simple:not(.field-list) > dt > strong {
+    font-weight: inherit;
+}
+
+dl.cpp dl.simple:not(.field-list) > dd {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+dl.cpp dl.simple:not(.field-list) > dd > p {
+    margin: 0;
+}
+
+dl.cpp dl.simple:not(.field-list) ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+dl.cpp dl.simple:not(.field-list) li {
+    padding: 0.2rem 0 0.2rem 0.75rem;
+    margin: 0 0 0.35rem 0;
+    border-left: 2px solid var(--pst-color-border);
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+dl.cpp dl.simple:not(.field-list) li:last-child {
+    margin-bottom: 0;
+}
+
+/* The DOI / URL link inside a reference entry — render as a compact
+   monospace tag rather than a full underlined URL, so the citation
+   reads as "Authors, *Title.* Venue, Year. [doi-tag]" instead of
+   trailing into a 60-character URL. */
+dl.cpp dl.simple:not(.field-list) a.reference.external {
+    display: inline-block;
+    font-family: var(--pst-font-family-monospace);
+    font-size: 0.8rem;
+    padding: 0.02rem 0.4rem;
+    margin-left: 0.15rem;
+    border: 1px solid var(--pst-color-border);
+    border-radius: 3px;
+    background: var(--pst-color-primary-bg);
+    color: var(--pst-color-link);
+    text-decoration: none;
+    vertical-align: baseline;
+    word-break: break-all;
+}
+
+dl.cpp dl.simple:not(.field-list) a.reference.external:hover {
+    background: var(--pst-color-link);
+    color: var(--pst-color-background);
+    border-color: var(--pst-color-link);
+}
+
 /* Breathe section groups: "Public Types", "Public Functions", … */
 .breathe-sectiondef {
     margin: 1.5rem 0;

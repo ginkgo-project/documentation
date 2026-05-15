@@ -18,10 +18,13 @@ entry points.
 - [`gko::solver`](solver/index.md) — Krylov solvers (CG, BiCGSTAB,
   GMRES, IDR(s), …), iterative refinement, direct solvers, multigrid,
   and triangular substitution.
+- [`gko::preconditioner`](preconditioner/index.md) — block-Jacobi,
+  incomplete factorisation preconditioners (IC, ILU, ISAI), and
+  relaxation methods (Gauss-Seidel, SOR / SSOR).
 
-More namespace pages (`gko::preconditioner`, `gko::log`,
-`gko::experimental::distributed`, `gko::batch`, `gko::stop`,
-`gko::reorder`, `gko::factorization`) will land in subsequent passes.
+More namespace pages (`gko::log`, `gko::experimental::distributed`,
+`gko::batch`, `gko::stop`, `gko::reorder`, `gko::factorization`)
+will land in subsequent passes.
 
 ```{toctree}
 :hidden:
@@ -29,4 +32,5 @@ More namespace pages (`gko::preconditioner`, `gko::log`,
 
 matrix/index
 solver/index
+preconditioner/index
 ```
