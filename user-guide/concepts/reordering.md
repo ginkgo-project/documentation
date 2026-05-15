@@ -136,5 +136,5 @@ reordering/scaled-reordered
 :::{seealso}
 - [Direct (LU / Cholesky)](solvers/direct.md) — the primary consumer of fill-reducing reorderings.
 - [Solvers — taxonomy](solvers.md) — where reordering fits relative to the solver families.
-- API reference: [`gko::experimental::reorder`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1experimental_1_1reorder.html)
+- API reference: [`gko::experimental::reorder`](../../api-reference/reorder/index.md).
 :::

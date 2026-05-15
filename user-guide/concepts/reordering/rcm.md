@@ -1,8 +1,48 @@
 # RCM (Reverse Cuthill–McKee)
 
-*This page is a placeholder. Until it is written, the API reference covers the type:*
-[`gko::experimental::reorder::Rcm`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1reorder_1_1Rcm.html)*.*
+Reverse Cuthill–McKee (RCM) is a bandwidth-reducing reordering. It walks the
+matrix's adjacency graph by breadth-first search starting from a *pseudoperipheral*
+vertex (one of high eccentricity, computed by an inner BFS), enumerates the
+resulting level sets in order, and then **reverses** the resulting permutation. The
+reversal is the key step — it consistently tightens the *profile* of the matrix even
+when it does not change the worst-case bandwidth. The output is a row/column
+permutation that clusters nonzeros tightly along the diagonal.
 
-RCM produces a permutation that reduces the bandwidth and profile of a sparse matrix.
-It is most useful as a preprocessing step for triangular solves, banded
-preconditioners, and ILU factorisations on CPU.
+## When to use RCM
+
+- **Triangular solves and ILU-style preconditioners on CPU.** Compacting the
+  bandwidth shortens dependency chains in `LowerTrs`/`UpperTrs` and improves cache
+  reuse in `Ilu` / `ParIlu`.
+- **Banded direct solvers and out-of-core factorisation** where storage is dominated
+  by the bandwidth.
+- As a **cheap preprocessing step** before a more elaborate reordering — RCM's BFS
+  is essentially linear in the number of nonzeros, so it is far cheaper to compute
+  than AMD or nested dissection.
+
+RCM is **not** a good fill-reducing reordering on its own. For sparse direct
+factorisation prefer [AMD](amd.md) or [nested dissection](nested-dissection.md).
+
+## Using RCM
+
+```cpp
+auto reorder_factory =
+    gko::experimental::reorder::Rcm<double, int>::build().on(exec);
+auto perm = reorder_factory->generate(system_matrix);
+
+auto permuted = system_matrix->permute(perm.get());
+```
+
+RCM produces a symmetric permutation; for non-symmetric matrices it operates on the
+symmetrised adjacency pattern $A + A^T$.
+
+## Implementation notes
+
+The algorithm runs on host. The starting vertex is chosen by an inner BFS to
+approximate a pseudoperipheral vertex (high eccentricity), which empirically
+produces tighter profiles than starting from an arbitrary low-degree node.
+
+:::{seealso}
+- API reference: [`gko::experimental::reorder::Rcm`](../../../api-reference/reorder/rcm.md).
+- [ILU preconditioner](../preconditioners/ilu.md) and [IC preconditioner](../preconditioners/ic.md) — typical consumers of an RCM pre-step on CPU.
+- [Reordering and permutations](../reordering.md) — overview and comparison table.
+:::
