@@ -10,6 +10,15 @@ helper, full inheritance graphs) the standalone Doxygen deploy at
 remains the long-form reference. The pages here are the curated
 entry points.
 
+## Core interfaces and runtime
+
+- [Core types](base/index.md) — the abstract bases every Ginkgo class
+  lives behind: `LinOp`, `LinOpFactory`, the `EnableLinOp` CRTP mixin,
+  and the `Transposable` trait.
+- [Executors](executors/index.md) — the hardware abstraction: abstract
+  `Executor` plus the five concrete backends (Reference, OMP, CUDA,
+  HIP, DPC++).
+
 ## Browse by namespace
 
 - [`gko::matrix`](matrix/index.md) — sparse and dense matrix formats:
@@ -45,6 +54,8 @@ entry points.
 :hidden:
 :maxdepth: 1
 
+base/index
+executors/index
 matrix/index
 solver/index
 preconditioner/index

@@ -32,5 +32,5 @@ auto count = gko::DpcppExecutor::get_num_devices("gpu");
 
 :::{seealso}
 - [The Executor model](../executor-model.md)
-- API reference: [`gko::DpcppExecutor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1DpcppExecutor.html)
+- API reference: [`gko::DpcppExecutor`](../../../api-reference/executors/dpcpp.md)
 :::

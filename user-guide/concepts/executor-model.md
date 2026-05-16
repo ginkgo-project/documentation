@@ -166,5 +166,5 @@ executors/dpcpp
 :::{seealso}
 - [LinOp and composition](linop-and-composition.md) — what runs *on* the executor.
 - [Memory ownership and `gko::array`](memory-ownership.md) — what the executor owns.
-- API reference: [`gko::Executor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1Executor.html)
+- API reference: [`gko::Executor`](../../api-reference/executors/executor.md)
 :::

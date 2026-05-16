@@ -31,5 +31,5 @@ Choosing OMP over Reference for the master means any host-side fallback or post-
 
 :::{seealso}
 - [The Executor model](../executor-model.md)
-- API reference: [`gko::OmpExecutor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1OmpExecutor.html)
+- API reference: [`gko::OmpExecutor`](../../../api-reference/executors/omp.md)
 :::

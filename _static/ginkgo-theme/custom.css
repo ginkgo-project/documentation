@@ -850,12 +850,18 @@ dl.cpp > dd:empty {
    in conf.py. The long base-class chain that the C++ domain would
    otherwise render inline in the class signature ends up here, one
    base per line, prefixed by a tiny uppercase label. */
-p.cpp-inherits-label-line {
+p.cpp-inherits-label-line,
+p.cpp-subclassed-label-line {
     margin: 0.5rem 0 0.25rem;
     padding: 0;
 }
 
-p.cpp-inherits-label-line .cpp-inherits-label {
+p.cpp-subclassed-label-line {
+    margin-top: 1.25rem;
+}
+
+p.cpp-inherits-label-line .cpp-inherits-label,
+p.cpp-subclassed-label-line .cpp-subclassed-label {
     font-family: var(--pst-font-family-base);
     font-size: 0.78rem;
     font-weight: 600;
@@ -864,19 +870,22 @@ p.cpp-inherits-label-line .cpp-inherits-label {
     color: var(--pst-color-text-muted);
 }
 
-ul.cpp-inherits-list {
+ul.cpp-inherits-list,
+ul.cpp-subclassed-list {
     list-style: none;
     margin: 0 0 1rem;
     padding: 0;
 }
 
-ul.cpp-inherits-list > li {
+ul.cpp-inherits-list > li,
+ul.cpp-subclassed-list > li {
     margin: 0;
     padding: 0.1rem 0 0.1rem 0.75rem;
     border-left: 2px solid var(--pst-color-border);
 }
 
-ul.cpp-inherits-list > li > p.cpp-inherits-item {
+ul.cpp-inherits-list > li > p.cpp-inherits-item,
+ul.cpp-subclassed-list > li > p.cpp-subclassed-item {
     margin: 0;
     font-family: var(--pst-font-family-monospace);
     font-size: 0.85rem;

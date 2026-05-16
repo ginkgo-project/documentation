@@ -26,5 +26,5 @@ Plain host memory via `new[]`/`delete[]` (`CpuAllocator`). Memory allocated by a
 
 :::{seealso}
 - [The Executor model](../executor-model.md)
-- API reference: [`gko::ReferenceExecutor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1ReferenceExecutor.html)
+- API reference: [`gko::ReferenceExecutor`](../../../api-reference/executors/reference.md)
 :::

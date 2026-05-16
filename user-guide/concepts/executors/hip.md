@@ -45,5 +45,5 @@ auto count = gko::HipExecutor::get_num_devices();
 
 :::{seealso}
 - [The Executor model](../executor-model.md)
-- API reference: [`gko::HipExecutor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1HipExecutor.html)
+- API reference: [`gko::HipExecutor`](../../../api-reference/executors/hip.md)
 :::

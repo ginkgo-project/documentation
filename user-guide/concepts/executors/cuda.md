@@ -47,5 +47,5 @@ auto count = gko::CudaExecutor::get_num_devices();
 
 :::{seealso}
 - [The Executor model](../executor-model.md)
-- API reference: [`gko::CudaExecutor`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1CudaExecutor.html)
+- API reference: [`gko::CudaExecutor`](../../../api-reference/executors/cuda.md)
 :::

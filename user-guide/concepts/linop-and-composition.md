@@ -134,5 +134,5 @@ Every entry in this tree follows the same `apply` contract, carries its executor
 
 :::{seealso}
 - [The Executor model](executor-model.md) — where the LinOp lives.
-- API reference: [`gko::LinOp`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1LinOp.html)
+- API reference: [`gko::LinOp`](../../api-reference/base/lin-op.md)
 :::

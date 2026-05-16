@@ -277,8 +277,86 @@ def _split_class_bases(app, doctree, fromdocname):
         content.insert(0, label)
 
 
+def _format_subclassed_by(app, doctree, fromdocname):
+    """Reformat Breathe's "Subclassed by ..." paragraph as a bulleted list.
+
+    Breathe emits the subclass list as one long paragraph: the literal text
+    "Subclassed by " followed by comma-separated cross-references. For
+    heavily-inherited bases like LinOp or Transposable that produces an
+    unreadable wall of names. This walks each paragraph whose first text
+    child starts with "Subclassed by", takes the remaining children, splits
+    them on top-level commas (so template-argument commas inside
+    `Foo<a, b>` references stay attached to their group), and rewrites the
+    paragraph as a "Subclassed by:" label followed by a `bullet_list` of
+    `list_item`s — one per subclass.
+    """
+    paragraphs_to_replace = []
+    for para in doctree.traverse(nodes.paragraph):
+        if not para.children:
+            continue
+        first = para.children[0]
+        if not isinstance(first, nodes.Text):
+            continue
+        text = first.astext()
+        if not text.startswith("Subclassed by"):
+            continue
+        paragraphs_to_replace.append(para)
+
+    for para in paragraphs_to_replace:
+        # Drop the "Subclassed by " prefix from the first text node.
+        leading = para.children[0].astext()
+        remainder_text = leading[len("Subclassed by"):].lstrip(" ,")
+        rest = list(para.children[1:])
+        if remainder_text:
+            rest.insert(0, nodes.Text(remainder_text))
+
+        # Split on top-level commas. Each separator is a Text node that
+        # contains a ',' character at depth zero (Breathe inserts these
+        # between cross-refs). Template-argument commas are inside
+        # reference nodes so they're not at the paragraph level.
+        groups = [[]]
+        for child in rest:
+            if isinstance(child, nodes.Text):
+                pieces = child.astext().split(",")
+                for i, piece in enumerate(pieces):
+                    piece = piece.strip()
+                    if piece:
+                        groups[-1].append(nodes.Text(piece))
+                    if i < len(pieces) - 1:
+                        groups.append([])
+            else:
+                groups[-1].append(child)
+
+        groups = [g for g in groups if g]
+        if not groups:
+            continue
+
+        label = nodes.paragraph(classes=["cpp-subclassed-label-line"])
+        label += nodes.inline(
+            text="Subclassed by",
+            classes=["cpp-subclassed-label"],
+        )
+
+        sub_list = nodes.bullet_list(classes=["cpp-subclassed-list"])
+        for group in groups:
+            item = nodes.list_item()
+            line = nodes.paragraph(classes=["cpp-subclassed-item"])
+            for node in group:
+                line += node
+            item += line
+            sub_list += item
+
+        # Replace the original paragraph in its parent.
+        parent = para.parent
+        index = parent.index(para)
+        parent.remove(para)
+        parent.insert(index, sub_list)
+        parent.insert(index, label)
+
+
 def setup(app):
     app.connect("doctree-resolved", _split_class_bases)
+    app.connect("doctree-resolved", _format_subclassed_by)
     return {
         "version": "0.1",
         "parallel_read_safe": True,
