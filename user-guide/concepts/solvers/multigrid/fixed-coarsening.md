@@ -78,5 +78,5 @@ pick the right indices per level.
 :::{seealso}
 - [Multigrid](../multigrid.md) — how FixedCoarsening fits into the overall hierarchy.
 - [Pgm](pgm.md) — the algorithmic alternative for generic matrices.
-- API reference: [`gko::multigrid::FixedCoarsening`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1multigrid_1_1FixedCoarsening.html)
+- API reference: [`gko::multigrid::FixedCoarsening`](../../../../api-reference/multigrid/fixed-coarsening.md)
 :::

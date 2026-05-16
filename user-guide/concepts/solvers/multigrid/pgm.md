@@ -144,5 +144,5 @@ matrices.
 :::{seealso}
 - [Multigrid](../multigrid.md) — how Pgm fits into the overall hierarchy.
 - [FixedCoarsening](fixed-coarsening.md) — the alternative coarsening method.
-- API reference: [`gko::multigrid::Pgm`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1multigrid_1_1Pgm.html)
+- API reference: [`gko::multigrid::Pgm`](../../../../api-reference/multigrid/pgm.md)
 :::

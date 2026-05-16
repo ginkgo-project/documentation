@@ -188,5 +188,5 @@ views-zero-copy
 
 :::{seealso}
 - [The Executor model](executor-model.md) — what an `array` is bound to.
-- API reference: [`gko::array`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1array.html)
+- API reference: [`gko::array`](../../api-reference/base/array.md)
 :::

@@ -42,6 +42,9 @@ entry points.
 - [`gko::reorder`](reorder/index.md) — permutation generators for
   sparse matrices: RCM, AMD, MC64, nested dissection, and the
   ScaledReordered composition wrapper.
+- [`gko::multigrid`](multigrid/index.md) — building blocks for
+  algebraic-multigrid hierarchies: the `MultigridLevel` interface
+  and the `Pgm` / `FixedCoarsening` level generators.
 - [`gko::experimental::distributed`](distributed/index.md) —
   MPI-based distributed-memory primitives: Matrix, Vector, Partition,
   RowGatherer, the Schwarz preconditioner, and assembly helpers.
@@ -63,6 +66,7 @@ factorization/index
 log/index
 stop/index
 reorder/index
+multigrid/index
 distributed/index
 batch/index
 ```

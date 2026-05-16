@@ -23,6 +23,11 @@ concrete operators implement.
 - [`Composition`](composition.md) — function composition of `LinOp`s,
   $A_1 \cdot A_2 \cdot \ldots \cdot A_n$, evaluated right-to-left.
 
+## Memory containers
+
+- [`array`](array.md) — owning, executor-aware contiguous buffer; the
+  storage unit that backs every Ginkgo data structure.
+
 ## Mixins and traits
 
 - [`EnableLinOp`](enable-linop.md) — CRTP mixin that supplies the
@@ -40,6 +45,7 @@ lin-op
 lin-op-factory
 combination
 composition
+array
 enable-linop
 transposable
 ```
