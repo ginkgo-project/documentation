@@ -39,18 +39,22 @@ jobs:
       # Ginkgo's develop branch (in-flight work). Each Sphinx build
       # consumes its sibling Doxygen XML, produced from these
       # checkouts via `make doxygen-xml`.
-      - name: Checkout Ginkgo source (stable → ginkgo main)
+      # TEMPORARY: both stable and develop checkouts pin
+      # ginkgo:fix/doc-strings until the docstring-fix PR merges into
+      # main / develop. After that, revert these refs to `main` and
+      # `develop` respectively.
+      - name: Checkout Ginkgo source (stable → ginkgo fix/doc-strings)
         uses: actions/checkout@v4
         with:
           repository: ginkgo-project/ginkgo
-          ref: main
+          ref: fix/doc-strings
           path: stable-src/upstream
 
-      - name: Checkout Ginkgo source (develop → ginkgo develop)
+      - name: Checkout Ginkgo source (develop → ginkgo fix/doc-strings)
         uses: actions/checkout@v4
         with:
           repository: ginkgo-project/ginkgo
-          ref: develop
+          ref: fix/doc-strings
           path: develop-src/upstream
         continue-on-error: true
 

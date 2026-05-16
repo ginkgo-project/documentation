@@ -14,13 +14,16 @@ jobs:
       - uses: actions/checkout@v4
 
       # API reference pages use Breathe to ingest Doxygen XML. The XML
-      # is produced from the Ginkgo source — clone the develop branch
-      # so the PR build validates against current public API.
+      # is produced from the Ginkgo source.
+      #
+      # TEMPORARY: pinned to ginkgo:fix/doc-strings until the
+      # docstring-fix PR merges into develop. After that, revert this
+      # ref back to `develop`.
       - name: Checkout Ginkgo source
         uses: actions/checkout@v4
         with:
           repository: ginkgo-project/ginkgo
-          ref: develop
+          ref: fix/doc-strings
           path: upstream
 
       - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
