@@ -218,5 +218,5 @@ inner brace.
 
 :::{seealso}
 - [Configuration from JSON files](../../concepts/config-files.md) — the conceptual reference and full property-tree grammar.
-- [`registry`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1config_1_1registry.html) — the canonical type list.
+- [`registry`](../../../api-reference/config/registry.md) — the canonical type list.
 :::

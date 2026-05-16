@@ -1,0 +1,22 @@
+# `gko::experimental::solver::`<br>`Direct`
+
+Direct solver built from a sparse $LU$ (or $LDL^T$) factorisation
+supplied by a [`Factorization`](../factorization/factorization.md)
+factory. The factorisation is computed once during `generate()` and
+reused across every `apply()`; each apply runs a forward solve on
+the $L$ factor followed by a backward solve on the $U$ factor.
+
+The factorisation factory is provided as the `factorization` factory
+parameter — typically a built-in factorisation
+([`Cholesky`](../factorization/cholesky.md),
+[`Lu`](../factorization/lu.md)) or a user-supplied one. The native
+Ginkgo triangular solvers
+([`LowerTrs`](lower-trs.md), [`UpperTrs`](upper-trs.md)) handle the
+substitutions.
+
+For an introduction to direct solvers in Ginkgo, see the
+[direct solver concept page](../../user-guide/concepts/solvers/direct.md).
+
+```{doxygenclass} gko::experimental::solver::Direct
+:members:
+```

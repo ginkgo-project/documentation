@@ -100,5 +100,5 @@ neighborhood-communicators
   distributed SpMV.
 - [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses a collective
   communicator to perform the halo exchange.
-- API reference: [`gko::experimental::mpi::CollectiveCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1CollectiveCommunicator.html)
+- API reference: [`gko::experimental::mpi::CollectiveCommunicator`](../../../api-reference/mpi/collective-communicator.md)
 :::

@@ -1,4 +1,4 @@
-# `gko::experimental::factorization::Factorization`
+# `gko::experimental::factorization::`<br>`Factorization`
 
 The container produced by every factorisation in this namespace. Owns
 the computed factors and dispatches on `apply`: depending on the

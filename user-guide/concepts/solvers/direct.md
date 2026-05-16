@@ -125,5 +125,5 @@ with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.m
 - [Solvers — taxonomy](../solvers.md) — where direct fits among the families.
 - [Reordering and permutations](../reordering.md) — fill-reducing preprocessing.
 - [cuDSS direct solver](../extensions/cudss.md) — CUDA-specific sparse direct alternative.
-- API reference: [`gko::experimental::solver::Direct`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1solver_1_1Direct.html), [`gko::solver::LowerTrs`](../../../api-reference/solver/lower-trs.md), [`gko::solver::UpperTrs`](../../../api-reference/solver/upper-trs.md)
+- API reference: [`gko::experimental::solver::Direct`](../../../api-reference/solver/direct.md), [`gko::solver::LowerTrs`](../../../api-reference/solver/lower-trs.md), [`gko::solver::UpperTrs`](../../../api-reference/solver/upper-trs.md)
 :::

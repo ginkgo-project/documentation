@@ -33,6 +33,11 @@ and how to pick a solver see the
 - [`LowerTrs`](lower-trs.md) — lower-triangular solve.
 - [`UpperTrs`](upper-trs.md) — upper-triangular solve.
 
+## Direct (factorisation-based)
+
+- [`experimental::solver::Direct`](direct.md) — pairs a sparse
+  factorisation with `LowerTrs` / `UpperTrs` to act as a `LinOp`.
+
 ## Multigrid
 
 - [`Multigrid`](multigrid.md) — geometric / algebraic multigrid framework.
@@ -56,5 +61,6 @@ ir
 chebyshev
 lower-trs
 upper-trs
+direct
 multigrid
 ```

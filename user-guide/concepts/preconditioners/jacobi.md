@@ -10,7 +10,7 @@ columns per block) it captures local couplings that scalar Jacobi misses.
 The defining property is locality: each block's inverse is computed and
 applied independently, so the preconditioner is embarrassingly parallel.
 Block-Jacobi is the standard cheap default for iterative solvers — and the
-canonical local solver inside the [Schwarz](../distributed/schwarz.md)
+canonical local solver inside the [Schwarz](../../../api-reference/distributed/schwarz.md)
 preconditioner for distributed-memory runs.
 
 ## When to use Jacobi
@@ -25,7 +25,7 @@ preconditioner for distributed-memory runs.
   discretisations, or any matrix where local couplings within a block are
   much stronger than couplings between blocks.
 - **As the local solver inside Schwarz** for distributed-memory problems —
-  see [Schwarz](../distributed/schwarz.md).
+  see [Schwarz](../../../api-reference/distributed/schwarz.md).
 
 For matrices where the diagonal blocks are not a good approximation of the
 full inverse — e.g., problems with long-range couplings or large condition
@@ -91,7 +91,7 @@ iterative solver around it.
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — picking the right solver to pair with Jacobi.
 - [Preconditioners — taxonomy](../preconditioners.md) — alternatives when Jacobi is too weak.
-- [Schwarz](../distributed/schwarz.md) — uses block-Jacobi as its per-rank local solver.
+- [Schwarz](../../../api-reference/distributed/schwarz.md) — uses block-Jacobi as its per-rank local solver.
 - API reference: [`gko::preconditioner::Jacobi`](../../../api-reference/preconditioner/jacobi.md).
 
 References:

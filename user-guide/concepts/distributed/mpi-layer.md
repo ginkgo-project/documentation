@@ -156,5 +156,5 @@ criteria and norms go through `i_all_reduce` on the same communicator. No point-
   exchange built on top of the collective communicator.
 - [Distributed solvers and preconditioners](solvers-and-preconditioners.md) — where
   `i_all_reduce` shows up.
-- API reference: [`gko::experimental::mpi`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1experimental_1_1mpi.html), [`gko::experimental::mpi::CollectiveCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1CollectiveCommunicator.html)
+- API reference: [`gko::experimental::mpi`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1experimental_1_1mpi.html), [`gko::experimental::mpi::CollectiveCommunicator`](../../../api-reference/mpi/collective-communicator.md)
 :::

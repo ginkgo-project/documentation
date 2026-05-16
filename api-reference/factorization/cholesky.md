@@ -1,4 +1,4 @@
-# `gko::experimental::factorization::Cholesky`
+# `gko::experimental::factorization::`<br>`Cholesky`
 
 Sparse Cholesky factorisation for symmetric positive-definite systems.
 Computes the lower-triangular factor $L$ such that $A = L L^H$ and

@@ -1,4 +1,4 @@
-# `gko::experimental::distributed::preconditioner::Schwarz`
+# `gko::experimental::distributed::preconditioner::`<br>`Schwarz`
 
 Additive Schwarz preconditioner. Applies a user-supplied local solver
 to each rank's diagonal block; remote couplings are not iterated over,

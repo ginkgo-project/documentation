@@ -1,4 +1,4 @@
-# `gko::experimental::reorder::NestedDissection`
+# `gko::experimental::reorder::`<br>`NestedDissection`
 
 Nested dissection reordering via the [METIS](https://github.com/KarypisLab/METIS)
 library. Recursively splits the graph by small vertex separators

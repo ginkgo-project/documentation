@@ -1,4 +1,4 @@
-# `gko::experimental::distributed::index_map`
+# `gko::experimental::distributed::`<br>`index_map`
 
 Translates between global indices and the local indices each rank
 uses to refer to its diagonal and off-diagonal data. Holds the

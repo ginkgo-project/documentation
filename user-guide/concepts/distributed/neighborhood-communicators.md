@@ -91,5 +91,5 @@ roles. This is what `RowGatherer` uses internally to derive the *send* index pat
 - [Dense communicator](dense-communicator.md) — the portable default.
 - [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses the inverse
   pattern derived above.
-- API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1NeighborhoodCommunicator.html)
+- API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](../../../api-reference/mpi/neighborhood-communicator.md)
 :::

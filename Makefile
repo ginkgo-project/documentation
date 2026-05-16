@@ -4,7 +4,7 @@ SPHINX := .venv/bin/sphinx-build
 
 # Default Ginkgo source location for the Breathe → Sphinx XML build. Override
 # on the command line, e.g. `make doxygen-xml GINKGO_SOURCE_DIR=/path/to/ginkgo`.
-GINKGO_SOURCE_DIR ?= $(abspath ../upstream)
+GINKGO_SOURCE_DIR ?= $(abspath ../8ginkgo)
 
 .PHONY: venv install html stable develop clean linkcheck strict doxygen-xml doxygen-xml-clean
 

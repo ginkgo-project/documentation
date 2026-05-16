@@ -122,5 +122,5 @@ Ginkgo continues to build normally.
 - [Direct (LU / Cholesky)](../solvers/direct.md) — the cross-backend Ginkgo direct solver.
 - [Solvers — taxonomy](../solvers.md) — where direct solvers fit in the broader picture.
 - [Reordering and permutations](../reordering.md) — apply a fill-reducing reordering before factorization.
-- API reference: [`gko::ext::cuda::solver::Cudss`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1ext_1_1cuda_1_1solver_1_1Cudss.html)
+- API reference: [`gko::ext::cuda::solver::Cudss`](../../../api-reference/extensions/cudss.md)
 :::

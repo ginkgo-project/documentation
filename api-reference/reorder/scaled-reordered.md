@@ -1,4 +1,4 @@
-# `gko::experimental::reorder::ScaledReordered`
+# `gko::experimental::reorder::`<br>`ScaledReordered`
 
 Composition wrapper: takes a system matrix $A$, a permutation $P$,
 and an optional diagonal scaling, and presents the solver with the

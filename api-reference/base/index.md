@@ -27,6 +27,9 @@ concrete operators implement.
 
 - [`array`](array.md) — owning, executor-aware contiguous buffer; the
   storage unit that backs every Ginkgo data structure.
+- [`matrix_data`](matrix-data.md) — host-side `(row, col, value)`
+  triple-list used as the executor-independent assembly format for
+  every sparse matrix type.
 
 ## Mixins and traits
 
@@ -46,6 +49,7 @@ lin-op-factory
 combination
 composition
 array
+matrix-data
 enable-linop
 transposable
 ```

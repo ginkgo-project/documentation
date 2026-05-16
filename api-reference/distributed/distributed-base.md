@@ -1,4 +1,4 @@
-# `gko::experimental::distributed::DistributedBase`
+# `gko::experimental::distributed::`<br>`DistributedBase`
 
 Mixin that gives a distributed type access to its MPI communicator
 through `get_communicator()`. Every type in this namespace inherits

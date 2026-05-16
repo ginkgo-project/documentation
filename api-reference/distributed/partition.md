@@ -1,4 +1,4 @@
-# `gko::experimental::distributed::Partition`
+# `gko::experimental::distributed::`<br>`Partition`
 
 Ownership map: stores, for each contiguous range of global indices,
 which rank owns it. Three factory helpers cover the common cases:

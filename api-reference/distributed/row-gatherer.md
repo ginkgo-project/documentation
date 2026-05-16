@@ -1,4 +1,4 @@
-# `gko::experimental::distributed::RowGatherer`
+# `gko::experimental::distributed::`<br>`RowGatherer`
 
 Communication primitive that fetches remote rows of a distributed
 vector — the workhorse behind the off-diagonal SpMV in

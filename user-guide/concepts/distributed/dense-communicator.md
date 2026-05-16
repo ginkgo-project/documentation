@@ -88,5 +88,5 @@ the per-rank size vector and lets MPI pick.
 - [Neighborhood communicator](neighborhood-communicators.md) — the sparse-topology alternative.
 - [Communication primitives](communication-primitives.md) — how the dense `i_all_to_all_v` is
   consumed by distributed SpMV.
-- API reference: [`gko::experimental::mpi::DenseCommunicator`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/classgko_1_1experimental_1_1mpi_1_1DenseCommunicator.html)
+- API reference: [`gko::experimental::mpi::DenseCommunicator`](../../../api-reference/mpi/dense-communicator.md)
 :::

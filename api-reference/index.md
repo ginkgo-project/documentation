@@ -48,10 +48,22 @@ entry points.
 - [`gko::experimental::distributed`](distributed/index.md) —
   MPI-based distributed-memory primitives: Matrix, Vector, Partition,
   RowGatherer, the Schwarz preconditioner, and assembly helpers.
+- [`gko::experimental::mpi`](mpi/index.md) — C++ wrappers around the
+  MPI runtime that the distributed types are built on: `communicator`,
+  `request`, `status`, `environment`, and the collective-communicator
+  hierarchy.
 - [`gko::batch`](batch/index.md) — batched linear algebra: MultiVector
   and matrix formats (CSR, Dense, ELL, Identity), the CG and BiCGSTAB
   solvers, block-Jacobi preconditioning, and the BatchConvergence
   logger.
+
+## Configuration and extensions
+
+- [`gko::config`](config/index.md) — JSON-driven construction of
+  Ginkgo factories: `pnode`, `type_descriptor`, and `registry`.
+- [`gko::ext`](extensions/index.md) — optional integrations with
+  third-party libraries: NVIDIA's cuDSS direct solver, and Kokkos
+  view / executor interop.
 
 ```{toctree}
 :hidden:
@@ -68,5 +80,8 @@ stop/index
 reorder/index
 multigrid/index
 distributed/index
+mpi/index
 batch/index
+config/index
+extensions/index
 ```
