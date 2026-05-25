@@ -19,6 +19,7 @@ memory-ownership
 :maxdepth: 2
 matrix-data
 matrix-formats
+accessors
 ```
 
 ## Reordering and permutations
