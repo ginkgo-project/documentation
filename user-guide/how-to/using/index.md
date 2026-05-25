@@ -19,5 +19,6 @@ use-existing-mpi-communicator
 assemble-distributed-matrix
 tune-direct-solver
 use-batched-solver
+build-mixed-precision-with-accessors
 profiler-hook-caliper
 ```

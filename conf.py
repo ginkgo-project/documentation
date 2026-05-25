@@ -1,6 +1,8 @@
 """Sphinx configuration for the Ginkgo documentation site."""
 import os
+import zipfile
 from datetime import date
+from pathlib import Path
 
 from docutils import nodes
 from sphinx import addnodes
@@ -45,6 +47,13 @@ exclude_patterns = [
     "_build", ".venv", "Thumbs.db", ".DS_Store",
     "docs/superpowers", "README.md", "feedback.md",
     "_doxygen/xml", "_doxygen/Doxyfile",
+    # `code-samples/<name>/` directories hold runnable companions to
+    # how-to pages — C++ sources, CMakeLists, and a README. Sphinx
+    # ingests README.md from each, then complains it's not in any
+    # toctree, so we exclude the whole tree from the documentation
+    # build. The bundles are still zipped + served as downloads by the
+    # `_zip_code_samples` hook in setup().
+    "code-samples",
 ]
 
 # Breathe: bridges Doxygen XML into Sphinx. The XML directory is produced by
@@ -354,7 +363,37 @@ def _format_subclassed_by(app, doctree, fromdocname):
         parent.insert(index, label)
 
 
+def _zip_code_samples(app):
+    """Zip every `code-samples/<name>/` directory into a sibling .zip.
+
+    Pages that want to offer a downloadable bundle of runnable companion
+    code (sources + CMakeLists + README) reference the resulting .zip via
+    Sphinx's `{download}` role. Generating the zip on every build keeps
+    the bundle in lock-step with the sources in git — no chance of
+    drift between the page snippets and the downloadable archive.
+
+    Each sample's local `build/` directory is excluded so cmake artifacts
+    don't bloat the archive.
+    """
+    samples_dir = Path(app.srcdir) / "code-samples"
+    if not samples_dir.is_dir():
+        return
+    for sample in sorted(samples_dir.iterdir()):
+        if not sample.is_dir():
+            continue
+        out_zip = samples_dir / f"{sample.name}.zip"
+        with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path in sorted(sample.rglob("*")):
+                # Skip cmake build artefacts (sample-local `build/` tree).
+                if "build" in path.relative_to(sample).parts:
+                    continue
+                if path.is_file():
+                    arcname = Path(sample.name) / path.relative_to(sample)
+                    zf.write(path, arcname=str(arcname))
+
+
 def setup(app):
+    app.connect("builder-inited", _zip_code_samples)
     app.connect("doctree-resolved", _split_class_bases)
     app.connect("doctree-resolved", _format_subclassed_by)
     return {
