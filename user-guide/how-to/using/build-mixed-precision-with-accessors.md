@@ -294,8 +294,10 @@ accommodates the looser bound.
 ## Going further
 
 - **Using mixed precision through Ginkgo solvers.** If you want to
-  *consume* mixed precision rather than *write* the kernel, the
-  solver factories already expose it — see
+  *consume* mixed precision rather than *write* the kernel — combining a
+  matrix, solver, and preconditioner at different precisions — see
+  [Mixed and multi-precision solvers and preconditioners](mixed-multi-precision-solvers.md),
+  with the design rationale in
   [Mixed precision](../../concepts/mixed-precision.md).
 
 :::{seealso}
