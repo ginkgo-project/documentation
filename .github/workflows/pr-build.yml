@@ -1,8 +1,10 @@
 name: PR Build
 
+# Strict build of a pull request into any version branch, against the
+# Ginkgo ref pinned in the pull request's `.ginkgo-ref`.
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "release/**"]
 
 env:
   DOXYGEN_VERSION: "1.17.0"
@@ -12,18 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: docs
 
-      # API reference pages use Breathe to ingest Doxygen XML. The XML
-      # is produced from the Ginkgo source.
-      #
-      # TEMPORARY: pinned to ginkgo:fix/doc-strings until the
-      # docstring-fix PR merges into develop. After that, revert this
-      # ref back to `develop`.
-      - name: Checkout Ginkgo source
+      - name: Read pinned Ginkgo ref
+        id: pin
+        run: echo "ref=$(tr -d '[:space:]' < docs/.ginkgo-ref)" >> "$GITHUB_OUTPUT"
+
+      # The example pages include `/../upstream/examples/...`, so Ginkgo
+      # sits next to the docs checkout.
+      - name: Checkout Ginkgo (${{ steps.pin.outputs.ref }})
         uses: actions/checkout@v4
         with:
           repository: ginkgo-project/ginkgo
-          ref: fix/doc-strings
+          ref: ${{ steps.pin.outputs.ref }}
           path: upstream
 
       - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
@@ -38,20 +42,24 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: docs/requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r docs/requirements.txt
 
       - name: Build Doxygen XML
-        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
+        run: make -C docs doxygen-xml GINKGO_SOURCE_DIR="$PWD/upstream"
 
       - name: Strict build (warnings as errors)
-        run: sphinx-build -W -b html . _build/html
+        run: sphinx-build -W --keep-going -b html docs out
 
-      - name: Link check (internal only on PR)
-        run: sphinx-build -b linkcheck . _build/linkcheck
+      - name: Check build
+        run: python docs/scripts/check_build.py out
+
+      - name: Link check
+        run: sphinx-build -b linkcheck docs linkcheck
         continue-on-error: true
 
       - name: Upload linkcheck output
@@ -59,5 +67,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linkcheck-output
-          path: _build/linkcheck/
+          path: linkcheck/
           retention-days: 14

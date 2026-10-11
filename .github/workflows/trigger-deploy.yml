@@ -1,0 +1,20 @@
+name: Trigger Deploy
+
+# Deploys only run from `main` (the github-pages environment allows no
+# other branch). A push to another version branch asks `main`'s Build and
+# Deploy workflow to rebuild and redeploy every version.
+on:
+  push:
+    branches: [develop, "release/**"]
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Build and Deploy on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build-and-deploy.yml --ref main -R "${{ github.repository }}"

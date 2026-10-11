@@ -14,6 +14,10 @@ OUTPUT_DIRECTORY       = .
 INPUT                  = $(GINKGO_SOURCE_DIR)/include
 RECURSIVE              = YES
 FILE_PATTERNS          = *.hpp *.h *.cuh
+# Repairs unbalanced backticks in the doc comments of released headers
+# (Ginkgo <= 1.11); a no-op on headers that are already correct. Doxygen
+# runs it from this directory (the Makefile cds here first).
+INPUT_FILTER           = "python3 fix_docstrings.py"
 
 # We only want XML — Sphinx renders the HTML. Skip every other backend so
 # the build stays fast and the output directory stays small.
@@ -52,6 +56,8 @@ PREDEFINED            += "GKO_ATTRIBUTES="
 PREDEFINED            += "GKO_INLINE=inline"
 PREDEFINED            += "GKO_ACC_INLINE=inline"
 PREDEFINED            += "GKO_ACC_ATTRIBUTES="
+PREDEFINED            += "GKO_BEGIN_DISABLE_DEPRECATION_WARNINGS="
+PREDEFINED            += "GKO_END_DISABLE_DEPRECATION_WARNINGS="
 PREDEFINED            += "GKO_KERNEL="
 PREDEFINED            += "__host__="
 PREDEFINED            += "__device__="

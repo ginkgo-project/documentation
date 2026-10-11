@@ -580,57 +580,44 @@ html[data-theme="light"] .highlight {
     color: #fff;
 }
 
-/* Version switcher */
-.ginkgo-version-switcher {
-    position: relative;
-    display: inline-block;
+/* Version switcher: PyData's built-in dropdown, restyled as the Ginkgo
+   pill. Selectors match the theme's own (`button.btn.…`) so these rules
+   win by load order. */
+.version-switcher__container {
     margin-right: 0.6rem;
 }
 
-.ginkgo-version-button {
+button.btn.version-switcher__button {
     background: var(--pst-color-on-background);
     border: 1px solid var(--pst-color-secondary);
     color: var(--pst-color-primary);
     padding: 0.25rem 0.7rem;
     border-radius: 14px;
     font-size: 0.78rem;
-    cursor: pointer;
     font-family: var(--pst-font-family-base);
 }
 
-.ginkgo-version-menu {
-    display: none;
-    position: absolute;
-    top: 110%;
-    right: 0;
-    background: var(--pst-color-on-background);
-    border: 1px solid var(--pst-color-border);
+button.btn.version-switcher__button:hover,
+button.btn.version-switcher__button:active {
+    border-color: var(--pst-color-secondary);
+    color: var(--pst-color-primary);
+}
+
+.version-switcher__menu {
+    border-color: var(--pst-color-border);
     border-radius: 6px;
     box-shadow: 0 4px 12px var(--pst-color-shadow);
     min-width: 8rem;
-    z-index: 100;
 }
 
-.ginkgo-version-switcher:hover .ginkgo-version-menu,
-.ginkgo-version-switcher:focus-within .ginkgo-version-menu {
-    display: block;
-}
-
-.ginkgo-version-item {
-    display: block;
+.version-switcher__menu a.list-group-item {
     padding: 0.5rem 0.9rem;
     font-size: 0.85rem;
-    color: var(--pst-color-text-base);
+}
+
+.version-switcher__menu a.list-group-item:hover {
+    background-color: var(--pst-color-primary-bg);
     text-decoration: none;
-}
-
-.ginkgo-version-item:hover {
-    background: var(--pst-color-primary-bg);
-}
-
-.ginkgo-version-item.is-current {
-    color: var(--pst-color-primary);
-    font-weight: 600;
 }
 
 /* Mermaid graphs (example navigation graph):

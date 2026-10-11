@@ -1,5 +1,6 @@
 """Sphinx configuration for the Ginkgo documentation site."""
 import os
+import re
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -11,20 +12,36 @@ project = "Ginkgo"
 author = "The Ginkgo authors"
 copyright = f"{date.today().year}, {author}"
 
-# Versioning: read from env var; default to "stable" for local dev.
-ginkgo_doc_version = os.environ.get("GINKGO_DOC_VERSION", "stable")
+# Versioning. Each docs branch documents one Ginkgo ref, pinned in
+# `.ginkgo-ref` (e.g. `v1.11.0` or `develop`). CI passes the switcher
+# version and the site URL explicitly; local builds derive the version
+# from the pin so the switcher highlights the right entry.
+_ginkgo_ref_file = Path(__file__).resolve().parent / ".ginkgo-ref"
 
-# Expose the version to templates for the version switcher.
-html_context = {
-    "ginkgo_doc_version": ginkgo_doc_version,
-    "ginkgo_doc_version_label": "develop" if ginkgo_doc_version == "develop" else "stable",
-}
 
-# When building the develop subsite, prefix all internal links with /develop/.
-if ginkgo_doc_version == "develop":
-    html_baseurl = "https://gko-project.org/develop/"
-else:
-    html_baseurl = "https://gko-project.org/"
+def _resolve_doc_version(env_value, ref_file):
+    """Return the switcher version for this build.
+
+    `GINKGO_DOC_VERSION` wins when set. Otherwise a release-tag pin
+    `vMAJOR.MINOR.PATCH` maps to `MAJOR.MINOR`, any other pin (a branch
+    such as `develop`) is used as-is, and a missing pin means `develop`.
+    """
+    if env_value:
+        return env_value
+    if not ref_file.is_file():
+        return "develop"
+    ref = ref_file.read_text(encoding="utf-8").strip()
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.\d+", ref)
+    return f"{match.group(1)}.{match.group(2)}" if match else ref
+
+
+ginkgo_doc_version = _resolve_doc_version(
+    os.environ.get("GINKGO_DOC_VERSION"), _ginkgo_ref_file
+)
+# The theme's version-warning banner compares Sphinx's `version` with the
+# preferred entry in switcher.json, so it must equal the switcher version.
+version = release = ginkgo_doc_version
+html_baseurl = os.environ.get("GINKGO_DOC_BASEURL", "https://gko-project.org/")
 
 extensions = [
     "myst_parser",
@@ -148,6 +165,16 @@ html_theme_options = {
     "footer_end": ["sphinx-version", "theme-version"],
     "secondary_sidebar_items": ["page-toc"],
     "show_toc_level": 2,
+    # Version switcher. The list of versions is `_static/switcher.json` on
+    # `main`, fetched from the production site at page load, so adding a
+    # version updates the dropdown on every older build too. Builds never
+    # fetch it themselves.
+    "switcher": {
+        "json_url": "https://gko-project.org/_static/switcher.json",
+        "version_match": ginkgo_doc_version,
+    },
+    "check_switcher": False,
+    "show_version_warning_banner": True,
 }
 
 

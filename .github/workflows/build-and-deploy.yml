@@ -1,9 +1,18 @@
 name: Build and Deploy
 
+# Builds every documentation version listed in `_static/switcher.json` on
+# `main`, each from its docs branch against the Ginkgo ref pinned in that
+# branch's `.ginkgo-ref`, and deploys them together to GitHub Pages.
+# Only `main` deploys (the github-pages environment allows no other
+# branch): pushes to `develop` and `release/**` dispatch this workflow via
+# `trigger-deploy.yml`. The weekly run refreshes `/develop/`, whose API
+# reference follows Ginkgo's develop branch.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
 
 permissions:
   contents: read
@@ -18,45 +27,49 @@ env:
   DOXYGEN_VERSION: "1.17.0"
 
 jobs:
-  build:
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.versions.outputs.versions }}
     steps:
-      - name: Checkout main (stable)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
-          path: stable-src
 
-      - name: Checkout develop
+      - name: Validate version list
+        run: python3 scripts/check_build.py --switcher _static/switcher.json
+
+      - name: Read version list
+        id: versions
+        run: echo "versions=$(scripts/versions_matrix.sh _static/switcher.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    name: build (${{ matrix.version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.versions) }}
+    steps:
+      - name: Checkout docs (${{ matrix.branch }})
         uses: actions/checkout@v4
         with:
-          ref: develop
-          path: develop-src
-        continue-on-error: true
+          ref: ${{ matrix.branch }}
+          path: docs
 
-      # The stable docs render API pages against Ginkgo's main branch
-      # (the latest release line). The develop docs render against
-      # Ginkgo's develop branch (in-flight work). Each Sphinx build
-      # consumes its sibling Doxygen XML, produced from these
-      # checkouts via `make doxygen-xml`.
-      # TEMPORARY: both stable and develop checkouts pin
-      # ginkgo:fix/doc-strings until the docstring-fix PR merges into
-      # main / develop. After that, revert these refs to `main` and
-      # `develop` respectively.
-      - name: Checkout Ginkgo source (stable → ginkgo fix/doc-strings)
+      - name: Read pinned Ginkgo ref
+        id: pin
+        run: echo "ref=$(tr -d '[:space:]' < docs/.ginkgo-ref)" >> "$GITHUB_OUTPUT"
+
+      # The example pages include `/../upstream/examples/...`, so Ginkgo
+      # sits next to the docs checkout.
+      - name: Checkout Ginkgo (${{ steps.pin.outputs.ref }})
         uses: actions/checkout@v4
         with:
           repository: ginkgo-project/ginkgo
-          ref: fix/doc-strings
-          path: stable-src/upstream
-
-      - name: Checkout Ginkgo source (develop → ginkgo fix/doc-strings)
-        uses: actions/checkout@v4
-        with:
-          repository: ginkgo-project/ginkgo
-          ref: fix/doc-strings
-          path: develop-src/upstream
-        continue-on-error: true
+          ref: ${{ steps.pin.outputs.ref }}
+          path: upstream
 
       # Ubuntu's apt Doxygen lags upstream by ~2 years (current apt is
       # 1.9.8) and stumbles on Ginkgo's template-heavy headers. The
@@ -74,42 +87,50 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: docs/requirements.txt
 
-      - name: Install dependencies (stable)
-        working-directory: stable-src
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r docs/requirements.txt
 
-      - name: Build Doxygen XML (stable)
-        working-directory: stable-src
-        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
+      - name: Build Doxygen XML
+        run: make -C docs doxygen-xml GINKGO_SOURCE_DIR="$PWD/upstream"
 
-      - name: Build stable
-        working-directory: stable-src
+      # Non-strict: a new warning from Ginkgo develop on the weekly run
+      # must not take the whole site down.
+      - name: Build HTML
         env:
-          GINKGO_DOC_VERSION: stable
-        run: sphinx-build -b html . ../_site
+          GINKGO_DOC_VERSION: ${{ matrix.version }}
+          GINKGO_DOC_BASEURL: ${{ matrix.url }}
+        run: sphinx-build -b html docs out
 
-      - name: Install dependencies (develop)
-        if: hashFiles('develop-src/requirements.txt') != ''
-        working-directory: develop-src
-        run: pip install -r requirements.txt
+      - name: Check build
+        run: python docs/scripts/check_build.py out --version "${{ matrix.version }}"
 
-      - name: Build Doxygen XML (develop)
-        if: hashFiles('develop-src/conf.py') != '' && hashFiles('develop-src/upstream/include/ginkgo/ginkgo.hpp') != ''
-        working-directory: develop-src
-        run: make doxygen-xml GINKGO_SOURCE_DIR=$PWD/upstream
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ matrix.version }}
+          path: out
+          retention-days: 1
 
-      - name: Build develop
-        if: hashFiles('develop-src/conf.py') != ''
-        working-directory: develop-src
+  assemble:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: site-*
+          path: artifacts
+
+      - name: Assemble site
         env:
-          GINKGO_DOC_VERSION: develop
-        run: sphinx-build -b html . ../_site/develop
-
-      - name: Copy CNAME
-        run: cp stable-src/CNAME _site/CNAME
+          VERSIONS: ${{ needs.plan.outputs.versions }}
+        run: scripts/assemble_site.sh artifacts _site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -117,7 +138,7 @@ jobs:
           path: _site
 
   deploy:
-    needs: build
+    needs: assemble
     runs-on: ubuntu-latest
     environment:
       name: github-pages

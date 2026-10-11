@@ -1,0 +1,21 @@
+[
+  {
+    "name": "develop",
+    "version": "develop",
+    "url": "https://gko-project.org/develop/",
+    "branch": "develop"
+  },
+  {
+    "name": "1.11 (stable)",
+    "version": "1.11",
+    "url": "https://gko-project.org/",
+    "branch": "main",
+    "preferred": true
+  },
+  {
+    "name": "1.10",
+    "version": "1.10",
+    "url": "https://gko-project.org/1.10/",
+    "branch": "release/1.10"
+  }
+]
