@@ -33,10 +33,6 @@ concrete operators implement.
 
 ## Mixins and traits
 
-- [`EnableLinOp`](enable-linop.md) — CRTP mixin that supplies the
-  boilerplate `LinOp` overrides — `apply_impl` dispatch, default
-  copy/clone, polymorphic-object plumbing — so concrete operators only
-  need to implement the algorithm.
 - [`Transposable`](transposable.md) — trait interface for operators that
   can produce their transpose and conjugate transpose.
 
@@ -50,6 +46,5 @@ combination
 composition
 array
 matrix-data
-enable-linop
 transposable
 ```
