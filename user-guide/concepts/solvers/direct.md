@@ -75,18 +75,6 @@ On the other backends the parameter is part of the API for uniformity but does n
 change which implementation runs — Reference, OMP, HIP, and DPC++ each ship a
 single triangular-solve kernel, and the kernel does not branch on `algorithm`.
 
-## cuDSS on NVIDIA GPUs
-
-For CUDA workloads where Ginkgo's own factorisation is the bottleneck — typically
-large unstructured systems — the
-[`gko::ext::cuda::solver::Cudss`](../extensions/cudss.md) extension wraps NVIDIA's
-cuDSS sparse direct solver. cuDSS supports unsymmetric and symmetric factorisations,
-applies its own reordering and pivoting heuristics, and exposes a `refactorize` entry
-point that reuses both the symbolic analysis and the factorization data structures
-when only the numerical values change. The extension is built automatically when
-CUDA support is enabled and CMake discovers a cuDSS installation — see
-[Build-time enablement](../extensions/cudss.md#build-time-enablement) for details.
-
 ## When sparse direct is (and is not) appropriate
 
 Sparse direct solvers can handle large systems when paired with a fill-reducing
@@ -98,9 +86,7 @@ when:
 - Numerical robustness matters more than peak iteration speed.
 - The sparsity pattern is fixed across many solves with changing values — passing
   a precomputed `symbolic_factorization` to the `Lu` / `Cholesky` factory lets
-  subsequent `generate()` calls skip the symbolic step. On CUDA, the
-  [cuDSS extension](../extensions/cudss.md) goes further with an in-place
-  `refactorize` that updates only the numerical values.
+  subsequent `generate()` calls skip the symbolic step.
 
 The classical caveats:
 
@@ -124,6 +110,5 @@ with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.m
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — where direct fits among the families.
 - [Reordering and permutations](../reordering.md) — fill-reducing preprocessing.
-- [cuDSS direct solver](../extensions/cudss.md) — CUDA-specific sparse direct alternative.
 - API reference: [`gko::experimental::solver::Direct`](../../../api-reference/solver/direct.md), [`gko::solver::LowerTrs`](../../../api-reference/solver/lower-trs.md), [`gko::solver::UpperTrs`](../../../api-reference/solver/upper-trs.md)
 :::

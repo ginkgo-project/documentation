@@ -62,8 +62,7 @@ entry points.
 - [`gko::config`](config/index.md) — JSON-driven construction of
   Ginkgo factories: `pnode`, `type_descriptor`, and `registry`.
 - [`gko::ext`](extensions/index.md) — optional integrations with
-  third-party libraries: NVIDIA's cuDSS direct solver, and Kokkos
-  view / executor interop.
+  third-party libraries: Kokkos view / executor interop.
 
 ```{toctree}
 :hidden:

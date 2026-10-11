@@ -10,9 +10,6 @@ For the user-facing walk-through of each extension, see
 
 ## Available extensions
 
-- [`Cudss`](cudss.md) — wraps NVIDIA's cuDSS sparse direct solver as
-  a Ginkgo `LinOp`. Lives in `gko::ext::cuda::solver` and requires
-  a CUDA build with cuDSS available.
 - [`Kokkos interop`](kokkos.md) — helpers for round-tripping
   Ginkgo's `array`, `Dense`, and executor types through Kokkos views
   and execution spaces. Lives in `gko::ext::kokkos`; requires Kokkos
@@ -22,6 +19,5 @@ For the user-facing walk-through of each extension, see
 :hidden:
 :maxdepth: 1
 
-cudss
 kokkos
 ```

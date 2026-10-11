@@ -87,25 +87,6 @@ auto direct = gko::experimental::solver::Direct<double, int>::build()
 
 This saves the (often dominant) symbolic-analysis cost.
 
-## Switch to cuDSS on NVIDIA GPUs
-
-When you need an **in-place** refactorize (vendor-tuned, only the
-numerical values are updated), use the cuDSS extension:
-
-```cpp
-auto solver = gko::ext::cuda::solver::Cudss<double, int>::build()
-    .with_matrix_type(0)      // GENERAL — full matrix stored
-    .on(exec)
-    ->generate(system_matrix);
-solver->apply(b, x);
-
-solver->refactorize(updated_matrix);   // same sparsity, new values
-solver->apply(b, x);                    // ~10× faster than redoing generate
-```
-
-cuDSS requires a CUDA executor and a cuDSS install — see
-[cuDSS direct solver](../../concepts/extensions/cudss.md).
-
 ## Common pitfalls
 
 - **Skipping the reordering on large matrices is expensive.** Fill-in
@@ -116,13 +97,8 @@ cuDSS requires a CUDA executor and a cuDSS install — see
   the sparsity pattern.
 - **Cholesky on a non-SPD matrix** breaks down. Verify symmetry first
   (or use `Lu`).
-- **cuDSS symmetric modes need only one triangle stored.** Ginkgo's
-  CSR holds the full matrix; pass `matrix_type=0` (GENERAL) with a
-  full CSR, or extract a triangle into a fresh CSR before calling
-  cuDSS with one of the symmetric modes.
 
 :::{seealso}
 - [Direct (LU / Cholesky)](../../concepts/solvers/direct.md) — the conceptual reference.
 - [Reordering and permutations](../../concepts/reordering.md) — taxonomy of the available reorderings.
-- [cuDSS direct solver](../../concepts/extensions/cudss.md) — the CUDA-specific alternative.
 :::
