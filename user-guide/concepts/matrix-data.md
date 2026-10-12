@@ -29,13 +29,14 @@ Several utility operations help prepare the data before conversion:
 
 ```cpp
 data.sort_row_major();          // sort entries by (row, col)
+data.sum_duplicates();          // sort and add up entries with equal (row, col)
 data.remove_zeros();            // drop entries with value == 0
 ```
 
 :::{note}
-Duplicate entries (same row and column) are allowed in `matrix_data`. The `read` method
-of each format handles merging them, but calling `sort_row_major()` first can speed up
-the conversion.
+`read` expects the entries in row-major order with each `(row, col)` pair at most once.
+Assemble in any order, then call `sum_duplicates()` (which also sorts) or
+`sort_row_major()` before handing the data to a matrix.
 :::
 
 ## Reading from Matrix Market
@@ -50,8 +51,9 @@ std::ifstream stream("matrix.mtx");
 auto data = gko::read_raw<double, int>(stream);
 ```
 
-`read_raw` returns a `matrix_data` populated with whatever the file contains —
-dimensions, symmetry flag, and triples. The stream is consumed and should not be read
+`read_raw` returns a `matrix_data` with the dimensions and all entries, sorted in
+row-major order. Files stored as `symmetric`, `skew-symmetric` or `hermitian` are
+expanded to the full matrix. The stream is consumed and should not be read
 again after this call.
 
 :::{tip}
@@ -73,8 +75,9 @@ std::ofstream stream("output.mtx");
 gko::write_raw(stream, data);
 ```
 
-`write_raw` writes the Matrix Market header (including dimensions and non-zero count)
-followed by all triples. The symmetric flag is inferred from the data if present.
+`write_raw` writes a `general` Matrix Market file, in `coordinate` layout by default or
+as a dense `array` with `gko::layout_type::array` as third argument, containing every
+entry of `data`.
 
 There is also a `gko::write` helper that accepts any Ginkgo matrix directly, without
 needing an intermediate `matrix_data`:
@@ -106,6 +109,12 @@ the host remains valid after `read` and can be reused or discarded.
 `read` overwrites any dimensions set on the matrix at construction time; the dimensions
 from `matrix_data` take precedence.
 :::
+
+### Validating a matrix
+
+`validate_data()` throws [`gko::InvalidData`](../../api-reference/base/exceptions.md)
+when a matrix's structural invariants are violated. Ginkgo never calls it for you; see
+[Validating matrix data](matrix-formats.md#validating-matrix-data) for what it covers.
 
 ## device_matrix_data — assembly on the device
 
@@ -146,6 +155,20 @@ csr->read(std::move(ddata));   // device → device; stays on GPU throughout
 This avoids the host↔device transfer cost and reduces peak host memory usage for very
 large matrices.
 
+### Writing back to device_matrix_data
+
+Every sparse format can also export its entries to a `device_matrix_data`:
+
+```cpp
+// data lives on exec; write() fills it on that executor,
+// whichever executor A itself uses.
+gko::device_matrix_data<double, int> data{exec};
+A->write(data);
+auto num_entries = data.get_num_stored_elements();
+```
+
+`Csr` produces the entries directly on the device; other formats go through the host.
+
 ## When to assemble on host vs device
 
 | Scenario | Recommended path |
@@ -162,5 +185,6 @@ bottleneck.
 :::{seealso}
 - [Matrix formats — overview](matrix-formats.md) — which format to convert `matrix_data` into.
 - [Memory ownership and `gko::array`](memory-ownership.md) — the storage abstraction underneath.
+- [Validating matrix data](matrix-formats.md#validating-matrix-data) — the checks per format.
 - API reference: [`gko::matrix_data`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/structgko_1_1matrix__data.html)
 :::

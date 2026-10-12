@@ -51,36 +51,39 @@ auto isai = gko::preconditioner::Isai<
 
 auto preconditioner = isai->generate(system_matrix);
 
-// As the triangular solver inside an ILU preconditioner
-auto ilu = gko::preconditioner::Ilu<
-                gko::preconditioner::LowerIsai<double, gko::int32>,
-                gko::preconditioner::UpperIsai<double, gko::int32>>::build()
-                .with_factorization(
-                    gko::factorization::ParIlu<double, gko::int32>::build()
-                        .on(exec))
-                .on(exec);
+// As the triangular solvers inside an ILU preconditioner
+auto ilu = gko::preconditioner::Ilu<double, false, gko::int32>::build()
+               .with_factorization(
+                   gko::factorization::ParIlu<double, gko::int32>::build())
+               .with_l_solver(
+                   gko::preconditioner::LowerIsai<double, gko::int32>::build())
+               .with_u_solver(
+                   gko::preconditioner::UpperIsai<double, gko::int32>::build())
+               .on(exec);
 ```
 
-`LowerIsai` and `UpperIsai` are typedefs for `Isai<isai_type::lower, …>`
-and `Isai<isai_type::upper, …>` respectively, supplied as convenience
-shorthands when wiring ISAI into ILU.
+`LowerIsai`, `UpperIsai`, `GeneralIsai` and `SpdIsai` are aliases for
+`Isai<isai_type::lower|upper|general|spd, ValueType, IndexType>`. Pass
+`LowerIsai` / `UpperIsai` factories to `Ilu::with_l_solver` /
+`with_u_solver`, or a `LowerIsai` factory to `Ic::with_l_solver`.
 
 ## Factory parameters
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `skip_symmetrize` | `bool` | Skip the symmetric-pattern step when the input is known to already be symmetric. Default `false`. |
-| `sparsity_power` | `int` | Use the sparsity pattern of $A^k$ instead of $A^1$ for the approximate inverse. Larger values give denser approximations and better preconditioner quality at the cost of generation time and storage. Default `1`. |
-| `excess_solver_factory` | `LinOpFactory` | Solver factory used for the small dense systems that determine the approximate-inverse entries; defaults to an iterative residual-norm-based solve. |
-| `excess_solver_reduction` | `remove_complex<ValueType>` | Convergence tolerance for the `excess_solver_factory` inner solves. |
+| `skip_sorting` | `bool` | Set `true` when the input matrix is already sorted by row and column index to skip the internal sort. Default `false`. |
+| `sparsity_power` | `int` | Use the sparsity pattern of $A^k$ instead of $A$ for the approximate inverse. Larger values give denser approximations and better preconditioner quality at the cost of generation time and storage. Default `1`. |
+| `excess_limit` | `size_type` | Rows with more than 32 nonzeros are handled through an "excess" system; when set to $m > 0$, that system is solved as soon as its size exceeds $m$, repeatedly, until all excess rows are done. Default `0` (one excess solve). |
+| `excess_solver_factory` | `LinOpFactory` | Solver for the excess system. Defaults to a triangular solver for `lower` / `upper` ISAI and to block-Jacobi-preconditioned GMRES for `general` / `spd` ISAI. |
+| `excess_solver_reduction` | `remove_complex<ValueType>` | Residual-reduction target of the excess solve. Default `1e-6`. |
 
 ## Implementation notes
 
-GPU implementations process one matrix row per warp, so the effective
-upper bound on entries per row is the warp width (32 on NVIDIA, 64 on
-AMD). Rows whose pattern exceeds that width get truncated on GPU
-backends. Use `sparsity_power > 1` cautiously when targeting GPU
-backends if your matrix has many entries per row.
+Each row of the approximate inverse is computed from a small local system.
+Rows with more than 32 nonzeros are handled through the excess system
+controlled by `excess_limit` and `excess_solver_factory`; with
+`sparsity_power > 1` more rows reach that size, which raises generation
+time.
 
 ISAI is **not** transpose-symmetric in the general case — that is,
 $\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$ — except for the `spd`

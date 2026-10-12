@@ -2,7 +2,7 @@
 
 `gko::batch::log::BatchConvergence<ValueType>` is the per-item observability hook for batched
 solvers. It captures the **iteration count** and **final residual norm** for every item in the
-batch and exposes them as host-readable arrays after the solve. Without this logger attached,
+batch and exposes them as arrays on the solver's executor after the solve (copy them to the host to read them). Without this logger attached,
 per-item convergence information is computed during the solve but discarded — the only
 observable signal is the global success of `solver->apply`.
 
@@ -36,7 +36,7 @@ auto solver = b::solver::Cg<double>::build()
                   .on(exec)
                   ->generate(batched_matrix);
 
-auto logger = b::log::BatchConvergence<double>::create();
+auto logger = gko::share(b::log::BatchConvergence<double>::create());
 solver->add_logger(logger);
 
 solver->apply(batched_rhs, batched_x);
@@ -45,7 +45,7 @@ solver->apply(batched_rhs, batched_x);
 const auto& iters = logger->get_num_iterations();        // gko::array<int>
 const auto& norms = logger->get_residual_norm();         // gko::array<double>
 
-// Both arrays live on the executor the logger was created on.
+// Both arrays live on the solver's executor; copy them to the host to read them.
 auto host_iters = gko::array<int>{exec->get_master(), iters};
 for (gko::size_type k = 0; k < host_iters.get_size(); ++k) {
     std::cout << "item " << k

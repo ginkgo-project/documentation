@@ -22,7 +22,7 @@ build a graph topology object.
 
 ## Construction
 
-The neighborhood communicator is constructed from a base communicator and an `IndexMap`:
+The neighborhood communicator is constructed from a base communicator and an `index_map`:
 
 ```cpp
 namespace mpi = gko::experimental::mpi;
@@ -83,13 +83,17 @@ exchange for a lower **per-exchange** cost. For matrices that are reused across 
 
 `create_inverse()` returns a new `NeighborhoodCommunicator` that swaps the send-from and recv-to
 roles. This is what `RowGatherer` uses internally to derive the *send* index pattern from the
-*receive* indices stored in the matrix's `IndexMap`.
+*receive* indices stored in the matrix's `index_map`.
+
+`resize(exec, send_factors)` rescales the cached send and receive sizes and offsets by per-element
+factors while keeping the same peers: the new `NeighborhoodCommunicator` keeps its graph topology.
+It is a collective call, used by distributed `Matrix::multiply` to ship rows of variable length.
 
 :::{seealso}
 - [Collective communicators](collective-communicator.md) — the abstract interface and picker
   guidance.
 - [Dense communicator](dense-communicator.md) — the portable default.
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses the inverse
+- [RowGatherer](row-gather-scatter.md) — the helper that uses the inverse
   pattern derived above.
 - API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](../../../api-reference/mpi/neighborhood-communicator.md)
 :::

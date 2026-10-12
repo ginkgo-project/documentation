@@ -40,9 +40,11 @@ ensuring the initial guess is always the same). The result of the solve will
 be written to x.
 
 ```cpp
+template <typename ValueType>
 double measure_solve_time_in_s(std::shared_ptr<const gko::Executor> exec,
-                               gko::LinOp* solver, const gko::LinOp* b,
-                               gko::LinOp* x)
+                               gko::LinOp* solver,
+                               const gko::matrix::Dense<ValueType>* b,
+                               gko::matrix::Dense<ValueType>* x)
 {
     constexpr int repeats{5};
     double duration{0};

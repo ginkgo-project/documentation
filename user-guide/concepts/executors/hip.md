@@ -12,10 +12,9 @@ auto gpu  = gko::HipExecutor::create(0, host);   // device id 0
 For custom allocator + stream:
 
 ```cpp
-hipStream_t stream;
-hipStreamCreate(&stream);
-auto alloc = std::make_shared<gko::HipAsyncAllocator>(stream);
-auto gpu   = gko::HipExecutor::create(0, host, alloc, stream);
+gko::hip_stream stream{0};
+auto alloc = std::make_shared<gko::HipAsyncAllocator>(stream.get());
+auto gpu   = gko::HipExecutor::create(0, host, alloc, stream.get());
 ```
 
 ## Allocators
@@ -31,7 +30,17 @@ See [Allocators](../executor-model.md#allocators) for guidance on picking one. I
 
 ## Streams
 
-By default `HipExecutor` uses the default HIP stream. The stream parameter type is `GKO_HIP_STREAM_STRUCT*` — this is the same type HIP defines as `hipStream_t`. Ginkgo does not wrap streams in its own type; pass whatever you got from `hipStreamCreate()`. Use an explicit stream for overlap or multi-stream pipelines.
+By default `HipExecutor` uses the default HIP stream. To run on your own stream, pass it as the last argument of `create`. It can be a raw `hipStream_t` or come from Ginkgo's RAII wrapper `gko::hip_stream` (`<ginkgo/core/base/stream.hpp>`), which creates the stream on construction and destroys it with the wrapper:
+
+```cpp
+// A HIP stream that does not synchronize with the null stream.
+gko::hip_stream stream{0, /* non_blocking */ true};
+auto hip = gko::HipExecutor::create(0, gko::ReferenceExecutor::create(),
+                                    std::make_shared<gko::HipAllocator>(),
+                                    stream.get());
+```
+
+Ginkgo issues all kernels and copies for the executor on that stream. A non-blocking stream (`hipStreamNonBlocking`) does not synchronize implicitly with the null stream, so Ginkgo work can overlap with other work in the application. The wrapper must outlive the executor.
 
 ## Memory model
 

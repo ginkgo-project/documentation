@@ -54,6 +54,12 @@ correctness baseline; the others are auto-detected from the toolchain.
 * - `CMAKE_CUDA_HOST_COMPILER`
   - path
   - Forces CUDA's host compiler. Useful when ABI mismatches cause linker errors.
+* - `GINKGO_HIP_AMD_UNSAFE_ATOMIC`
+  - `ON` / `OFF`
+  - Compile HIP with unsafe floating-point atomics (AMD GPUs only). Defaults to `ON`, which is valid for coarse-grained `hipMalloc` memory; turn it off when allocating fine-grained memory.
+* - `GINKGO_DPCPP_SINGLE_MODE`
+  - `ON` / `OFF`
+  - Do not compile double-precision kernels for the SYCL backend, for devices without FP64 support. Defaults to `OFF`.
 * - `CMAKE_HIP_ARCHITECTURES`
   - list
   - AMDGPU targets passed to the HIP compiler (e.g. `gfx906;gfx908`). Empty selects whatever the compiler detects.
@@ -112,9 +118,27 @@ correctness baseline; the others are auto-detected from the toolchain.
 * - `GINKGO_BUILD_DOC`
   - `ON` / `OFF`
   - Generate the Doxygen documentation (requires `doxygen` and `graphviz`). Defaults to `OFF`.
-* - `GINKGO_BUILD_HWLOC`
+* - `GINKGO_BUILD_PAPI_SDE`
   - `ON` / `OFF`
-  - Build with HWLOC for topology-aware execution. Defaults to `OFF`. Tests additionally need `libnuma`.
+  - Build the `log::Papi` logger against PAPI SDE. Defaults to `ON` when a PAPI SDE installation is found.
+* - `GINKGO_EXTENSION_KOKKOS_CHECK_TYPE_ALIGNMENT`
+  - `ON` / `OFF`
+  - Check the alignment of the source and target type when the Kokkos extension maps Ginkgo types to Kokkos types. Defaults to `ON`.
+* - `GINKGO_SKIP_DEPENDENCY_UPDATE`
+  - `ON` / `OFF`
+  - Do not update downloaded dependencies each time the project is rebuilt. Defaults to `ON`.
+* - `GINKGO_CONFIG_LOG_DETAILED`
+  - `ON` / `OFF`
+  - Print the detailed configuration log to the screen in addition to writing it to files. Defaults to `OFF`.
+* - `GINKGO_DOC_GENERATE_EXAMPLES`
+  - `ON` / `OFF`
+  - With `GINKGO_BUILD_DOC=ON`, include the example documentation. Defaults to `ON`.
+* - `GINKGO_DOC_GENERATE_PDF`
+  - `ON` / `OFF`
+  - With `GINKGO_BUILD_DOC=ON`, also generate a PDF. Defaults to `OFF`.
+* - `GINKGO_DOC_GENERATE_DEV`
+  - `ON` / `OFF`
+  - With `GINKGO_BUILD_DOC=ON`, build the developer documentation. Defaults to `OFF`.
 ```
 
 ## Development tools
@@ -138,6 +162,12 @@ correctness baseline; the others are auto-detected from the toolchain.
 * - `GINKGO_CHECK_CIRCULAR_DEPS`
   - `ON` / `OFF`
   - Compile-time check that internal Ginkgo libraries don't depend on each other circularly. For development only. Defaults to `OFF`.
+* - `GINKGO_WITH_CCACHE`
+  - `ON` / `OFF`
+  - Use `ccache` as compiler launcher for C++ and CUDA when it is found. Defaults to `ON`.
+* - `GINKGO_TEST_NONDEFAULT_STREAM`
+  - `ON` / `OFF`
+  - Run the CUDA and HIP tests on non-default streams. Defaults to `OFF`.
 * - `GINKGO_VERBOSE_LEVEL`
   - integer
   - Library log verbosity. `0` = silent, `1` = unexpected-behavior warnings (default).
@@ -197,10 +227,12 @@ package is not found:
 |---|---|---|
 | [METIS](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview) | `reorder::NestedDissection` | `find_package` — disabled if absent. |
 | [PAPI](https://icl.utk.edu/papi/) ≥ 7.1.0 | `log::Papi` logger | `find_package` — disabled if absent. |
-| [HWLOC](https://www.open-mpi.org/projects/hwloc) | Topology-aware execution (with `GINKGO_BUILD_HWLOC=ON`) | Downloaded by Ginkgo if not found system-wide. |
+| [cuDSS](https://developer.nvidia.com/cudss) ≥ 0.8.0 | `gko::ext::cuda::solver::Cudss` (library target `Ginkgo::ginkgo_cudss`), with `GINKGO_BUILD_CUDA=ON` | `find_package(cudss 0.8.0 CONFIG)`; point `cudss_DIR` or `CMAKE_PREFIX_PATH` at its install. |
+| [Kokkos](https://kokkos.org) ≥ 4.1 | `<ginkgo/extensions/kokkos.hpp>` (header-only) | Found and linked by your application. |
+| nlohmann-json / yaml-cpp | `<ginkgo/extensions/config/json_config.hpp>` / `yaml_config.hpp` (header-only) | Found and linked by your application. |
 | [OpenCV](https://opencv.org/) | A handful of examples | Examples needing it are skipped if absent. |
 
-`GoogleTest`, `gflags`, `nlohmann-json`, and `hwloc` are downloaded
+`GoogleTest`, `gflags`, and `nlohmann-json` are downloaded
 automatically when their hosting flag is on and a system version isn't
 available. To use a custom install of any of these, point CMake at it:
 

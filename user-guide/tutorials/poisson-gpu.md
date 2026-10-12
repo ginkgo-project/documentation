@@ -281,9 +281,11 @@ that's where the device's memory bandwidth advantage starts to dominate
 over kernel-launch overhead. For 2D / 3D problems the crossover shifts to
 larger total non-zeros — different problem shape, same principle.
 
-If you want to dig into where each iteration spends its time, attach a
-[`Performance` logger](../concepts/logging.md#performance-logger) and inspect the
-per-kernel breakdown.
+If you want to dig into where the time goes, attach a
+`ProfilerHook::create_summary` logger to the executor for a per-operation
+timing table, or a `PerformanceHint` logger to spot avoidable transfers; both
+are described in the [Performance logger](../concepts/logging.md#performance-logger)
+section.
 
 ## Common pitfalls
 

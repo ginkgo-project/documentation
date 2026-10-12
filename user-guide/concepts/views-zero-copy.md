@@ -57,12 +57,12 @@ The executor compatibility rule also applies: `user_data` must be accessible by 
 | Destructor                  | Frees the memory                            | Does nothing to the memory                     |
 | Copy (`array b = a;`)       | Allocates new memory and copies             | Allocates new memory and copies                |
 | Move                        | Transfers ownership                         | Transfers the view (still non-owning)          |
-| `clone(exec, a)`            | Cross-executor copy (new allocation)        | Cross-executor copy (new allocation)           |
+| `array<T> b{exec, a}`       | Cross-executor copy (new, owning allocation) | Cross-executor copy (new, owning allocation)  |
 | `resize_and_reset(n)`       | Reallocates to new size                     | **Not supported** — throws unless `n` matches the current size (a no-op) |
 | `fill(value)`               | Sets all elements                           | Sets all elements (writes through to buffer)   |
 
 :::{note}
-Resizing a view is not supported — Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with `gko::clone` or the cross-executor constructor.
+Resizing a view is not supported — Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with the cross-executor constructor `gko::array<T>{exec, view}`.
 :::
 
 ## Integration patterns
@@ -129,7 +129,7 @@ static std::unique_ptr<Csr> create(
     std::shared_ptr<const Executor> exec, const dim<2>& size,
     array<value_type> values, array<index_type> col_idxs,
     array<index_type> row_ptrs,
-    std::shared_ptr<strategy_type> strategy = nullptr);
+    csr::spmv_strategy strategy = csr::spmv_strategy::automatic);
 ```
 
 If you pass **rvalue** arrays (via `std::move` or freshly-constructed temporaries), Ginkgo moves them into the matrix directly — no copy. When the moved-in array is a view, the resulting matrix simply references the same user memory:
@@ -176,7 +176,7 @@ The same pattern works for `Coo`, `Ell`, `Dense`, and the other matrix formats: 
 Views eliminate allocation overhead, but they are not always the right choice:
 
 - **Short-lived operations** — if the view lives for a single `apply` call and the source buffer is known to be valid throughout, a view is safe and efficient.
-- **Cross-executor mismatch** — if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::clone(gpu_exec, host_array)`.
+- **Cross-executor mismatch** — if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::array<double>{gpu_exec, host_array}`.
 - **Uncertain buffer lifetime** — if you cannot guarantee that the source buffer outlives all uses of the view, copy into an owned array first.
 - **Need to resize** — views cannot be resized. If the algorithm needs a scratch buffer of unknown size, allocate an owned array.
 

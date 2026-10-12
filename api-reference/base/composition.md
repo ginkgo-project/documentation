@@ -13,13 +13,12 @@ feeding each one's output as the input to the next. The constructor
 moves all operators onto the executor of the first one if their
 executors differ.
 
-The classic use case is assembling triangular-solve chains for
-factorisation-based preconditioners: an `Ilu` preconditioner is a
-`Composition{U_solver, L_solver}` that, applied to $b$, computes $L^{-1}
-b$ first and then $U^{-1}(L^{-1} b)$. The same pattern shows up in
-`Ic` (lower-then-conjugate-transpose), in multigrid V-cycles, and
-anywhere else where the inverse of a product needs to be expressed as
-the product of inverses in reverse order.
+The classic use case is factorisation output: `factorization::Ilu`,
+`ParIlu` and `ParIlut` return a `Composition{L, U}` of their factors (and
+`factorization::Ic`, `ParIc` and `ParIct` a `Composition{L, L^H}`), which is
+exactly the input that `preconditioner::Ilu` and `preconditioner::Ic` accept.
+Multigrid level generators also expose their coarse correction
+$P\,A_c\,R$ as a `Composition` through `get_composition()`.
 
 When an inner operator requires an initial guess, `Composition` supplies
 one automatically: the previous operator's output if the current

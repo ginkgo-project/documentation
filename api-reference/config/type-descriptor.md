@@ -7,7 +7,7 @@ strings that the parser uses to pick the right C++ instantiation.
 
 ```cpp
 auto td = gko::config::type_descriptor{"float64", "int32"};
-auto factory = gko::config::parse(pnode, registry, td);
+auto factory = gko::config::parse(config, registry, td);
 ```
 
 Most users will construct a `type_descriptor` once at program start

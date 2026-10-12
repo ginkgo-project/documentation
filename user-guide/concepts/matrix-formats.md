@@ -66,7 +66,9 @@ Two formats act as conversion hubs: **CSR** is the sparse hub (direct converters
 from every other sparse format) and **Dense** is the dense hub (direct converters to and
 from every sparse format). Every sparse format also accepts a host-side `matrix_data`
 through its `read()` method, so assembly never has to bounce through an intermediate
-format.
+format. In the other direction, `write()` exports any format to a `matrix_data` or to a
+`device_matrix_data` on a chosen executor; CSR writes its `device_matrix_data` directly
+on the device.
 
 ```{mermaid}
 flowchart LR
@@ -96,7 +98,7 @@ flowchart LR
     Dense <--> Fbcsr
     Dense <--> SparsityCsr
 
-    Fbcsr <--> SparsityCsr
+    Fbcsr --> SparsityCsr
 
     classDef hub fill:#3a6b4a,stroke:#3a6b4a,color:#fbfaf6
     classDef leaf fill:#fbfaf6,stroke:#c9a14a,color:#1f2a24
@@ -146,6 +148,39 @@ Some conversions allocate temporary intermediate storage. For very large matrice
 memory-constrained GPU, prefer a direct path (e.g., COO → CSR) over a multi-hop path.
 :::
 
+## Validation and device views
+
+### Validating matrix data
+
+`Coo`, `Csr`, `Ell` and `Dense` implement `validate_data()`, which checks the stored
+arrays against the format's invariants and throws
+[`gko::InvalidData`](../../api-reference/base/exceptions.md) naming the violated one.
+Ginkgo never calls it for you. The per-format checks are listed on the
+[polymorphic object](../../api-reference/base/polymorphic-object.md) page. The check
+copies the arrays to the host, so use it after building a matrix from raw arrays or
+external data, not inside hot loops.
+
+### Device views for custom kernels
+
+`Dense`, `Coo`, `Csr`, `Ell`, `Sellp` and `Hybrid` provide lightweight, non-owning
+*device views*: plain structs that bundle the dimensions and raw array pointers of a
+matrix, so they can be passed by value into your own kernels or across library
+boundaries. `get_device_view()` and `get_const_device_view()` return them, and the view
+types live in `gko::matrix::view`:
+
+| Format | View type | Members |
+|---|---|---|
+| `Dense<V>` | `view::dense<V>` | `size`, `stride`, `values`; `operator()(row, col)` |
+| `Coo<V, I>` | `view::coo<V, I>` | `size`, `num_stored_elements`, `values`, `row_idxs`, `col_idxs` |
+| `Csr<V, I>` | `view::csr<V, I>` | `size`, `num_stored_elements`, `values`, `row_ptrs`, `col_idxs` |
+| `Ell<V, I>` | `view::ell<V, I>` | `size`, `num_stored_elements_per_row`, `stride`, `values`, `col_idxs`; `val_at(row, k)`, `col_at(row, k)` |
+| `Sellp<V, I>` | `view::sellp<V, I>` | `size`, `slice_size`, `stride_factor`, `total_cols`, `values`, `col_idxs`, `slice_lengths`, `slice_sets` |
+| `Hybrid<V, I>` | `view::hybrid<V, I>` | `size`, `ell_part`, `coo_part` |
+
+The pointers refer to memory on the matrix's executor and stay valid as long as the
+matrix is alive and not resized. See [Device views](../../api-reference/matrix/device-views.md)
+for a code example and the full member lists.
+
 ## Selection guidance
 
 When choosing a format, work through these questions in order:
@@ -190,7 +225,7 @@ formats/fbcsr
 formats/sparsity-csr
 ```
 
-## Publications
+### Publications
 
 - [Load-Balancing Sparse Matrix Vector Product Kernels on GPUs](https://doi.org/10.1145/3380930)
 - [Compression and Load Balancing for Efficient Sparse Matrix-Vector Product on Multicore Processors and Graphics Processing Units](https://doi.org/10/gnsv46)
@@ -199,5 +234,6 @@ formats/sparsity-csr
 :::{seealso}
 - [Matrix data and assembly](matrix-data.md) — getting data into a format.
 - [CSR](formats/csr.md), [COO](formats/coo.md) — the two filled format pages.
-- API reference: [`gko::matrix`](../../api-reference/matrix/index.md)
+- [Polymorphic objects](../../api-reference/base/polymorphic-object.md) — `validate_data()`.
+- API reference: [`gko::matrix`](../../api-reference/matrix/index.md), [device views](../../api-reference/matrix/device-views.md)
 :::

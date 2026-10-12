@@ -1,11 +1,12 @@
 # `gko::experimental::mpi::communicator`
 
-Owning C++ wrapper around `MPI_Comm`. Every distributed Ginkgo type
-(`distributed::Matrix`, `distributed::Vector`,
-`distributed::Partition` consumers, …) carries one of these. The
-class is reference-counted, so passing it by value is cheap and the
-underlying `MPI_Comm` is freed when the last `communicator` instance
-goes out of scope.
+Reference-counted C++ wrapper around `MPI_Comm`. Every distributed
+Ginkgo type (`distributed::Matrix`, `distributed::Vector`,
+`distributed::RowGatherer`, …) carries one of these, and copies are
+cheap. Wrapping an existing `MPI_Comm` leaves its ownership with the
+application; communicators created by splitting
+(`communicator(comm, color, key)`) own their `MPI_Comm` and free it when
+the last copy goes out of scope.
 
 Most application code constructs a `communicator` once around
 `MPI_COMM_WORLD` (or a derived communicator) and threads it through
@@ -13,12 +14,12 @@ the distributed types it creates.
 
 ```cpp
 gko::experimental::mpi::communicator comm{MPI_COMM_WORLD};
-auto mat = gko::experimental::distributed::Matrix<...>::create(exec, comm);
+auto mat = gko::experimental::distributed::Matrix<double, gko::int32, gko::int64>::create(
+    exec, comm);
 ```
 
-The `rank()` and `size()` accessors return the current rank and
-total process count without going through `MPI_Comm_rank` /
-`MPI_Comm_size` on every call.
+`rank()`, `size()` and `node_local_rank()` query the rank, the process
+count and the node-local rank.
 
 ```{doxygenclass} gko::experimental::mpi::communicator
 :members:

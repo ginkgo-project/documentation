@@ -1,6 +1,6 @@
 # Mixed-precision design
 
-Mixed-precision techniques use lower precision (e.g., `float`) for expensive inner work while preserving higher precision (`double`) for the final result. Ginkgo supports this in two main ways: per-component precision inside a preconditioner (`AdaptivePrecisionJacobi`) and outer/inner precision splitting via iterative refinement around a low-precision inner solver. This page covers when and how to use mixed precision in Ginkgo.
+Mixed-precision techniques use lower precision (e.g., `float`) for expensive inner work while preserving higher precision (`double`) for the final result. Ginkgo supports this in two main ways: per-block storage precision inside a preconditioner (block Jacobi with `storage_optimization`) and outer/inner precision splitting via iterative refinement around a low-precision inner solver. This page covers when and how to use mixed precision in Ginkgo.
 
 ## Why mixed precision
 
@@ -12,7 +12,7 @@ Sparse iterative solvers are memory-bandwidth bound: the dominant cost is moving
 
 The two patterns below exploit this in different ways.
 
-## AdaptivePrecisionJacobi
+## Adaptive-precision block Jacobi
 
 The block Jacobi preconditioner (`gko::preconditioner::Jacobi`) supports per-block storage precision via `with_storage_optimization`. Ginkgo analyses each diagonal block's condition number at setup time and stores it at the lowest precision that preserves the required accuracy:
 
@@ -20,13 +20,14 @@ The block Jacobi preconditioner (`gko::preconditioner::Jacobi`) supports per-blo
 - Ill-conditioned blocks remain at FP64.
 
 ```cpp
-auto apjac = gko::preconditioner::Jacobi<double, int>::build()
-                 .with_max_block_size(8u)
-                 .with_storage_optimization(gko::precision_reduction::autodetect())
-                 .on(exec);
+auto apjac = gko::share(
+    gko::preconditioner::Jacobi<double, int>::build()
+        .with_max_block_size(8u)
+        .with_storage_optimization(gko::precision_reduction::autodetect())
+        .on(exec));
 ```
 
-This is sometimes called `AdaptivePrecisionJacobi` in the literature, though in the Ginkgo API it is simply the `Jacobi` type with the `storage_optimization` parameter set. The outer iteration runs in `double`; only the stored blocks are compressed. The apply step decompresses on the fly, so the preconditioner's arithmetic precision is still controlled by the outer value type template argument.
+The literature calls this adaptive-precision block Jacobi; in the Ginkgo API it is the `Jacobi` type with the `storage_optimization` parameter set. The outer iteration runs in `double`; only the stored blocks are compressed. The apply step decompresses on the fly, so the preconditioner's arithmetic precision is still controlled by the outer value type template argument.
 
 Plugging it into a CG or GMRES solve requires no changes beyond passing the factory via `with_preconditioner`:
 
@@ -45,21 +46,21 @@ See [Preconditioners — taxonomy](preconditioners.md) for block Jacobi configur
 
 ```cpp
 // Build a low-precision matrix view (or a separately stored float copy).
-auto matrix_float = gko::matrix::Csr<float, int>::create(exec);
+auto matrix_float = gko::share(gko::matrix::Csr<float, int>::create(exec));
 // ... populate matrix_float ...
 
 // Inner: low-precision CG, loose tolerance.
-auto inner_cg = gko::solver::Cg<float>::build()
+auto inner_cg = gko::share(gko::solver::Cg<float>::build()
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(100u).on(exec),
                         gko::stop::ResidualNorm<float>::build()
                             .with_reduction_factor(1e-4f).on(exec))
                     .on(exec)
-                    ->generate(matrix_float);
+                    ->generate(matrix_float));
 
 // Outer: iterative refinement in double.
 auto solver = gko::solver::Ir<double>::build()
-                  .with_solver(inner_cg)
+                  .with_generated_solver(inner_cg)
                   .with_criteria(
                       gko::stop::Iteration::build().with_max_iters(50u).on(exec),
                       gko::stop::ResidualNorm<double>::build()
@@ -73,20 +74,33 @@ solver->apply(b, x);
 The outer IR computes the correction residual `r = b − A x` in `double` (using `system_matrix`). The inner CG solves the correction equation approximately in `float` (using `matrix_float`). IR accumulates these corrections until the `double` residual converges to the tight tolerance.
 
 :::{note}
-IR requires the user to manage two representations of the matrix: one in `double` for the outer residual computation and one in `float` for the inner solve. If storage is at a premium, `gko::solver::Ir` can also accept an inner solver that converts internally — check the API reference for the `with_default_initial_guess` and solver-conversion options.
+IR uses two representations of the matrix: one in `double` for the outer residual and one in `float` for the inner solve. Each correction `A d = r` starts the inner solver from `d = 0` (`inner_initial_guess = gko::solver::initial_guess_mode::zero`, the default), which keeps the correction independent of the residual's scale. `initial_guess_mode::rhs` starts from the residual instead and can save inner iterations when the eigenvalues of `A` are close to 1, but it can make IR diverge when they are far from 1.
 :::
+
+The inner solver can also be given as a factory with `with_solver`, in which case IR generates it for the system matrix. The initial guess of the inner solver is set with `with_inner_initial_guess`:
+
+```cpp
+auto ir = gko::solver::Ir<double>::build()
+              .with_solver(gko::solver::Cg<double>::build().with_criteria(
+                  gko::stop::max_iters(20u)))
+              .with_inner_initial_guess(gko::solver::initial_guess_mode::zero)
+              .with_criteria(gko::stop::relative_residual_norm(1e-12),
+                             gko::stop::max_iters(100u))
+              .on(exec);
+```
 
 ## LinOp and precision conversion
 
 Ginkgo's `LinOp::apply` is designed to tolerate mismatched value types between the operator and its arguments. When the value types differ, Ginkgo inserts implicit conversion before and after the apply. This means you can mix precisions at the composition level without writing explicit cast code:
 
 ```cpp
-// A double CSR matrix applied to a float vector — Ginkgo handles the conversion.
-gko::matrix::Csr<double, int>* A = /* ... */;
-gko::matrix::Dense<float>* x_float = /* ... */;
-gko::matrix::Dense<float>* b_float = /* ... */;
-
-A->apply(b_float, x_float);  // b_float and x_float are converted internally.
+// A double CSR matrix applied to float vectors — Ginkgo handles the conversion.
+void apply_mixed(const gko::matrix::Csr<double, int>* A,
+                 const gko::matrix::Dense<float>* b_float,
+                 gko::matrix::Dense<float>* x_float)
+{
+    A->apply(b_float, x_float);  // b_float and x_float are converted internally.
+}
 ```
 
 ### Supported value types
@@ -163,6 +177,6 @@ When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-prec
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — IR is one of the Krylov solvers.
-- [Preconditioners — taxonomy](preconditioners.md) — `AdaptivePrecisionJacobi` and block Jacobi storage options.
+- [Preconditioners — taxonomy](preconditioners.md) — block Jacobi and its `storage_optimization` parameter, described on the [Jacobi](preconditioners/jacobi.md) page.
 - API reference: [`gko::solver::Ir`](../../api-reference/solver/ir.md)
 :::

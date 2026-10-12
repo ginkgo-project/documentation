@@ -14,7 +14,7 @@ Richardson iteration.
 solution = initial_guess
 while not converged:
     residual = b - A * solution
-    error    = inner_solver(A, residual)         # approximate solve
+    error    = inner_solver(A, residual)         # approximate solve, starts from zero
     solution = solution + relaxation_factor * error
 ```
 
@@ -50,11 +50,12 @@ auto inner = gko::solver::Cg<double>::build()
                      gko::stop::ResidualNorm<double>::build()
                          .with_reduction_factor(1e-2)
                          .on(exec))
-                 .with_preconditioner(/* ... */)
+                 .with_preconditioner(
+                     gko::preconditioner::Jacobi<double, int>::build())
                  .on(exec);
 
 auto refinement = gko::solver::Ir<double>::build()
-                      .with_solver(inner)
+                      .with_solver(gko::share(std::move(inner)))
                       .with_criteria(
                           gko::stop::ResidualNorm<double>::build()
                               .with_reduction_factor(1e-12)
@@ -78,13 +79,19 @@ a textbook accelerator-friendly pattern:
 ```cpp
 // Low-precision inner solve
 auto inner = gko::solver::Cg<float>::build()
-                 .with_criteria(/* loose tolerance */)
+                 .with_criteria(
+                     gko::stop::ResidualNorm<float>::build()
+                         .with_reduction_factor(1e-2f)
+                         .on(exec))
                  .on(exec);
 
 // High-precision refinement
 auto refinement = gko::solver::Ir<double>::build()
-                      .with_solver(inner)
-                      .with_criteria(/* tight tolerance */)
+                      .with_solver(gko::share(std::move(inner)))
+                      .with_criteria(
+                          gko::stop::ResidualNorm<double>::build()
+                              .with_reduction_factor(1e-12)
+                              .on(exec))
                       .on(exec);
 ```
 
@@ -98,13 +105,16 @@ high-frequency error. The header provides a `build_smoother` shortcut:
 
 ```cpp
 // Build an IR-based smoother: 2 iterations of `jacobi` with relaxation 0.9
+auto jacobi_factory = gko::share(
+    gko::preconditioner::Jacobi<double, int>::build().on(exec));
 auto smoother = gko::solver::build_smoother(jacobi_factory,
                                             /*iteration=*/2u,
                                             /*relaxation_factor=*/0.9);
 
 auto mg = gko::solver::Multigrid::build()
-              .with_pre_smoother(smoother)
-              // ...
+              .with_mg_level(gko::multigrid::Pgm<double, int>::build())
+              .with_pre_smoother(gko::share(std::move(smoother)))
+              .with_criteria(gko::stop::max_iters(1u))
               .on(exec);
 ```
 
@@ -113,13 +123,14 @@ relaxation factor, and the supplied inner solver factory.
 
 ## Factory parameters
 
-| Parameter | Type | Default | Purpose |
-|---|---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | (required) | Outer-loop stopping criteria — see [Stopping criteria](../stopping-criteria.md). |
-| `solver` | `LinOpFactory` | identity | Inner solver factory. Generated against the system matrix at IR's `generate()` time. |
-| `generated_solver` | `LinOp` | `nullptr` | Pre-built inner solver. Bypasses `solver` if set — useful when the inner solver is shared across IR instances or has external state. |
-| `relaxation_factor` | `ValueType` | `1.0` | Update damping. `1.0` ⇒ pure IR; other values ⇒ Richardson. |
-| `default_initial_guess` | `initial_guess_mode` | `provided` | What to assume about the input `x` when `apply` is called. `provided` (use `x` as initial guess), `zero` (treat `x` as zero), or `rhs_is_zero`. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `criteria` | vector of `stop::CriterionFactory` | Outer-loop stopping criteria (required) — see [Stopping criteria](../stopping-criteria.md). |
+| `solver` | `LinOpFactory` | Inner solver factory, generated against the system matrix at IR's `generate()` time. Defaults to the identity. |
+| `generated_solver` | `LinOp` | Pre-built inner solver, useful when it is shared across IR instances or has external state. Bypasses `solver` if set. Defaults to `nullptr`. |
+| `relaxation_factor` | `ValueType` | Update damping. `1.0` (default) gives pure iterative refinement; other values give Richardson. |
+| `default_initial_guess` | `initial_guess_mode` | What to assume about the input `x` when `apply` is called: `provided` (default; use `x` as the initial guess), `zero` (`x` is zero) or `rhs` (start from the right-hand side). |
+| `inner_initial_guess` | `initial_guess_mode` | Starting vector of the inner solver for each correction solve $A d = r$, when the inner solver uses an initial guess: `zero` (default; independent of the scaling of $A$) or `rhs` (start from the residual; IR diverges if the eigenvalues of $A$ are far from 1). |
 
 Note that IR does **not** have a `preconditioner` parameter — the inner solver
 *is* the correction operator, so there is no separate preconditioning slot. If
@@ -147,6 +158,23 @@ than a recommended path.
 IR's `default_initial_guess` defaults to `provided`, matching the rest of the
 Krylov family (CG, GMRES, BiCGSTAB, etc. all treat `x` as the initial guess).
 Multigrid is the outlier: it defaults to `zero`.
+
+The initial guess of the *inner* solver is a separate setting. Each inner
+correction solve starts from zero by default (`inner_initial_guess`), which
+keeps IR independent of the scaling of $A$. Choosing
+`initial_guess_mode::rhs` starts it from the residual instead; this can save
+inner iterations when the eigenvalues of $A$ are close to 1, but it makes IR
+diverge when they are far from 1.
+
+```cpp
+auto ir = gko::solver::Ir<double>::build()
+              .with_solver(gko::solver::Cg<double>::build().with_criteria(
+                  gko::stop::max_iters(20u)))
+              .with_inner_initial_guess(gko::solver::initial_guess_mode::zero)
+              .with_criteria(gko::stop::relative_residual_norm(1e-12),
+                             gko::stop::max_iters(100u))
+              .on(exec);
+```
 
 The `zero` mode is worth knowing about:
 

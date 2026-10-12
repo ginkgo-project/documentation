@@ -1,9 +1,10 @@
 # Distributed computing — overview
 
 For multi-GPU and multi-node systems, Ginkgo provides distributed `Matrix` and `Vector` types under
-`gko::experimental::distributed`. This page introduces the abstraction, the host-first assembly
-pattern, when to choose distributed over single-device, and the communicator. Per-topic detail
-(partitioning, communication, distributed-aware solvers) lives in the sub-pages.
+`gko::experimental::distributed`. This page introduces the abstraction, how a distributed matrix is
+assembled, when to choose distributed over single-device, the communicator, and the matrix-level
+operations (`multiply`, `transpose`, `write`). Per-topic detail (partitioning, communication,
+distributed-aware solvers) lives in the sub-pages.
 
 ## When to go distributed
 
@@ -30,11 +31,17 @@ Both inherit from `LinOp`, so they compose with solvers and preconditioners usin
 patterns as single-device objects. A CG solver doesn't know whether the matrix it operates on is
 distributed — it just calls `apply`.
 
-## The host-first assembly pattern
+:::{attention}
+Everything in `gko::experimental::distributed` and `gko::experimental::mpi` is experimental: the
+interfaces, including the matrix-level operations below, may change between releases.
+:::
 
-Construction is always host-first, then transferred to the device executor. The `read_distributed`
-step must run on a host executor because partition reasoning is host-side. Cloning to device after
-assembly is the standard pattern:
+### Assembling the matrix
+
+`read_distributed` runs on the executor the matrix was created on. Assembling on the host and then
+cloning to the device (shown below) is the portable pattern and the one to use with
+`DpcppExecutor`; with `OmpExecutor`, `CudaExecutor` and `HipExecutor` the matrix can also be
+created directly on the compute executor, and `read_distributed` is called there:
 
 ```cpp
 namespace dist = gko::experimental::distributed;
@@ -44,22 +51,26 @@ auto exec = gko::CudaExecutor::create(0, host);
 auto comm = gko::experimental::mpi::communicator(MPI_COMM_WORLD);
 
 // Each rank builds its local contribution to the global matrix.
-gko::matrix_data<double, gko::int64> data{...};
+gko::matrix_data<double, gko::int64> data;
 
 // Build a Partition: which global rows live on which rank.
-auto partition = dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
-    host, ranges_array);
+auto partition = gko::share(
+    dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
+        host, ranges_array));
 
 // Assemble the distributed matrix on the host.
 auto mat_host = dist::Matrix<double, gko::int32, gko::int64>::create(host, comm);
-mat_host->read_distributed(data, partition.get());
+mat_host->read_distributed(data, partition);
 
 // Clone to the device for computation.
 auto mat = mat_host->clone(exec);
 ```
 
-`read_distributed` inspects the global sparsity pattern across all ranks — it needs host-side MPI
-to coordinate. Once assembled, `clone(exec)` copies the local blocks to the device in one step.
+`read_distributed` takes the partition as a `std::shared_ptr`, which is why the builder's result is
+wrapped in `gko::share`. It coordinates the partition across ranks; once assembled, `clone(exec)`
+copies the local blocks to the device in one step. Besides the one-partition overload shown above,
+`read_distributed` accepts separate row and column partitions, and both overloads take either
+`matrix_data` or `device_matrix_data`.
 
 Distributed `Vector` assembly follows the same pattern:
 
@@ -69,7 +80,7 @@ auto vec_host = dist::Vector<double>::create(host, comm, global_size, local_size
 auto vec = vec_host->clone(exec);
 ```
 
-## The communicator
+### The communicator
 
 Every distributed object holds a `gko::experimental::mpi::communicator`:
 
@@ -80,9 +91,8 @@ int size  = comm.size();
 MPI_Comm raw = comm.get();   // for direct MPI use if needed
 ```
 
-Rank 0 is the leader by convention. No rank holds global state — each rank owns only its local
-part of the matrix and vector data. Global operations (dot products, norms) reduce across ranks
-internally using `MPI_Allreduce`.
+Rank 0 is the leader by convention. Each rank owns only its local part of the matrix and vector
+data. Global operations (dot products, norms) reduce across ranks internally using `MPI_Allreduce`.
 
 ## Block-structured view across ranks
 
@@ -212,35 +222,80 @@ Access the parts directly if needed:
 ```cpp
 auto diag_mat     = mat->get_diag_matrix();       // shared_ptr<const LinOp>: the diagonal matrix
 auto off_diag_mat = mat->get_off_diag_matrix();   // the off-diagonal matrix (compressed columns)
+auto row_part     = mat->get_row_partition();     // the row partition passed to read_distributed
+auto row_gatherer = mat->get_row_gatherer();      // drives the halo exchange of apply
 
 // Vectors expose the rank-local Dense:
 auto local_x = x->get_local_vector();             // matrix::Dense<V> with rank-owned rows only
 ```
 
-For generic code that works for both distributed and non-distributed vectors, use the helper:
+`get_row_partition()` returns the partition the matrix was filled with by `read_distributed`;
+`get_row_gatherer()` returns the `RowGatherer` whose collective communicator determines how the
+matrix exchanges its halo data (see [Collective communicators](distributed/collective-communicator.md)).
+
+To reach the rank-local block of a vector that may or may not be distributed, check its type:
 
 ```cpp
-gko::detail::get_local(ptr)   // returns Dense<V> whether ptr is dist::Vector or matrix::Dense
+const gko::matrix::Dense<double>* local =
+    dynamic_cast<const dist::Vector<double>*>(ptr)
+        ? gko::as<dist::Vector<double>>(ptr)->get_local_vector()
+        : gko::as<gko::matrix::Dense<double>>(ptr);
 ```
 
-## Forward links
+## Multiplying distributed matrices
 
-The sub-pages cover the distributed machinery in depth:
+`A->multiply(B, C)` computes the sparse product $C = A B$ across ranks. `C` is a distributed
+matrix created beforehand on the same communicator; it may be empty, and any previous contents are
+overwritten. The result has the row partition of `A` and the column partition of `B`, so it can be
+the operand of a further `multiply`, as in a Galerkin product $R A P$. The snippet shows the
+matrix-level operations together; the next two sections cover `transpose` and `write`.
 
-- [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
-  ranks and how local/global indexing is reconciled.
-- [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
-  ordering, and the diagonal / off-diagonal decomposition of SpMV.
-- [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
-  collective communicator that backs the all-to-all exchange.
-- [Collective communicators](distributed/collective-communicator.md) — the
-  `CollectiveCommunicator` interface and its dense / neighborhood implementations.
-- [RowGatherer and RowScatterer](distributed/row-gather-scatter.md) — the helper that drives the
-  halo exchange on top of a collective communicator.
-- [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
-  solvers work automatically and how to configure the Schwarz preconditioner.
+```cpp
+// C = A * B, with A, B and C distributed over the same communicator.
+auto C = dist_mtx::create(exec, comm);
+A->multiply(B, C);
 
-## Distributed sub-pages
+// At = A^T, distributed like the columns of A.
+auto At = dist_mtx::create(exec, comm);
+A->transpose(At);
+
+// The entries owned by this rank, with global row and column indices.
+gko::matrix_data<double, gko::int64> local_entries;
+A->write(local_entries);
+```
+
+`multiply` has these preconditions:
+
+- The column partition of `A` equals the row partition of `B` (`Partition::equals` is the check);
+  otherwise it throws [`gko::InvalidStateError`](../../api-reference/base/exceptions.md).
+- Both operands have their partitions set, by `read_distributed` or as the output of `multiply` or
+  `transpose`.
+- The diagonal and off-diagonal blocks of both operands are `Csr`, which is the default storage.
+- 64-bit local indices are rejected with `gko::NotSupported` on `HipExecutor`, and on `CudaExecutor`
+  before CUDA 13; every rank throws before any communication starts.
+
+Internally the product ships whole rows of `B` along the halo pattern of `A`, reusing the row
+gatherer's pattern through `CollectiveCommunicator::resize`.
+
+## Transposing
+
+`A->transpose(At)` fills `At` with $A^T$. The result takes the column partition of `A` as its row
+partition and the row partition of `A` as its column partition, which makes it a valid operand of
+`multiply` together with `A`. Entries whose transposed row is owned by another rank
+are sent to that rank, so every rank calls `transpose` together (it is a collective call).
+
+`A` must have been filled by `read_distributed`, and `At` must use the same executor and
+communicator as `A`. Like `C` above, `At` is overwritten and may be empty.
+
+## Writing the local entries
+
+`A->write(data)` collects the entries stored on this rank into a `matrix_data` with global row and
+column indices; the size recorded in `data` is the global size of `A`. `Matrix` implements
+`WritableToMatrixData` for this, so the same call works through the generic interface. It covers
+square matrices whose row and column partitions are the same, which is the case for the
+single-partition `read_distributed`.
+
+The sub-pages below cover the distributed machinery in depth.
 
 ```{toctree}
 :maxdepth: 2
@@ -255,6 +310,19 @@ distributed/solvers-and-preconditioners
 ```
 
 :::{seealso}
+- [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
+  ranks and how local/global indexing is reconciled.
+- [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
+  ordering, and the diagonal / off-diagonal decomposition of SpMV.
+- [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
+  collective communicator that backs the all-to-all exchange.
+- [Collective communicators](distributed/collective-communicator.md) — the
+  `CollectiveCommunicator` interface and its dense / neighborhood implementations, including
+  `resize`, which distributed `multiply` uses.
+- [RowGatherer](distributed/row-gather-scatter.md) — the helper that drives the
+  halo exchange on top of a collective communicator.
+- [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
+  solvers work automatically and how to configure the Schwarz preconditioner.
 - [The Executor model](executor-model.md) — distributed objects still bind to an executor per rank.
 - [Matrix data and assembly](matrix-data.md) — `matrix_data` for host-side assembly.
 - API reference: [`gko::experimental::distributed`](../../api-reference/distributed/index.md)

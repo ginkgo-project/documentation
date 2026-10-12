@@ -263,10 +263,11 @@ for (GlobalIdx r = row_start; r < row_end; ++r) {
 
 ### Read into distributed types
 
-`read_distributed` is required to run on a host executor — that's
-where the partition lives and where the routing logic dispatches off-rank
-entries. After reading, we copy onto the compute executor (a no-op if the
-two are the same):
+We read on the host and copy to the compute executor — the pattern that
+works on every backend, including SYCL. On OMP, CUDA and HIP,
+`read_distributed` can also run directly on `exec`, because it runs on the
+executor the matrix was created on. After reading, we copy onto the compute
+executor (a no-op if the two are the same):
 
 ```cpp
 auto A_host = gko::share(dist_mtx::create(host, comm));
@@ -313,7 +314,7 @@ auto solver =
 
 See [Distributed solvers and preconditioners](../concepts/distributed/solvers-and-preconditioners.md)
 for the broader story — including the two-level Schwarz variant and the
-restrictions on which solvers are validated for distributed runs.
+list of solvers that dispatch distributed inputs.
 
 ### The time loop
 
@@ -654,9 +655,9 @@ pattern.
 
 ## Pitfalls
 
-- **`read_distributed` insists on a host executor.** The data routing
-  logic runs CPU-side. Build with `host`, then `copy_from` onto the
-  compute executor — exactly the pattern shown above.
+- **Host-first is the portable assembly path.** Reading on `host` and
+  `copy_from`-ing onto the compute executor works on every backend (SYCL
+  requires it), exactly as shown above.
 - **Per-rank file output races.** With 4 ranks and 80 frames per rank
   that's only a few hundred small files; with thousands of ranks the
   filesystem will object. Production codes batch into shared

@@ -48,9 +48,9 @@ The recommended preprocessing recipe is:
 3. **Factorise** with `Direct` on the permuted matrix.
 4. **Solve** with `apply(b, x)`.
 
-The `ScaledReordered` linear operator bundles steps 1–3 around an inner solver, so
-the caller passes the original system matrix and right-hand side and receives the
-permuted result transparently. See [Reordering and permutations](../reordering.md)
+Apply the transforms in steps 1 and 2 with `Csr::permute` and `Csr::scale_permute`;
+`ScaledReordered` covers fixed diagonal scalings plus a `gko::reorder::Rcm` reordering
+around an inner solver (see [Tune a direct solver](../../how-to/using/tune-direct-solver.md)). See [Reordering and permutations](../reordering.md)
 for the full taxonomy of algorithms and worked examples.
 
 ## Triangular solves under the hood
@@ -71,9 +71,8 @@ On the CUDA backend, both triangular solvers expose two algorithm choices via
 - `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation, often
   faster for highly parallel triangular structures.
 
-On the other backends the parameter is part of the API for uniformity but does not
-change which implementation runs — Reference, OMP, HIP, and DPC++ each ship a
-single triangular-solve kernel, and the kernel does not branch on `algorithm`.
+The triangular solvers run on the Reference, OpenMP, CUDA, HIP and DPC++
+executors; on DPC++ they use oneMKL.
 
 ## cuDSS on NVIDIA GPUs
 
@@ -110,8 +109,10 @@ The classical caveats:
 - **Single-precision wins are limited**. Direct solvers are bandwidth- and
   flop-bound on the factors; the speedup from low-precision arithmetic is usually
   smaller than for Krylov methods.
-- **Cross-backend coverage varies**. The Ginkgo core implementation works on every
-  backend, but vendor-tuned alternatives (cuDSS) are CUDA-only.
+- **Cross-backend coverage varies**. Ginkgo's `Lu` and `Cholesky` factorisations
+  run on the Reference, OpenMP, CUDA and HIP executors, while the `LowerTrs` and
+  `UpperTrs` triangular solves additionally run on DPC++ (through oneMKL). The
+  vendor-tuned cuDSS alternative is CUDA-only.
 
 When the system is too large for a direct factorisation, switch to a Krylov solver
 with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.md).

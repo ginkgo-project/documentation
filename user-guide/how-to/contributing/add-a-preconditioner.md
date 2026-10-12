@@ -2,9 +2,9 @@
 
 A preconditioner in Ginkgo is a `LinOp` with two extra entry points:
 `generate(system_matrix)` which builds the operator from a source matrix,
-and `apply(b, x)` which applies the resulting operator. There is no
-workspace machinery — preconditioners do their work in a single
-`apply` and have no iteration loop.
+and `apply(b, x)` which applies the resulting operator. Preconditioners
+do their work in a single `apply`, so they need neither workspace
+machinery nor an iteration loop.
 
 This page covers two patterns: a **local** preconditioner modelled on
 `preconditioner::Jacobi` (`include/ginkgo/core/preconditioner/jacobi.hpp`,
@@ -28,13 +28,13 @@ modelled on `experimental::distributed::preconditioner::Schwarz`
 
 ## The local preconditioner skeleton
 
+The local classes live in `namespace gko::preconditioner`.
+
 ```cpp
 template <typename ValueType = default_precision, typename IndexType = int32>
 class MyPrecond
-    : public EnableLinOp<MyPrecond<ValueType, IndexType>>,
+    : public LinOp,
       public Transposable {
-    friend class EnableLinOp<MyPrecond>;
-    friend class EnablePolymorphicObject<MyPrecond, LinOp>;
     GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE;
 
 public:
@@ -65,12 +65,12 @@ public:
 
 protected:
     explicit MyPrecond(std::shared_ptr<const Executor> exec)
-        : EnableLinOp<MyPrecond>(std::move(exec)) {}
+        : LinOp(std::move(exec)) {}
 
     explicit MyPrecond(const Factory* factory,
                        std::shared_ptr<const LinOp> system_matrix)
-        : EnableLinOp<MyPrecond>(factory->get_executor(),
-                                 gko::transpose(system_matrix->get_size())),
+        : LinOp(factory->get_executor(),
+                gko::transpose(system_matrix->get_size())),
           parameters_{factory->get_parameters()}
     {
         this->generate(system_matrix.get(), parameters_.skip_sorting);
@@ -92,9 +92,16 @@ private:
 Compared to a solver:
 
 - No `EnablePreconditionedIterativeSolver` base — preconditioners don't
-  iterate. The only base is `EnableLinOp<Self>`.
-- No `workspace_traits` specialisation — there's no iteration scratch to
-  cache.
+  iterate. The only base is `LinOp` (plus `Transposable` if the
+  preconditioner can be transposed). `Ilu`, `Ic`, `Isai` and `Schwarz`
+  are plain `LinOp` classes of this kind.
+- To make the preconditioner cloneable (`gko::clone`, `copy_from`), also
+  derive from `EnableCloneable<MyPrecond<ValueType, IndexType>>`, add
+  `friend class EnableCloneable<MyPrecond<ValueType, IndexType>>;`, and
+  declare the copy and move constructors and assignment operators, as
+  `Jacobi` does. See [Cloneable](../../../api-reference/base/cloneable.md).
+- Preconditioners skip `workspace_traits`: all state is built once in
+  `generate`.
 - `generate(...)` runs from the second constructor (the one the factory
   uses). After it returns, the `private` state holds everything `apply`
   needs.
@@ -153,16 +160,74 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
 }
 ```
 
+### Reusing setup across same-pattern matrices (optional)
+
+:::{attention}
+`generate_reuse` is an experimental interface and may change.
+:::
+
+When users solve a sequence of matrices with one sparsity pattern, the
+preconditioner can keep what it computed for the first matrix.
+`multigrid::Pgm` implements this and is the precedent to copy. Replace
+`GKO_ENABLE_LIN_OP_FACTORY` with `GKO_ENABLE_LIN_OP_FACTORY_WITH_REUSE`,
+naming a `reuse_data_type` that is declared before the macro and defined
+after it:
+
+```cpp
+template <typename ValueType = default_precision, typename IndexType = int32>
+class MyPrecond : public LinOp {
+public:
+    GKO_CREATE_FACTORY_PARAMETERS(parameters, Factory){};
+    class reuse_data_type;
+    GKO_ENABLE_LIN_OP_FACTORY_WITH_REUSE(MyPrecond, parameters, Factory,
+                                         reuse_data_type);
+    GKO_ENABLE_BUILD_METHOD(Factory);
+    class reuse_data_type : public LinOpFactory::ReuseData {
+        friend class MyPrecond;
+        bool initialized_ = false;
+        array<IndexType> pattern_;  // computed by the first generation
+    };
+protected:
+    void apply_impl(const LinOp* b, LinOp* x) const override;
+    void apply_impl(const LinOp* alpha, const LinOp* b, const LinOp* beta,
+                    LinOp* x) const override;
+private:
+    MyPrecond(const Factory*, std::shared_ptr<const LinOp>);
+    MyPrecond(const Factory*, std::shared_ptr<const LinOp>, reuse_data_type&);
+    static void check_reuse_consistent(const Factory*, const LinOp*,
+                                       const reuse_data_type&);
+};
+```
+
+The class provides three things on top of the plain factory:
+
+- A `reuse_data_type` derived from `LinOpFactory::ReuseData`, which must
+  be default-constructible. It records the setup results (aggregates,
+  patterns, index maps) that stay valid while the pattern is unchanged.
+- The constructor `MyPrecond(const Factory*, std::shared_ptr<const LinOp>,
+  reuse_data_type&)`. The first call on an empty `reuse_data_type` is a
+  full generation that fills it; later calls take the stored data and
+  recompute only what depends on the values.
+- The static function `check_reuse_consistent(const Factory*, const
+  LinOp*, const reuse_data_type&)`, which throws when the input does not
+  fit the stored data. It accepts any input while the data is empty.
+
+Users then call `factory->create_empty_reuse_data()` once and pass it
+to `factory->generate_reuse(A, *reuse_data)` for each matrix. See
+[`gko::LinOpFactory`](../../../api-reference/base/lin-op-factory.md) for
+the contract of the generated operator.
+
 ## The distributed preconditioner skeleton
+
+The distributed classes live in
+`namespace gko::experimental::distributed::preconditioner`.
 
 ```cpp
 template <typename ValueType = default_precision,
           typename LocalIndexType = int32,
           typename GlobalIndexType = int64>
 class MyPrecond
-    : public EnableLinOp<MyPrecond<ValueType, LocalIndexType, GlobalIndexType>> {
-    friend class EnableLinOp<MyPrecond>;
-    friend class EnablePolymorphicObject<MyPrecond, LinOp>;
+    : public LinOp {
     GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE;
 
 public:
@@ -187,12 +252,12 @@ public:
 
 protected:
     explicit MyPrecond(std::shared_ptr<const Executor> exec)
-        : EnableLinOp<MyPrecond>(std::move(exec)) {}
+        : LinOp(std::move(exec)) {}
 
     explicit MyPrecond(const Factory* factory,
                        std::shared_ptr<const LinOp> system_matrix)
-        : EnableLinOp<MyPrecond>(factory->get_executor(),
-                                 gko::transpose(system_matrix->get_size())),
+        : LinOp(factory->get_executor(),
+                gko::transpose(system_matrix->get_size())),
           parameters_{factory->get_parameters()}
     {
         this->generate(std::move(system_matrix));
@@ -215,7 +280,8 @@ private:
 Two differences from the local case:
 
 - The class is templated on three types (`V`, `L`, `G`) and lives under
-  `gko::experimental::distributed::preconditioner`. The header is wrapped
+  `gko::experimental::distributed::preconditioner`, derived from `LinOp`
+  without further bases. The header is wrapped
   in `#if GINKGO_BUILD_MPI` and the source is added to `core/CMakeLists.txt`
   under the `if(GINKGO_BUILD_MPI)` block.
 - The static-assert is `GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE`,

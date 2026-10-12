@@ -10,7 +10,7 @@ Because criteria are factories — the same pattern as solvers and preconditione
 
 ## Built-in criteria
 
-Ginkgo ships four primary criteria:
+Ginkgo ships four primary criteria. The `::build()` form is shown first; the shorthand helpers below need less code:
 
 ```cpp
 // Stop after a fixed number of iterations.
@@ -18,7 +18,7 @@ gko::stop::Iteration::build()
     .with_max_iters(1000u)
     .on(exec);
 
-// Stop when the explicit residual norm drops below a fraction of the baseline.
+// Stop when the residual norm drops below a fraction of the baseline.
 gko::stop::ResidualNorm<double>::build()
     .with_baseline(gko::stop::mode::initial_resnorm)
     .with_reduction_factor(1e-8)
@@ -36,9 +36,45 @@ gko::stop::Time::build()
 ```
 
 - **`Iteration`** — unconditionally stops after `max_iters` iterations. A safety net that prevents infinite loops regardless of convergence.
-- **`ResidualNorm`** — stops when `‖r‖ / baseline ≤ reduction_factor`. The `baseline` can be `initial_resnorm` (relative to the initial residual), `rhs_norm` (relative to `‖b‖`), or `absolute` (no normalisation). This criterion requires an explicit SpMV to compute `r = b − A x` each time it is checked.
-- **`ImplicitResidualNorm`** — uses the residual estimate maintained inside the Krylov recurrence. No extra SpMV, but the estimate can drift from the true residual over many iterations. See the *Implicit vs explicit residual norms* section below for the trade-off.
+- **`ResidualNorm`** — stops when `‖r‖ ≤ reduction_factor × baseline`. The `baseline` can be `rhs_norm` (the default, relative to `‖b‖`), `initial_resnorm` (relative to the initial residual), or `absolute` (no normalisation). Each check uses the residual norm the solver already provides (GMRES, CB-GMRES, GCR and IDR do) or takes the 2-norm of the residual vector the solver maintains, which costs one global reduction per check. Solvers that pass neither (MINRES, Multigrid) make it compute $b - A x$, an extra SpMV per check.
+- **`ImplicitResidualNorm`** — checks the squared-norm estimate the solver maintains as a by-product of its recurrence (for CG-type solvers $\rho = r^H z$, a preconditioned quantity), which saves that reduction. Solvers that provide the estimate are CG, FCG, BiCG, BiCGSTAB, CGS, MINRES and PipeCG. See the *Implicit vs explicit residual norms* section below for the trade-off.
 - **`Time`** — stops after a wall-clock duration regardless of convergence. Useful for anytime algorithms or hard latency budgets.
+
+### Shorthand helpers
+
+The helper functions build the same criteria without an executor and without a value type. Pass them directly to `with_criteria(...)`; the residual-norm criteria take their value type from the solver's vectors when the solver is generated:
+
+```cpp
+auto solver_factory = gko::solver::Cg<double>::build()
+                          .with_criteria(
+                              gko::stop::max_iters(1000u),
+                              gko::stop::relative_residual_norm(1e-8))
+                          .on(exec);
+```
+
+| Helper | Equivalent |
+|---|---|
+| `max_iters(n)` | `Iteration` with `max_iters = n` |
+| `time_limit(duration)` | `Time` with `time_limit = duration` (any `std::chrono` unit) |
+| `relative_residual_norm(tol)` | `ResidualNorm`, baseline `rhs_norm` |
+| `initial_residual_norm(tol)` | `ResidualNorm`, baseline `initial_resnorm` |
+| `absolute_residual_norm(tol)` | `ResidualNorm`, baseline `absolute` |
+| `relative_implicit_residual_norm(tol)`, `initial_implicit_residual_norm(tol)`, `absolute_implicit_residual_norm(tol)` | `ImplicitResidualNorm` with the matching baseline |
+
+The JSON short form uses the keys `iteration`, `time` and the residual-norm helper names (`relative_residual_norm`, `initial_residual_norm`, `absolute_residual_norm` and their `_implicit_` variants), for example `"criteria": {"iteration": 1000, "relative_residual_norm": 1e-8}`; see [Configuration files](config-files.md).
+
+### Enforcing a minimum number of iterations
+
+`gko::stop::min_iters(count, criteria...)` wraps one or more criteria so that they are checked only after `count` iterations have finished. From then on it behaves like the wrapped criteria, and several wrapped criteria are combined with OR. Criteria passed next to the wrapper, such as `max_iters`, keep their own behaviour. The wrapper suits inner solves and smoothers that must do a fixed amount of work even when the residual already looks small:
+
+```cpp
+auto solver_factory =
+    gko::solver::Gmres<double>::build()
+        .with_criteria(
+            gko::stop::min_iters(10u, gko::stop::relative_residual_norm(1e-10)),
+            gko::stop::max_iters(1000u))
+        .on(exec);
+```
 
 ## Composition with `Combined`
 
@@ -77,11 +113,11 @@ auto solver = solver_factory->generate(system_matrix);
 solver->apply(b, x);
 ```
 
-If you already have a `Combined` factory, you can pass it directly:
+A `Combined` factory built as above is a `std::unique_ptr`, so move it into `with_criteria`, or wrap it with `gko::share` to reuse it:
 
 ```cpp
 auto solver_factory = gko::solver::Cg<double>::build()
-                          .with_criteria(criteria)
+                          .with_criteria(std::move(criteria))
                           .on(exec);
 ```
 
@@ -90,7 +126,7 @@ auto solver_factory = gko::solver::Cg<double>::build()
 Solvers expose convergence information through a logger. Attach `gko::log::Convergence` before calling `apply` to read the final iteration count and residual norm afterward:
 
 ```cpp
-auto convergence = std::make_shared<gko::log::Convergence<double>>();
+auto convergence = gko::share(gko::log::Convergence<double>::create());
 solver->add_logger(convergence);
 solver->apply(b, x);
 
@@ -98,16 +134,16 @@ auto iters = convergence->get_num_iterations();
 auto res   = convergence->get_residual_norm();
 ```
 
-For batched solvers, use `gko::log::BatchConvergence` instead. Logging is covered more fully in the logging documentation; the `Convergence` logger itself requires no additional configuration beyond construction.
+For batched solvers, use `gko::batch::log::BatchConvergence` instead. Logging is covered more fully in the logging documentation; the `Convergence` logger is created with its static `create()` function and needs no further configuration.
 
 ## Implicit vs explicit residual norms
 
-The two norm-based criteria reflect a classical accuracy-vs-cost trade-off:
+The two norm-based criteria reflect an accuracy-vs-cost trade-off:
 
-- **Explicit** (`ResidualNorm`): computes `‖b − A x‖` directly with a SpMV each time the criterion is checked. Accurate — the norm matches what the user actually cares about — but at the cost of **one additional SpMV per iteration** on top of the SpMV that the solver would otherwise perform for its own iteration step. For matrix-bandwidth-bound solvers (which most are), that roughly doubles the per-iteration cost.
-- **Implicit** (`ImplicitResidualNorm`): reads the residual estimate that the Krylov recurrence maintains for free as a by-product of the iteration. No extra SpMV, but the estimate can drift away from the true residual in finite-precision arithmetic after many iterations, particularly when the solver is near the noise floor of the working precision.
+- **`ResidualNorm`** measures the 2-norm of the solver's residual; its cost is one global reduction per check, plus an extra SpMV per check for solvers that pass neither a norm nor a residual (MINRES, Multigrid). Use it when the tolerance must refer to the unpreconditioned residual; checking $\|b - A x\|$ after the solve gives a guaranteed bound.
+- **`ImplicitResidualNorm`** reuses an inner product the solver computes anyway, so the check is free. The estimate is updated by short recurrences and, with a preconditioner, measures a preconditioned norm, so it can drift from $\|b - A x\|$ on long runs in finite precision, particularly near the noise floor of the working precision.
 
-Prefer explicit residual norms in production runs where correctness is paramount. Use implicit norms in performance-sensitive inner loops (e.g., a preconditioner's inner solve), where a loose stopping tolerance already forgives some inaccuracy.
+Prefer `ResidualNorm` in production runs where correctness is paramount. Use `ImplicitResidualNorm` in performance-sensitive inner solves with loose tolerances, paired with an `Iteration` cap.
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes stopping criteria.

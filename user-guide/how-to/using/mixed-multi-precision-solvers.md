@@ -57,9 +57,9 @@ auto A = gko::share(gko::matrix::Csr<double, int>::create(exec));
 // ... read A from a file or matrix_data ...
 
 // (2) Preconditioner factory in half precision.
-auto precond = gko::preconditioner::Jacobi<gko::half, int>::build()
-                   .with_max_block_size(1u)        // scalar Jacobi
-                   .on(exec);
+auto precond = gko::share(gko::preconditioner::Jacobi<gko::half, int>::build()
+                              .with_max_block_size(1u)  // scalar Jacobi
+                              .on(exec));
 
 // (3) Solver in float precision, using the half preconditioner,
 //     generated from the double matrix.

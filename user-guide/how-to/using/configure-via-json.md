@@ -9,28 +9,26 @@ exposing solver choice to end users.
 ## The recipe
 
 ```cpp
-#include <ginkgo/ginkgo.hpp>
+using gko::config::pnode;
 
 // The property tree — typically loaded from a JSON file.
-auto config = gko::config::pnode{{
-    {"type", gko::config::pnode{"solver::Cg"}},
-    {"criteria", gko::config::pnode{{
-        {{"type", gko::config::pnode{"Iteration"}},
-         {"max_iters", gko::config::pnode{1000}}},
-        {{"type", gko::config::pnode{"ResidualNorm"}},
-         {"reduction_factor", gko::config::pnode{1e-8}}}
-    }}},
-    {"preconditioner", gko::config::pnode{{
-        {"type", gko::config::pnode{"preconditioner::Jacobi"}}
-    }}}
-}};
+auto config = pnode{pnode::map_type{
+    {"type", pnode{"solver::Cg"}},
+    {"criteria", pnode{pnode::array_type{
+        pnode{pnode::map_type{{"type", pnode{"Iteration"}},
+                              {"max_iters", pnode{1000}}}},
+        pnode{pnode::map_type{{"type", pnode{"ResidualNorm"}},
+                              {"reduction_factor", pnode{1e-8}}}}}}},
+    {"preconditioner", pnode{pnode::map_type{
+        {"type", pnode{"preconditioner::Jacobi"}}}}}}};
+```
 
-// The registry — knows what types the parser is allowed to build.
+The registry knows which types the parser may build. Parsing returns a deferred factory
+parameter, and `.on(exec)` turns it into a factory on the chosen executor:
+
+```cpp
 auto registry = gko::config::registry{};
-
-// Parse → deferred factory parameter → factory on the chosen executor.
-auto factory = gko::config::parse(config, registry)
-                   .on(exec);
+auto factory = gko::config::parse(config, registry).on(exec);
 
 // Use the factory as if it had been built statically.
 auto solver = factory->generate(system_matrix);
@@ -53,8 +51,8 @@ above corresponds to a JSON document like:
 
 ## Load from a JSON file
 
-The `extensions::config::json_config` helper parses a JSON file into a
-`pnode` for you:
+The JSON reader in `ginkgo/extensions/config/json_config.hpp` parses a JSON file into a
+`pnode` for you (see [Config file readers](../../../api-reference/extensions/config-readers.md)):
 
 ```cpp
 #include <ginkgo/extensions/config/json_config.hpp>
@@ -63,7 +61,8 @@ auto config = gko::ext::config::parse_json_file("cg.json");
 auto factory = gko::config::parse(config, registry).on(exec);
 ```
 
-`parse_yaml_file` does the same for YAML.
+`parse_yaml_file` does the same for YAML. Both readers throw exceptions derived from
+`std::exception` when the file cannot be read or parsed.
 
 ## Worked example: mixed-precision multigrid preconditioning CG
 
@@ -156,11 +155,35 @@ recompilation when the JSON changes.
 
 ## Type names
 
-The `"type"` field names a Ginkgo type. The parser recognises the
-standard solvers / preconditioners / matrix formats / reorderings; see
-`include/ginkgo/core/config/registry.hpp` for the canonical list.
-Examples: `solver::Cg`, `solver::Gmres`, `preconditioner::Jacobi`,
-`preconditioner::Ic`, `factorization::Ilu`, `matrix::Csr`.
+The `"type"` field names a Ginkgo factory type. The registered names are:
+
+| Prefix | Type names |
+|---|---|
+| `solver::` | `Cg`, `Bicg`, `Bicgstab`, `Fcg`, `PipeCg`, `Cgs`, `Ir`, `Idr`, `Gcr`, `Gmres`, `CbGmres`, `Minres`, `Direct`, `LowerTrs`, `UpperTrs`, `Chebyshev`, `Multigrid` |
+| `factorization::` | `Ic`, `Ilu`, `Cholesky`, `Lu`, `ParIc`, `ParIct`, `ParIlu`, `ParIlut` |
+| `preconditioner::` | `GaussSeidel`, `Ic`, `Ilu`, `Isai`, `Jacobi`, `NullspaceProjection`, `Sor`, and `Schwarz` in MPI builds |
+| `multigrid::` | `Pgm`, `Pmis`, `Rs`, `UniformCoarsening` |
+
+Stopping criteria use the names `Iteration`, `ResidualNorm`, `ImplicitResidualNorm` and `Time`.
+A multigrid level is selected by its type name, for example
+`{"type": "multigrid::Pmis", "strength_threshold": 0.25}` as an `mg_level` entry.
+
+### Singular systems
+
+Iterative solvers that support nullspaces (`Cg`, `Fcg`, `Minres`, `Gmres` and `Bicgstab`) accept the
+keys `"nullspace"` and `"left_nullspace"`. Each value is the name of an object stored in the
+registry:
+
+```cpp
+registry.emplace("ns", gko::share(gko::solver::Nullspace<double>::create_from_constant(exec)));
+```
+
+```json
+{"type": "solver::Cg", "nullspace": "ns", "criteria": {"iteration": 1000}}
+```
+
+See [Singular systems](../../concepts/solvers/singular-systems.md) for the nullspace
+objects themselves.
 
 ## Register custom types
 
@@ -171,23 +194,24 @@ it from config, supply a parse callable when constructing the
 `include/ginkgo/core/config/registry.hpp`:
 
 ```cpp
-std::function<gko::deferred_factory_parameter<gko::LinOpFactory>(
+using parse_fn = std::function<gko::deferred_factory_parameter<gko::LinOpFactory>(
     const gko::config::pnode&,
     const gko::config::registry&,
-    gko::config::type_descriptor)>
+    gko::config::type_descriptor)>;
 ```
 
 Wire it up like this:
 
 ```cpp
 auto my_parse =
-    [](const gko::config::pnode& config,
-       const gko::config::registry& context,
-       gko::config::type_descriptor td) {
+    [](const gko::config::pnode& config, const gko::config::registry& context,
+       gko::config::type_descriptor td)
+    -> gko::deferred_factory_parameter<gko::LinOpFactory> {
         // Read keys off `config`, look up nested factories in `context`,
-        // and return a deferred factory parameter for your type.
-        return MyLinOpFactory::build()
-            .with_some_param(config.get("some_param").get_integer());
+        // and return a deferred factory parameter for your type. A Cg factory
+        // stands in for your own LinOpFactory here.
+        return gko::solver::Cg<double>::build().with_criteria(
+            gko::stop::max_iters(config.get("max_iters").get_integer()));
     };
 
 // `usr::` prefix is the convention suggested by the registry doxygen
@@ -218,5 +242,5 @@ inner brace.
 
 :::{seealso}
 - [Configuration from JSON files](../../concepts/config-files.md) — the conceptual reference and full property-tree grammar.
-- [`registry`](../../../api-reference/config/registry.md) — the canonical type list.
+- [`registry`](../../../api-reference/config/registry.md) — the registry class and its type map.
 :::

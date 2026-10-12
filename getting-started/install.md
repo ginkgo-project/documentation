@@ -1,7 +1,7 @@
 # Install
 
 Ginkgo is a header- and library-based C++17 project. Most users build it from
-source with CMake; pre-built packages are also available via Spack.
+source with CMake; pre-built packages are also available via Spack and PyPI.
 
 :::{important}
 The canonical, exhaustively-maintained install guide is the upstream
@@ -15,10 +15,10 @@ when the build system changes — when in doubt, follow upstream `INSTALL.md`.
 
 | Backend | Required tooling |
 |---|---|
-| Reference / OpenMP (CPU) | C++17 compiler (GCC ≥ 7, Clang ≥ 5, Apple Clang ≥ 15, Intel ≥ 2019, MSVC 2019+, Cray ≥ 14.0.1, NVHPC ≥ 22.7), CMake ≥ 3.16 |
+| Reference / OpenMP (CPU) | C++17 compiler (GCC ≥ 9, Clang ≥ 5, Apple Clang ≥ 15, Intel ≥ 2019, MSVC 2019+, MinGW GCC ≥ 9, Cray ≥ 14.0.1, NVHPC ≥ 22.7), CMake ≥ 3.16 |
 | CUDA (NVIDIA GPUs) | CUDA ≥ 11.0 (or NVHPC ≥ 22.7), CMake ≥ 3.18 (≥ 3.22 if CUDA came from the NVIDIA HPC toolkit) |
 | HIP (AMD GPUs) | ROCm ≥ 6.2.0 with hipBLAS / hipSPARSE / hip- and rocRAND / rocThrust, CMake ≥ 3.21 |
-| SYCL (Intel GPUs) | oneAPI ≥ 2023.1 with oneMKL and oneDPL; `dpcpp` or `icpx` set as `CMAKE_CXX_COMPILER` |
+| SYCL (Intel GPUs) | oneAPI ≥ 2024.1 with oneMKL and oneDPL; `dpcpp` or `icpx` set as `CMAKE_CXX_COMPILER` |
 | MPI (distributed) | MPI 3.1+, GPU-aware build recommended for accelerator runs |
 
 For contributing, you additionally need `clang-format 14` (downloaded
@@ -91,6 +91,7 @@ cmake --install .
 | Source | Command | Notes |
 |---|---|---|
 | [Spack](https://packages.spack.io/package.html?name=ginkgo) | `spack install ginkgo` | Variants for `+cuda`, `+rocm`, `+sycl`, `+openmp`, `+mpi` plus version pins. Recommended on HPC systems. See the [Spack package page](https://packages.spack.io/package.html?name=ginkgo) for the full variant matrix. |
+| [PyPI: pyGinkgo](https://pypi.org/project/pyginkgo/) | `pip install pyginkgo` | Python bindings for Ginkgo. A separate project with its own releases; CUDA and ROCm wheels are on the [pyGinkgo releases page](https://github.com/Helmholtz-AI-Energy/pyGinkgo/releases). |
 
 Pre-built packages are convenient but lag the development branch — for the
 latest features build from source.

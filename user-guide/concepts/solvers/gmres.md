@@ -3,8 +3,9 @@
 `gko::solver::Gmres<ValueType>` is the safest default Krylov method for **general
 non-symmetric** linear systems. It builds a Krylov subspace one vector at a time
 via the Arnoldi process, solves a least-squares problem in the projected subspace,
-and recovers the iterate. To bound memory it restarts every `krylov_dim`
-iterations.
+and recovers the iterate. To bound memory it restarts after at most
+`krylov_dim` iterations, and can end a cycle earlier once the residual has
+dropped by a given ratio (`restart_ratio`).
 
 ## When to use GMRES
 
@@ -60,13 +61,22 @@ solver->apply(b, x);
   - Pre-built preconditioner that bypasses `preconditioner` when set. Defaults to `nullptr`.
 * - `krylov_dim`
   - `size_type`
-  - Restart length — the size of the Krylov subspace before a restart; controls memory and convergence. Defaults to `0`, which resolves to `gmres_default_krylov_dim = 100`.
+  - Restart length — the size of the Krylov subspace before a restart; controls memory and convergence. With `restart_ratio > 0` it caps the basis size instead (the memory bound). Defaults to `0`, which resolves to `gmres_default_krylov_dim = 100`.
+* - `restart_ratio`
+  - `remove_complex<ValueType>`
+  - Ratio-based restart, in $[0, 1)$. A cycle ends once the residual has dropped to this fraction of its value at the start of the cycle; see [Ratio-based restart](#ratio-based-restart-restart_ratio). Defaults to `0`, which restarts every `krylov_dim` iterations.
 * - `flexible`
   - `bool`
   - Activates [FGMRES](#flexible-gmres-fgmres) for variable preconditioners. Defaults to `false`.
 * - `ortho_method`
   - `gmres::ortho_method`
   - Orthogonalisation strategy — see below. Defaults to `mgs`.
+* - `nullspace`
+  - `std::shared_ptr<const LinOp>`
+  - Right nullspace $N(A)$ of a singular matrix, a `solver::Nullspace`. The solver removes it from the initial guess and from every preconditioned vector. See [Singular systems and nullspaces](singular-systems.md). Defaults to none.
+* - `left_nullspace`
+  - `std::shared_ptr<const LinOp>`
+  - Left nullspace $N(A^H)$, a `solver::Nullspace`. Projects $b$ onto $\mathrm{range}(A)$; independent of `nullspace`, so set it together with `nullspace` whenever $b$ may have a component outside $\mathrm{range}(A)$. Defaults to none.
 ```
 
 ## Restart length (`krylov_dim`)
@@ -74,7 +84,7 @@ solver->apply(b, x);
 GMRES's per-iteration work and memory both scale with the size of the Krylov
 subspace built so far: at iteration $k$ the algorithm performs $k$ inner products,
 $k$ AXPYs, and stores $k+1$ basis vectors plus the upper-Hessenberg matrix. To
-bound the cost, GMRES restarts every `krylov_dim` iterations: the current
+bound the cost, GMRES restarts after `krylov_dim` iterations: the current
 approximation $x_k$ becomes the new initial guess and a fresh Krylov subspace is
 built from the new residual.
 
@@ -90,6 +100,36 @@ Tuning `krylov_dim` is the main GMRES knob:
 
 If the system is very ill-conditioned and convergence stalls, enlarge
 `krylov_dim` rather than lengthening the iteration budget.
+
+### Ratio-based restart (`restart_ratio`)
+
+Setting `restart_ratio` to $\eta \in (0, 1)$ ends a cycle as soon as
+$\|r_i - A d_i\| \le \eta \|r_i\|$, where $r_i$ is the residual at the start of
+the cycle and $d_i$ the correction built so far. With several right-hand sides
+the condition has to hold for every right-hand side that is still running. The
+value must lie in $[0, 1)$; zero disables the criterion.
+
+`restart_ratio` changes the meaning of `krylov_dim`. With a positive ratio,
+`krylov_dim` is the maximum basis size of a cycle and the memory bound, and a
+cycle ends at whichever of the two conditions is met first. The ratio is a
+per-cycle reduction, not a convergence tolerance, so useful values are far
+larger than a stopping tolerance: 1e-3 to 1e-1 when a cycle gains orders of
+magnitude, and about 0.9 when it gains only a few percent. It has to be larger
+than the reduction a full `krylov_dim` cycle achieves. Shorter cycles mean less
+orthogonalisation work per cycle, at the cost of more restarts.
+
+```cpp
+auto solver_factory = gko::solver::Gmres<double>::build()
+                          .with_krylov_dim(200u)       // memory cap
+                          .with_restart_ratio(1e-2)    // end a cycle after a 100x gain
+                          .with_criteria(gko::stop::max_iters(5000u),
+                                         gko::stop::relative_residual_norm(1e-10))
+                          .on(exec);
+```
+
+The criterion bounds the backward error of each cycle's correction, which lets
+restarted GMRES be analysed like GMRES-based iterative refinement (see
+Buttari et al. under Publications).
 
 ## Orthogonalisation strategies
 
@@ -131,8 +171,11 @@ every time it is applied.
 auto fgmres = gko::solver::Gmres<double>::build()
                   .with_krylov_dim(50u)
                   .with_flexible(true)
-                  .with_preconditioner(/* possibly varying inner solver */)
-                  .with_criteria(/* ... */)
+                  .with_preconditioner(  // an inner solve with a loose limit
+                      gko::solver::Cg<double>::build().with_criteria(
+                          gko::stop::max_iters(5u)))
+                  .with_criteria(gko::stop::max_iters(1000u),
+                                 gko::stop::relative_residual_norm(1e-8))
                   .on(exec);
 ```
 
@@ -167,6 +210,7 @@ IDR(s) — both have bounded per-iteration memory.
 
 ## Publications
 
+- [A Modular Framework for the Backward Error Analysis of GMRES](https://doi.org/10.1093/imanum/draf049) (Buttari et al.), the analysis behind `restart_ratio`
 - [Compressed Basis GMRES on High-Performance Graphics Processing Units](https://doi.org/10.1177/10943420221115140)
 - [FRSZ2 for In-Register Block Compression Inside GMRES on GPUs](https://doi.org/10.1109/SCW63240.2024.00038)
 

@@ -47,13 +47,14 @@ documents the expected JSON shape in addition to the flags:
 | `benchmark/conversion/conversion` | Matrix format conversion |
 | `benchmark/matrix_statistics/matrix_statistics` | Size / load-imbalance / variance |
 | `benchmark/matrix_generator/matrix_generator` | Synthesise block-diagonal matrices |
-| `benchmark/spmv/distributed/spmv` | Distributed SpMV (needs MPI build) |
-| `benchmark/solver/distributed/solver` | Distributed solvers (needs MPI build) |
-| `benchmark/blas/distributed/multi_vector` | Distributed BLAS on multi-vectors |
+| `benchmark/spmv/distributed/spmv_distributed` | Distributed SpMV (needs MPI build) |
+| `benchmark/solver/distributed/solver_distributed` | Distributed solvers (needs MPI build) |
+| `benchmark/blas/distributed/multi_vector_distributed` | Distributed BLAS on multi-vectors (needs MPI build) |
 
-Each driver accepts at least one of three value-type variants:
-`--double` (the default), `--single`, and `--complex` (with `dcomplex` /
-`scomplex` for complex variants).
+Each driver is built as four executables, one per value type:
+`<name>` (double), `<name>_single`, `<name>_dcomplex` and
+`<name>_scomplex`. `run_all_benchmarks.sh` picks one through
+`BENCHMARK_PRECISION`.
 
 ## Input JSON
 
@@ -122,7 +123,7 @@ variables:
 | `SEGMENTS=<N>` + `SEGMENT_ID=<I>` | Run only the `I`-th of `N` chunks of the matrix list (parallel runs across machines). |
 | `MATRIX_LIST_FILE=<path>` | Restrict to a hand-picked subset; lines are `ID` or `Group/Name`. |
 | `BENCHMARK_PRECISION={double, single, dcomplex, scomplex}` | Value type. Default: `double`. |
-| `SOLVERS=<list>` | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,idr`. |
+| `SOLVERS=<list>` | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,cb_gmres_reduce1,idr`. |
 | `PRECONDS=<list>` | Preconditioners to use. Default: `none`. |
 | `FORMATS=<list>` | Matrix formats to compare for SpMV. Default: `csr,coo,ell,hybrid,sellp`. |
 | `SOLVERS_PRECISION=<eps>` | Target residual reduction. Default: `1e-6`. |
@@ -148,14 +149,15 @@ optional if you intend to publish the numbers:
 - Compile in `Release` mode.
 - Run on an idle machine. `last`, `htop`, `nvidia-smi`, `rocm-smi` show
   competing load.
-- Each benchmark does one warm-up run and then averages 10 timed runs
-  (fewer for the longer solver benchmarks). Override with the driver's
-  `--repetitions` flag if you need different counts.
+- Each benchmark does two warm-up runs (`--warmup`) and then averages 10
+  timed runs (`--repetitions`). `run_all_benchmarks.sh` uses a single
+  repetition for the longer solver benchmarks (`SOLVER_REPETITIONS`).
+  Override the counts with these flags if you need different ones.
 - For the adaptive block Jacobi preconditioner specifically, enable
   `-DGINKGO_JACOBI_FULL_OPTIMIZATIONS=ON` — the gain is large, but the
   build time also goes up materially (see [Speed up rebuilds](speed-up-builds.md)).
-- The `overhead` LinOp in `--preconditioner overhead`, `--spmv overhead`,
-  `--solver overhead` measures Ginkgo's framework overhead without
+- The `overhead` LinOp, selected with `--preconditioners=overhead` or
+  `--solvers=overhead`, measures Ginkgo's framework overhead without
   doing any real work — useful to characterise the library's own cost
   relative to the kernels.
 
@@ -168,22 +170,23 @@ The driver picks operators from a string list keyed by name in
 
 | File | Holds |
 |---|---|
-| `benchmark/utils/types.hpp` | The recognised matrix-format names (CSR, COO, ELL, ...) |
-| `benchmark/utils/general.hpp` | Solver / preconditioner factory string maps |
+| `benchmark/utils/formats.hpp` | Matrix-format names mapped to matrix factories (`csr`, `coo`, `ell`, ...) |
+| `benchmark/utils/preconditioners.hpp` | Preconditioner names mapped to factories |
+| `benchmark/solver/solver_common.hpp` | Solver names mapped to factories |
+| `benchmark/utils/types.hpp` | Value and index type aliases (`etype`, `itype`) |
 | `benchmark/utils/loggers.hpp` | The detailed-mode loggers (per-iteration residual, per-op timing) |
 
 Adding a new entry usually means one line each in the relevant string
 map plus a small factory builder. Mirror what the existing entries do
-for an analogous operator. Then add a case to the suite's CI matrix
-(see [Submit a pull request](submit-a-pr.md)) so the new operator is
-covered going forward.
+for an analogous operator. Then pass the new name to the driver, for
+example `FORMATS=csr,my_format` for `run_all_benchmarks.sh`, to include
+it in the comparison.
 
 :::{seealso}
 - `BENCHMARKING.md` in the Ginkgo source tree — the authoritative
   reference, including the full SuiteSparse setup loop.
 - [Speed up rebuilds](speed-up-builds.md) — for getting the suite
   built quickly.
-- [Submit a pull request](submit-a-pr.md) — CI runs a subset of the
-  benchmark suite on every merge, so this is what changes are
-  validated against.
+- [Submit a pull request](submit-a-pr.md) — GitLab CI can run the
+  CUDA SpMV benchmark job manually for changes to the matrix code.
 :::

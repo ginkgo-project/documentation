@@ -250,6 +250,7 @@ scaling factor:
 
 ```cpp
 #include <accessor/range.hpp>
+#include <accessor/reduced_row_major.hpp>
 #include <accessor/scaled_reduced_row_major.hpp>
 
 constexpr std::uint64_t single_scale = 0b00;   // one scalar for the whole range

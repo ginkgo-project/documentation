@@ -1397,7 +1397,7 @@ we just found to the stack we keep:
 ```
 
 If we are not in 1d, we collect all neighbor children
-`behind' the subfaces of the current face
+"behind" the subfaces of the current face
 
 ```cpp
                     for (unsigned int subface_no = 0;

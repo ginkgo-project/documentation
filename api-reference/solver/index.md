@@ -42,6 +42,16 @@ and how to pick a solver see the
 
 - [`Multigrid`](multigrid.md) — geometric / algebraic multigrid framework.
 
+## Singular systems
+
+- [`Nullspace`](nullspace.md) — orthogonal projector $I - V V^H$ onto the
+  complement of a nullspace (explicit basis, the constant vector, or both). Pass
+  it as the `nullspace` / `left_nullspace` factory parameter of `Cg`, `Fcg`,
+  `Minres`, `Gmres` or `Bicgstab` to solve singular systems (minimum-norm or
+  least-squares solution).
+- [`preconditioner::NullspaceProjection`](../preconditioner/nullspace-projection.md) —
+  wraps a preconditioner so that its output stays orthogonal to the nullspace.
+
 ```{toctree}
 :hidden:
 :maxdepth: 1
@@ -63,4 +73,5 @@ lower-trs
 upper-trs
 direct
 multigrid
+nullspace
 ```

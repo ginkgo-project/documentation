@@ -16,6 +16,7 @@ graph TB
   custom_matrix_format[custom-matrix-format]
   custom_stopping_criterion[custom-stopping-criterion]
   distributed_multigrid_preconditioned_solver[distributed-multigrid-preconditioned-solver]
+  distributed_multigrid_reuse[distributed-multigrid-reuse]
   distributed_solver[distributed-solver]
   external_lib_interfacing[external-lib-interfacing]
   file_config_solver[file-config-solver]
@@ -56,6 +57,7 @@ graph TB
   simple_solver --> custom_stopping_criterion
   minimal_cuda_solver --> custom_stopping_criterion
   distributed_solver --> distributed_multigrid_preconditioned_solver
+  distributed_multigrid_preconditioned_solver --> distributed_multigrid_reuse
   simple_solver --> distributed_solver
   three_pt_stencil_solver --> distributed_solver
   simple_solver --> file_config_solver
@@ -99,6 +101,7 @@ graph TB
   click custom_matrix_format "custom-matrix-format.html" "Open custom-matrix-format"
   click custom_stopping_criterion "custom-stopping-criterion.html" "Open custom-stopping-criterion"
   click distributed_multigrid_preconditioned_solver "distributed-multigrid-preconditioned-solver.html" "Open distributed-multigrid-preconditioned-solver"
+  click distributed_multigrid_reuse "distributed-multigrid-reuse.html" "Open distributed-multigrid-reuse"
   click distributed_solver "distributed-solver.html" "Open distributed-solver"
   click external_lib_interfacing "external-lib-interfacing.html" "Open external-lib-interfacing"
   click file_config_solver "file-config-solver.html" "Open file-config-solver"
@@ -158,6 +161,7 @@ graph TB
   class simple_solver_logging logging
   class custom_stopping_criterion stop
   class distributed_multigrid_preconditioned_solver distributed
+  class distributed_multigrid_reuse distributed
   class distributed_solver distributed
   class ilu_preconditioned_solver precond
   class ir_ilu_preconditioned_solver precond
@@ -237,6 +241,7 @@ graph TB
 ### Distributed solvers
 
 - [distributed-multigrid-preconditioned-solver](distributed-multigrid-preconditioned-solver.md) — The distributed multigrid preconditioned solver with customized components example.
+- [distributed-multigrid-reuse](distributed-multigrid-reuse.md) — The distributed multigrid reuse in a Picard iteration example.
 - [distributed-solver](distributed-solver.md) — The distributed solver example.
 
 ```{toctree}
@@ -250,6 +255,7 @@ custom-logger
 custom-matrix-format
 custom-stopping-criterion
 distributed-multigrid-preconditioned-solver
+distributed-multigrid-reuse
 distributed-solver
 external-lib-interfacing
 file-config-solver

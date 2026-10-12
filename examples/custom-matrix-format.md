@@ -10,40 +10,45 @@ The custom matrix format example.
 
 This example solves a 1D Poisson equation:
 
-$
+$$
+\begin{gathered}
     u : [0, 1] \rightarrow R\\
     u'' = f\\
     u(0) = u0\\
     u(1) = u1
-$
+\end{gathered}
+$$
 
 using a finite difference method on an equidistant grid with `K` discretization
 points (`K` can be controlled with a command line parameter). The discretization
 is done via the second order Taylor polynomial:
 
-$
+$$
+\begin{gathered}
 u(x + h) = u(x) - u'(x)h + 1/2 u''(x)h^2 + O(h^3)\\
 u(x - h) = u(x) + u'(x)h + 1/2 u''(x)h^2 + O(h^3)  / +\\
 ---------------------- \\
 -u(x - h) + 2u(x) + -u(x + h) = -f(x)h^2 + O(h^3)
+\end{gathered}
+$$
 
-$
+For an equidistant grid with K "inner" discretization points $x1, ..., xk$
+and step size $h = 1 / (K + 1)$, the formula produces a system of linear
+equations
 
-For an equidistant grid with K "inner" discretization points $x1, ..., xk, $and
-step size$ h = 1 / (K + 1)$, the formula produces a system of linear equations
-
-$
-
+$$
+\begin{gathered}
            2u_1 - u_2     = -f_1 h^2 + u0\\
 -u_(k-1) + 2u_k - u_(k+1) = -f_k h^2,       k = 2, ..., K - 1\\
 -u_(K-1) + 2u_K           = -f_K h^2 + u1\\
-
-$
+\end{gathered}
+$$
 
 which is then solved using Ginkgo's implementation of the CG method
 preconditioned with block-Jacobi. It is also possible to specify on which
 executor Ginkgo will solve the system via the command line.
-The function $`f` $is set to $`f(x) = 6x`$ (making the solution $`u(x) = x^3`$), but
+The function `f` is set to `f(x) = 6x` (making the solution `u(x) = x^3`),
+but
 that can be changed in the `main` function.
 
 The intention of this example is to show how a custom linear operator can be
@@ -72,11 +77,10 @@ void stencil_kernel(std::size_t size, const ValueType* coefs,
 ```
 
 A stencil matrix class representing the 3pt stencil linear operator.
-We include the gko::EnableLinOp mixin which implements the entire LinOp
-interface, except the two apply_impl methods, which get called inside the
-default implementation of apply (after argument verification) to perform the
-actual application of the linear operator. In addition, it includes the
-implementation of the entire PolymorphicObject interface.
+We include the gko::LinOp interface, where we need to implement the two
+apply_impl methods, which get called inside the default implementation of
+apply (after argument verification) to perform the actual application of the
+linear operator.
 
 It also includes the gko::EnableCreateMethod mixin which provides a default
 implementation of the static create method. This method will forward all its
@@ -85,7 +89,7 @@ std::unique_ptr to the created object.
 
 ```cpp
 template <typename ValueType>
-class StencilMatrix : public gko::EnableLinOp<StencilMatrix<ValueType>>,
+class StencilMatrix : public gko::LinOp,
                       public gko::EnableCreateMethod<StencilMatrix<ValueType>> {
 public:
 ```
@@ -97,7 +101,7 @@ the coefficients of the stencil.
     StencilMatrix(std::shared_ptr<const gko::Executor> exec,
                   gko::size_type size = 0, ValueType left = -1.0,
                   ValueType center = 2.0, ValueType right = -1.0)
-        : gko::EnableLinOp<StencilMatrix>(exec, gko::dim<2>{size}),
+        : gko::LinOp(exec, gko::dim<2>{size}),
           coefficients(exec, {left, center, right})
     {}
 

@@ -68,7 +68,7 @@ Both accept a preconditioner via `with_preconditioner` — currently
 residual norm per item:
 
 ```cpp
-auto conv = b::log::BatchConvergence<double>::create();
+auto conv = gko::share(b::log::BatchConvergence<double>::create());
 solver->add_logger(conv);
 solver->apply(rhs, sol);
 

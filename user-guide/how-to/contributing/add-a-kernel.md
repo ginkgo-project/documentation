@@ -7,9 +7,11 @@ arguments into an `Operation` via `GKO_REGISTER_OPERATION`, hands that to
 `exec->run(...)`, and the executor selects the right backend implementation.
 
 This page walks through the chain end to end on a real, minimal kernel —
-`csr::row_wise_absolute_sum` — that lives in the source tree today
-(`core/distributed/preconditioner/schwarz.cpp` uses it to build an $\ell_1$
-diagonal for the off-diagonal block).
+`csr::row_wise_absolute_sum`. The kernel is part of the source tree today:
+`core/distributed/preconditioner/schwarz.cpp` registers it and uses it to
+build an $\ell_1$ diagonal for the off-diagonal block. The walkthrough
+registers the same kernel in `core/matrix/csr.cpp` behind a `Csr` method,
+which is where you would place a new `Csr` kernel.
 
 ## What you need to write
 
@@ -31,16 +33,27 @@ once per backend through the `kernel_launch` macros) or backend-specific.
 You do **not** edit `CMakeLists.txt` for a new kernel — every file in the
 table above is already wired into each backend's compile list.
 
+### Kernel arguments
+
+Pass matrices and vectors as device views (`matrix::view::dense`,
+`matrix::view::csr`, ... from `include/ginkgo/core/matrix/device_views.hpp`),
+obtained with `get_const_device_view()` and `get_device_view()` on the
+matrix. A view is a trivially copyable struct of sizes and raw pointers. Pass
+dense views straight to `run_kernel`, where they become accessors; for a
+sparse view, pass its size and pointer members, as Step 4 does. See
+[Device views](../../../api-reference/matrix/device-views.md).
+
 ## Step 1: Declare the kernel macro
 
 In `core/matrix/csr_kernels.hpp`, near the other `GKO_DECLARE_CSR_*`
 macros, add:
 
 ```cpp
-#define GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM(ValueType, IndexType)           \
-    void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,   \
-                               const matrix::Csr<ValueType, IndexType>* orig, \
-                               array<ValueType>& sum)
+#define GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM(ValueType, IndexType) \
+    void row_wise_absolute_sum(                                     \
+        std::shared_ptr<const DefaultExecutor> exec,                \
+        matrix::view::csr<const ValueType, const IndexType> orig,   \
+        array<ValueType>& sum)
 ```
 
 Then append a `template ... GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM(...)` line
@@ -83,7 +96,7 @@ void Csr<ValueType, IndexType>::row_wise_absolute_sum(
     array<ValueType>& sum) const
 {
     auto exec = this->get_executor();
-    exec->run(csr::make_row_wise_absolute_sum(this, sum));
+    exec->run(csr::make_row_wise_absolute_sum(this->get_const_device_view(), sum));
 }
 ```
 
@@ -96,15 +109,16 @@ In `reference/matrix/csr_kernels.cpp`:
 
 ```cpp
 template <typename ValueType, typename IndexType>
-void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,
-                           const matrix::Csr<ValueType, IndexType>* orig,
-                           array<ValueType>& sum)
+void row_wise_absolute_sum(
+    std::shared_ptr<const DefaultExecutor> exec,
+    matrix::view::csr<const ValueType, const IndexType> orig,
+    array<ValueType>& sum)
 {
-    auto row_ptrs = orig->get_const_row_ptrs();
-    auto values   = orig->get_const_values();
+    auto row_ptrs = orig.row_ptrs;
+    auto values   = orig.values;
     auto sum_ptr  = sum.get_data();
 
-    for (size_type row = 0; row < orig->get_size()[0]; ++row) {
+    for (size_type row = 0; row < orig.size[0]; ++row) {
         sum_ptr[row] = zero<ValueType>();
         for (size_type k = row_ptrs[row];
              k < static_cast<size_type>(row_ptrs[row + 1]); ++k) {
@@ -135,9 +149,10 @@ implementation. Add the following to `common/unified/matrix/csr_kernels.cpp`:
 
 ```cpp
 template <typename ValueType, typename IndexType>
-void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,
-                           const matrix::Csr<ValueType, IndexType>* orig,
-                           array<ValueType>& sum)
+void row_wise_absolute_sum(
+    std::shared_ptr<const DefaultExecutor> exec,
+    matrix::view::csr<const ValueType, const IndexType> orig,
+    array<ValueType>& sum)
 {
     run_kernel(
         exec,
@@ -147,8 +162,7 @@ void row_wise_absolute_sum(std::shared_ptr<const DefaultExecutor> exec,
                 sum_ptr[row] += abs(value_ptr[k]);
             }
         },
-        sum.get_size(), orig->get_const_row_ptrs(), orig->get_const_values(),
-        sum.get_data());
+        sum.get_size(), orig.row_ptrs, orig.values, sum.get_data());
 }
 
 GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(
@@ -203,7 +217,8 @@ The macro family is keyed on the kernel's template signature:
 | `GKO_STUB_VALUE_TYPE(_macro)` | `<typename ValueType>` |
 | `GKO_STUB_INDEX_TYPE(_macro)` | `<typename IndexType>` |
 | `GKO_STUB_VALUE_AND_INDEX_TYPE(_macro)` | `<typename ValueType, typename IndexType>` (the common matrix case) |
-| `GKO_STUB_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE(_macro)` | Distributed `<V, L, G>` kernels |
+| `GKO_STUB_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE_BASE(_macro)` | Distributed `<V, L, G>` kernels |
+| `GKO_STUB_LOCAL_GLOBAL_TYPE(_macro)` | `<LocalIndexType, GlobalIndexType>` kernels |
 | `GKO_STUB_NON_COMPLEX_VALUE_TYPE(_macro)` | Real-only kernels |
 
 For the `row_wise_absolute_sum` example, the corresponding line in

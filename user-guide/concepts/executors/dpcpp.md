@@ -17,7 +17,7 @@ auto gpu  = gko::DpcppExecutor::create(0, host, "gpu");
 
 ## Build requirements
 
-- Intel oneAPI DPC++ or any SYCL-2020-conformant compiler.
+- Intel oneAPI 2024.1 or newer, with `icpx` (or `dpcpp`) as `CMAKE_CXX_COMPILER` and the oneMKL and oneDPL packages available. Configure with `-DGINKGO_BUILD_SYCL=ON`.
 - For Intel GPUs: appropriate Level Zero / OpenCL runtime.
 
 ## Memory model

@@ -6,7 +6,7 @@ Ginkgo provides three families of solvers — Krylov, direct, and multigrid — 
 
 | Family    | Examples                                              | When to use                                                                                |
 | --------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Krylov    | CG, GMRES (with flexible mode = FGMRES), BiCGSTAB, FCG, IR, GCR, CGS, IDR | Default for sparse iterative; need a preconditioner. |
+| Krylov    | CG, FCG, MINRES, PipeCG, GMRES (with flexible mode = FGMRES), CB-GMRES, BiCGSTAB, BiCG, CGS, IDR, GCR, IR, Chebyshev | Default for sparse iterative; need a preconditioner. |
 | Direct    | Sparse LU, Cholesky, triangular solves (LowerTrs / UpperTrs), cuDSS (CUDA only) | Sparse one-off solves or repeated solves on a fixed sparsity pattern; preconditioner inside Krylov. |
 | Multigrid | AMG, mixed-precision multigrid                        | Heavily diagonally-dominant or elliptic-style systems.                                     |
 
@@ -17,12 +17,23 @@ All three families follow the same factory pattern and produce a `LinOp` whose `
 Krylov solvers build a solution in the Krylov subspace spanned by successive matrix-vector products. Each variant makes different assumptions about the matrix and carries different memory costs:
 
 - **CG (`gko::solver::Cg`)** — symmetric positive-definite (SPD) systems only. Minimum memory per iteration; the optimal choice for SPD problems.
-- **GMRES (`gko::solver::Gmres`)** — general non-symmetric systems. Restartable; memory grows with restart length. The safest default for unsymmetric problems. The same class also provides **FGMRES** (flexible GMRES) via `with_flexible(true)` — use this when the inner preconditioner varies between iterations (e.g., a multigrid cycle whose smoothers change adaptively, or an inner Krylov solve with a loose tolerance).
+- **GMRES (`gko::solver::Gmres`)** — general non-symmetric systems. Restartable; memory grows with restart length, and a cycle can end early through `restart_ratio`. The safest default for unsymmetric problems. The same class also provides **FGMRES** (flexible GMRES) via `with_flexible(true)` — use this when the inner preconditioner varies between iterations (e.g., a multigrid cycle whose smoothers change adaptively, or an inner Krylov solve with a loose tolerance).
+- **CB-GMRES (`gko::solver::CbGmres`)** — GMRES that stores its Krylov basis in a reduced (compressed) precision to save memory bandwidth.
 - **BiCGSTAB (`gko::solver::Bicgstab`)** — general systems, smaller memory footprint than GMRES, sometimes less numerically stable.
+- **BiCG (`gko::solver::Bicg`)** — general systems; applies both $A$ and $A^H$ in each iteration. CGS and BiCGSTAB are derived from it.
+- **MINRES (`gko::solver::Minres`)** — symmetric or Hermitian, possibly indefinite systems. A short three-term recurrence that minimises the residual norm over the Krylov subspace. It supports [nullspace removal](solvers/singular-systems.md).
+- **Pipelined CG (`gko::solver::PipeCg`)** — CG reformulated so that its global reductions can overlap with the matrix-vector product, which helps when reductions dominate, as in distributed runs.
 - **FCG (`gko::solver::Fcg`, Flexible CG)** — a CG variant that tolerates preconditioners that vary between iterations, such as a multigrid cycle with changing smoothers. Note that unlike GMRES (where flexibility is a factory parameter on the same class), FCG is its own class.
 - **IR (`gko::solver::Ir`, Iterative Refinement)** — wraps an inner solver and refines its output against the residual. The natural host for mixed-precision inner solves.
+- **Chebyshev (`gko::solver::Chebyshev`)** — a polynomial iteration built from an estimate of the spectrum of the (preconditioned) operator. It avoids inner products, which can be a bottleneck in distributed runs.
 - **GCR (`gko::solver::Gcr`) and CGS (`gko::solver::Cgs`)** — additional variants suited to specific sparsity structures and symmetry properties.
 - **IDR (`gko::solver::Idr`)** — Induced Dimension Reduction, IDR(s). A short-recurrence method for general non-symmetric systems whose memory cost stays bounded as the iteration progresses, unlike GMRES. The shadow-space dimension `s` controls the trade-off between work per iteration and convergence speed.
+
+### Singular systems
+
+`Cg`, `Fcg`, `Minres`, `Gmres` and `Bicgstab` solve singular systems, such as a pure Neumann Poisson problem or elasticity without supports, when you describe the nullspace with a `gko::solver::Nullspace` and pass it as the `nullspace` (and, where needed, `left_nullspace`) factory parameter. The solver then keeps every iterate orthogonal to the nullspace and converges to the minimum-norm solution. See [Singular systems and nullspaces](solvers/singular-systems.md).
+
+### Stopping and preconditioning
 
 Every Krylov solver expects a stopping criterion and, optionally, a preconditioner. If no preconditioner is supplied, Ginkgo substitutes the identity. Solving without a preconditioner on ill-conditioned problems typically requires many more iterations than with even a cheap Jacobi preconditioner — see [Preconditioners — taxonomy](preconditioners.md).
 
@@ -44,7 +55,7 @@ The factorisation step runs once at `generate` time; subsequent `apply` calls pe
 
 ### Triangular solves on their own
 
-Underneath the direct solver are two stand-alone triangular solvers, `gko::solver::LowerTrs` and `gko::solver::UpperTrs`. They take a CSR matrix that is already lower- or upper-triangular and compute `L x = b` or `U x = b` respectively. They are the building blocks `Direct` uses internally, but you can also use them on their own — for example, when you have already obtained `L` and `U` from an external factorisation and only need the triangular sweeps. The CUDA backend has two implementations to choose from via `with_algorithm`: `trisolve_algorithm::sparselib` (cuSPARSE, the default) and `trisolve_algorithm::syncfree` (Ginkgo's own kernel). The other backends each ship a single triangular-solve kernel, so the parameter is accepted but does not change which implementation runs.
+Underneath the direct solver are two stand-alone triangular solvers, `gko::solver::LowerTrs` and `gko::solver::UpperTrs`. They take a CSR matrix that is already lower- or upper-triangular and compute `L x = b` or `U x = b` respectively. They are the building blocks `Direct` uses internally, but you can also use them on their own — for example, when you have already obtained `L` and `U` from an external factorisation and only need the triangular sweeps. The triangular solvers run on the Reference, OpenMP, CUDA, HIP and DPC++ executors (DPC++ through oneMKL). On the CUDA backend, `with_algorithm` chooses between `trisolve_algorithm::sparselib` (cuSPARSE, the default) and `trisolve_algorithm::syncfree` (Ginkgo's own kernel).
 
 ### cuDSS on NVIDIA GPUs
 
@@ -52,7 +63,7 @@ For CUDA workloads where Ginkgo's own factorisation is not enough, the `gko::ext
 
 ### Reorder before factorising
 
-Sparse direct solvers are sensitive to the row/column ordering of the input matrix. A naïve ordering can produce a factorisation many times larger than the original matrix; a fill-reducing reordering (AMD or nested dissection) typically keeps the factorisation tractable. See [Reordering and permutations](reordering.md) for the available algorithms and the recommended preprocessing recipe — `Mc64` for matching, `Amd` or `NestedDissection` for fill reduction, and `Rcm` as an alternative that minimises bandwidth/profile rather than fill. RCM is most useful when the triangular solves are bandwidth-bound on CPU; for GPU sparse direct solves the fill-reducers are usually a better starting point. The `ScaledReordered` wrapper bundles those steps with the inner solver so you do not have to manage the permutations yourself.
+Sparse direct solvers are sensitive to the row/column ordering of the input matrix. A naïve ordering can produce a factorisation many times larger than the original matrix; a fill-reducing reordering (AMD or nested dissection) typically keeps the factorisation tractable. See [Reordering and permutations](reordering.md) for the available algorithms and the recommended preprocessing recipe — `Mc64` for matching, `Amd` or `NestedDissection` for fill reduction, and `Rcm` as an alternative that minimises bandwidth/profile rather than fill. RCM is most useful when the triangular solves are bandwidth-bound on CPU; for GPU sparse direct solves the fill-reducers are usually a better starting point. Apply the transforms with `Csr::permute` / `Csr::scale_permute`; the `ScaledReordered` wrapper covers fixed diagonal scalings plus an RCM reordering (see [Tune a direct solver](../how-to/using/tune-direct-solver.md)).
 
 :::{note}
 Sparse direct solvers can scale to large systems when paired with a fill-reducing reordering — that is what packages like SuperLU, MUMPS, and cuDSS do at scale. The classical caveat is fill-in: without a good reordering, factorisation memory and time can grow super-linearly with the number of unknowns. For matrices where even a well-reordered factorisation does not fit in memory, switch to a Krylov solver with an ILU/IC or AMG preconditioner.
@@ -62,19 +73,20 @@ Sparse direct solvers can scale to large systems when paired with a fill-reducin
 
 `gko::solver::Multigrid` builds a hierarchy of coarsened systems with a smoother at each level. It is configurable with respect to cycle type (V, W, F), per-level coarsener, per-level pre- and post-smoother, and the coarse-level solver. Multigrid is most effective on elliptic problems where geometric or algebraic coarsening can capture the low-frequency error modes efficiently.
 
-In practice, multigrid is more commonly used as a *preconditioner* inside a Krylov solver (typically CG or GMRES) than as the outer solver itself. Plugging it in requires only passing the multigrid factory as `with_preconditioner`:
+In practice, multigrid is more commonly used as a *preconditioner* inside a Krylov solver (typically CG or GMRES) than as the outer solver itself. Plugging it in requires passing the multigrid factory as `with_preconditioner`. A multigrid factory needs at least one `mg_level` (the coarsening strategy) and stopping `criteria`; a single iteration applies one cycle per preconditioner application:
 
 ```cpp
-auto mg = gko::solver::Multigrid::build()
-              .with_max_levels(10u)
-              .with_pre_smoother(/* smoother factory */)
-              .with_coarse_solver(/* coarse-level solver factory */)
-              .on(exec);
-
-auto cg_factory = gko::solver::Cg<double>::build()
-                      .with_preconditioner(mg)
-                      .with_criteria(/* ... */)
-                      .on(exec);
+auto solver =
+    gko::solver::Cg<double>::build()
+        .with_preconditioner(
+            gko::solver::Multigrid::build()
+                .with_mg_level(gko::multigrid::Pgm<double, int>::build())
+                .with_criteria(gko::stop::max_iters(1u)))
+        .with_criteria(gko::stop::max_iters(1000u),
+                       gko::stop::relative_residual_norm(1e-8))
+        .on(exec)
+        ->generate(A);
+solver->apply(b, x);
 ```
 
 ## The factory pattern recap
@@ -109,7 +121,7 @@ These rules cover the common cases; profiling and problem-specific knowledge alw
 5. **Large elliptic systems**: AMG as preconditioner inside CG or GMRES.
 6. **Mixed-precision acceleration**: IR wrapping a low-precision inner solver — see [Mixed-precision design](mixed-precision.md).
 
-## Per-solver pages
+### Per-solver pages
 
 ```{toctree}
 :maxdepth: 1
@@ -124,6 +136,7 @@ solvers/gcr
 solvers/cgs
 solvers/idr
 solvers/multigrid
+solvers/singular-systems
 solvers/direct
 ```
 

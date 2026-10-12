@@ -1,6 +1,6 @@
 # Partitions and index maps
 
-`Partition` describes which global rows of a distributed matrix live on which MPI rank. `IndexMap`
+`Partition` describes which global rows of a distributed matrix live on which MPI rank. `index_map`
 resolves between local and global indexing. Together they are the bookkeeping layer that lets every
 other distributed primitive work correctly. This page covers their construction patterns and the
 data they expose.
@@ -48,37 +48,71 @@ graph partitioner such as ParMETIS or Zoltan gives you a per-DOF rank assignment
 `build_from_global_size_uniform` for quick experiments or for problems where no natural partition
 exists.
 
+### Building from per-rank data
+
+When every rank only knows its own share of the rows, two collective helpers build the partition
+without gathering the sizes by hand. Both live in `gko::experimental::distributed` and are
+collective over the communicator:
+
+- `build_partition_from_local_size(exec, comm, local_size)` — rank $r$ owns `local_size`
+  consecutive rows, and the ranges follow in rank order. The sizes may differ between ranks.
+- `build_partition_from_local_range(exec, comm, local_range)` — each rank passes the
+  `gko::span` of global rows it owns; the ranges may be given by the ranks in any order, as long
+  as together they cover the index space without gaps (otherwise it throws [`gko::InvalidStateError`](../../../api-reference/base/exceptions.md)).
+
+```cpp
+// Each rank owns `local_size` consecutive rows, in rank order.
+auto partition = gko::share(
+    gko::experimental::distributed::build_partition_from_local_size<
+        gko::int32, gko::int64>(exec, comm, local_size));
+```
+
 ## What Partition exposes
 
 Once constructed, the partition exposes the range and size information for all ranks:
 
 ```cpp
-auto bounds   = partition->get_range_bounds();   // array<G>: global start of each range
-auto part_ids = partition->get_part_ids();        // array<comm_index_type>: owner of each range
-auto sizes    = partition->get_part_sizes();      // array<L>: local row count per rank
-auto n_parts  = partition->get_num_parts();       // number of MPI parts (== comm.size() typically)
-auto n_ranges = partition->get_num_ranges();      // number of contiguous ranges (>= n_parts)
+const gko::int64* bounds = partition->get_range_bounds();   // num_ranges + 1 entries: start of each range
+const gko::experimental::mpi::comm_index_type* part_ids =
+    partition->get_part_ids();                              // owner of each range
+const gko::int32* sizes = partition->get_part_sizes();      // local row count per part
+auto my_rows  = partition->get_part_size(comm.rank());      // rows owned by this rank
+auto n_parts  = partition->get_num_parts();                 // number of MPI parts (== comm.size() typically)
+auto n_ranges = partition->get_num_ranges();                // number of contiguous ranges (>= n_parts)
+auto global_n = partition->get_size();                      // total number of indices
+bool same     = partition->equals(*other_partition);        // same distribution?
 ```
+
+The getters return pointers into the partition's own arrays, which live on the partition's
+executor. `equals` checks that two partitions span the same global size and assign the same ranges
+to the same parts; it is free for a partition compared with itself and copies the range data to the
+host for two distinct device partitions. Distributed `multiply` uses it to check that the column
+partition of `A` matches the row partition of `B`.
 
 In the common case, `n_parts == comm.size()` and `n_ranges == n_parts` (one contiguous range per
 rank). A mapping-based partition may produce more ranges than parts if the assignment is
 non-contiguous.
 
-## IndexMap
+## index_map
 
-`IndexMap<L, G>` is the per-rank mapping between local indices and global indices. It lives
-alongside a `Partition` and a communicator. The distributed `Matrix` and `Vector` use it to
-translate between indexing schemes for the halo exchange — determining which remote global indices
-this rank's off-diagonal matrix references, and which remote ranks need values from this rank.
+`index_map<L, G>` is the per-rank mapping between local indices and global indices. It holds the
+partition it was built from (`get_partition()`) and this rank's id. The distributed `Matrix` uses it
+to translate between indexing schemes for the halo exchange — determining which remote global
+indices this rank's off-diagonal matrix references, and which remote ranks need values from this
+rank.
 
-For most user code, `IndexMap` is an implementation detail accessed indirectly:
+`read_distributed` builds the `index_map` from the column partition and the off-diagonal column
+indices, and the matrix keeps it internally. What user code can reach on the matrix is the result of
+that bookkeeping:
 
 ```cpp
-auto index_map = mat->get_index_map();   // shared_ptr<const IndexMap<L, G>>
+auto row_part = mat->get_row_partition();   // shared_ptr<const Partition<L, G>>, set by read_distributed
+auto rg       = mat->get_row_gatherer();    // drives the halo exchange built from the index map
 ```
 
-Direct construction of an `IndexMap` is rarely needed. `read_distributed` derives the index map
-automatically from the matrix's sparsity pattern, so you get a correctly-built map for free.
+Construct one directly, `index_map<L, G>(exec, partition, rank, recv_connections)`, when building a
+`RowGatherer` or a collective communicator yourself. `get_partition()`, `get_remote_target_ids()`,
+`get_remote_global_idxs()` and `get_remote_local_idxs()` expose its contents.
 
 ## Choosing a partition
 

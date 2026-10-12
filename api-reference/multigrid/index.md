@@ -14,14 +14,22 @@ this section covers the per-level interfaces.
 ## The level interface
 
 - [`MultigridLevel`](multigrid-level.md) — abstract interface for one
-  level of the hierarchy: exposes restriction, coarse operator, and
-  prolongation as `LinOp`s.
+  level of the hierarchy: exposes the fine operator, the restriction, the
+  coarse operator and the prolongation.
 
 ## Level generators
 
 - [`Pgm`](pgm.md) — Parallel Graph Matching aggregation, the standard
   algebraic-coarsening choice in Ginkgo. Aggregates fine-level rows
   based on matrix values (strongest-neighbour pairing).
+- [`Pmis`](pmis.md) — classical C/F splitting by a parallel modified
+  independent set, with direct interpolation and $R = P^T$.
+- [`Rs`](rs.md) — Ruge-Stueben classical coarsening for M-matrices:
+  greedy C/F splitting by strong-neighbour counts and classical interpolation.
+- [`UniformCoarsening`](uniform-coarsening.md) — index-based coarsening that
+  keeps every `coarse_skip`-th row, either aggregating each fine row onto its
+  coarse row or injecting only the selected rows; also accepts distributed
+  matrices.
 - [`FixedCoarsening`](fixed-coarsening.md) — pick coarse-level rows by
   user-supplied index list, with identity restriction and
   prolongation. Useful when the application already knows a good
@@ -33,5 +41,8 @@ this section covers the per-level interfaces.
 
 multigrid-level
 pgm
+pmis
+rs
+uniform-coarsening
 fixed-coarsening
 ```

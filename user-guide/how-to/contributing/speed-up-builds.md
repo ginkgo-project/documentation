@@ -60,13 +60,10 @@ cmake -G Ninja .. && cmake --build . -j
 
 `ccache` caches compiled object files keyed on preprocessed source, so a
 clean rebuild after `git clean -fdx` finishes in a few minutes instead of
-the full half hour. Wire it into both the C++ and CUDA compilers:
-
-```sh
-cmake .. \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache
-```
+the full half hour. Ginkgo enables ccache automatically for C++ and CUDA
+when `ccache` is on your `PATH`: the CMake option `GINKGO_WITH_CCACHE`
+defaults to `ON` and sets the compiler launcher for you. For HIP, set
+`-DCMAKE_HIP_COMPILER_LAUNCHER=ccache` when you configure.
 
 If you build CUDA code regularly, raise the ccache size from the 5 GB
 default — CUDA object files are large and fill the cache fast:
@@ -74,8 +71,6 @@ default — CUDA object files are large and fill the cache fast:
 ```sh
 ccache -M 50G
 ```
-
-For HIP, the launcher variable is `CMAKE_HIP_COMPILER_LAUNCHER`.
 
 ## Do not oversubscribe memory
 
@@ -124,8 +119,6 @@ single-GPU CUDA workstation:
 ```sh
 cmake -G Ninja .. \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
     -DGINKGO_CUDA_ARCHITECTURES=Ampere \
     -DGINKGO_BUILD_OMP=ON \
     -DGINKGO_BUILD_CUDA=ON \
@@ -139,7 +132,8 @@ cmake --build . -j8
 ```
 
 This typically cuts a from-scratch build from 30+ minutes to under 10,
-and a single-file edit from 90 s to a few seconds once ccache is warm.
+and a single-file edit from 90 s to a few seconds once ccache is warm
+(ccache is picked up automatically when it is installed).
 
 :::{seealso}
 - [Build options](../../../getting-started/build-options.md) — every CMake flag in detail.

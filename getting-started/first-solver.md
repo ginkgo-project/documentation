@@ -57,10 +57,10 @@ int main()
     constexpr int N = 16;
     gko::matrix_data<ValueType, IndexType> data(gko::dim<2>{N, N});
     for (int i = 0; i < N; ++i) {
-        data.nonzeros.emplace_back(i, i, ValueType{2});
         if (i > 0) {
             data.nonzeros.emplace_back(i, i - 1, ValueType{-1});
         }
+        data.nonzeros.emplace_back(i, i, ValueType{2});
         if (i < N - 1) {
             data.nonzeros.emplace_back(i, i + 1, ValueType{-1});
         }
@@ -163,7 +163,8 @@ Six steps, each mapping to a Ginkgo concept worth knowing:
 
 2. **`Csr::read(matrix_data)`.** `matrix_data` is the format-agnostic
    coordinate-list representation. Any Ginkgo matrix type can be populated
-   from it — switching to `Coo` or `Ell` later is a one-line type change.
+   from it — switching to `Coo` or `Ell` later is a one-line type change. The entries are listed in row-major order with each (row, column) pair
+   appearing once, which is what Ginkgo expects of `matrix_data`.
 
 3. **`Dense::create(exec, dim<2>{N, 1})`.** The `Dense` type is Ginkgo's
    column-vector container (a Dense matrix with one column). `create`

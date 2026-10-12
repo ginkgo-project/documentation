@@ -13,19 +13,20 @@ use it for every distributed object you build with it.
 #include <mpi.h>
 
 // Your application's existing communicator.
-MPI_Comm app_comm = /* whatever your application built */;
+MPI_Comm app_comm = MPI_COMM_WORLD;  // or any communicator your application built
 
 // Wrap it. The wrapper is non-owning — the caller still controls the lifetime
 // of app_comm (i.e. when MPI_Comm_free is called).
 auto gko_comm = gko::experimental::mpi::communicator{app_comm};
 
 // Now every distributed type you build with gko_comm uses your handle.
-auto partition = gko::experimental::distributed::Partition<int, long>::
-    build_from_global_size_uniform(exec, gko_comm.size(), global_n);
+auto partition = gko::share(
+    gko::experimental::distributed::Partition<int, long>::
+        build_from_global_size_uniform(exec, gko_comm.size(), global_n));
 
 auto A = gko::experimental::distributed::Matrix<double, int, long>::create(
     exec, gko_comm);
-A->read_distributed(matrix_data, partition.get());
+A->read_distributed(data, partition);
 ```
 
 ## When to take ownership
@@ -56,18 +57,19 @@ auto sub   = gko::experimental::mpi::communicator{world,
 This produces sub-communicators with 4 ranks each. Use them like any
 other `gko::experimental::mpi::communicator`.
 
-## Force host-buffer staging
+## Force host-buffer staging (GPU-aware builds)
 
-When your MPI build is not GPU-aware but you want to keep CUDA-aware
-Ginkgo running, set the second constructor argument:
+If Ginkgo was configured with `-DGINKGO_FORCE_GPU_AWARE_MPI=ON` but a particular communicator
+should still stage through host memory, set the second constructor argument:
 
 ```cpp
 auto gko_comm = gko::experimental::mpi::communicator{app_comm,
                                                      /*force_host_buffer=*/true};
 ```
 
-Ginkgo will route every distributed exchange through a host staging
-buffer, sidestepping the assumption that MPI accepts device pointers.
+Ginkgo then routes every distributed exchange of that communicator through a host staging buffer.
+In the default build (`GINKGO_FORCE_GPU_AWARE_MPI=OFF`) host staging is already used for all
+device executors.
 
 ## Pair with the right device id
 

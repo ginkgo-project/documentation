@@ -23,7 +23,7 @@ entries entirely.
 
 ## Construction
 
-The expected pattern is to derive the communicator from an `IndexMap`, which already encodes which
+The expected pattern is to derive the communicator from an `index_map`, which already encodes which
 remote ranks own which indices this rank needs:
 
 ```cpp
@@ -54,6 +54,11 @@ Internally the dense communicator caches four `std::vector<comm_index_type>` per
 `get_send_size()` and `get_recv_size()` return the cumulative totals (the back element of the
 respective offsets vector), which is the exact buffer size each side needs to allocate. The
 matrix's `RowGatherer` reads these to size the contiguous send / receive buffers it manages.
+
+`resize(exec, send_factors)` returns a new `DenseCommunicator` for the same peers whose cached send
+and receive sizes and offsets are rescaled by the per-element factors, together with the receive
+factors the peers imply. It is a collective call, used by distributed `Matrix::multiply` to ship
+rows of variable length.
 
 ## The exchange
 

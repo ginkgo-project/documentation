@@ -12,13 +12,13 @@ count and the residual norm at the **point of convergence** (or at
 max-iter, whichever fires first).
 
 ```cpp
-auto convergence = gko::log::Convergence<double>::create(exec);
+auto convergence = gko::share(gko::log::Convergence<double>::create());
 solver->add_logger(convergence);
 
 solver->apply(b, x);
 
+std::cout << "converged   = " << convergence->has_converged()       << '\n';
 std::cout << "iters       = " << convergence->get_num_iterations()  << '\n';
-std::cout << "||r_final|| = " << convergence->has_converged()       << '\n';
 
 // The residual norm is a Dense pointer on the solver's executor.
 auto resnorm = gko::as<gko::matrix::Dense<double>>(
@@ -45,7 +45,8 @@ applies.
 stream. Verbose, but great for first-time debugging:
 
 ```cpp
-solver->add_logger(gko::log::Stream<>::create(std::cout));
+solver->add_logger(gko::log::Stream<double>::create(
+    gko::log::Logger::all_events_mask, std::cout));
 solver->apply(b, x);
 ```
 
@@ -55,23 +56,27 @@ iteration completion and convergence):
 ```cpp
 auto mask = gko::log::Logger::iteration_complete_mask
           | gko::log::Logger::criterion_events_mask;
-auto stream_logger = gko::log::Stream<>::create(std::cout, mask);
+auto stream_logger = gko::log::Stream<double>::create(mask, std::cout);
 ```
 
 ## Per-iteration residual history
 
-`log::Record` keeps a structured record of every logged event in an
+`log::Record` keeps a structured record of the logged events in an
 in-memory data structure, which you can iterate after the solve:
 
 ```cpp
-auto record = gko::log::Record::create();
+auto record = gko::share(gko::log::Record::create(
+    gko::log::Logger::iteration_complete_mask, /*max_storage=*/0));  // 0 = keep all
 solver->add_logger(record);
 solver->apply(b, x);
 
 for (const auto& it : record->get().iteration_completed) {
-    // it.num_iterations, it.implicit_sq_residual_norm, etc.
+    // it->num_iterations, it->residual_norm, it->implicit_sq_residual_norm
 }
 ```
+
+`max_storage` defaults to 1, which keeps only the latest event of each kind. Record stores
+copies of cloneable objects (vectors, norms), and its `solver` entry is empty for solvers.
 
 This is the right shape when you want to plot a residual history or
 dump the trace as JSON.
@@ -105,13 +110,12 @@ want logging only during a setup phase.
 
 ## Common pitfalls
 
-- **Logger lifetime.** The logger must outlive every object it's
-  attached to. Build it before the solver and let it go out of scope
-  after.
+- **Keep a handle to the logger.** Loggers are shared pointers; hold on
+  to the one you created so you can read its data after the solve.
 - **Add the logger before calling `apply`.** Events fire during
   `apply`; a logger attached after is silent for that call.
 - **The `Convergence` residual is the *final* one, not per-iteration.**
-  For per-iteration history use `Record` (in-memory) or `Stream`
+  For per-iteration history use `Record` (in-memory, with `max_storage` of `0`) or `Stream`
   (to a stream).
 
 :::{seealso}

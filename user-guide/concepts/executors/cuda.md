@@ -14,10 +14,9 @@ auto gpu  = gko::CudaExecutor::create(0, host);   // device id 0
 For more control, supply a custom allocator and a CUDA stream:
 
 ```cpp
-cudaStream_t stream;
-cudaStreamCreate(&stream);
-auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream);
-auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream);
+gko::cuda_stream stream{0};
+auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream.get());
+auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream.get());
 ```
 
 ## Allocators
@@ -33,7 +32,17 @@ If you don't pass an allocator argument, `CudaExecutor::create(id, host)` constr
 
 ## Streams
 
-By default `CudaExecutor` uses the legacy default stream. The stream parameter type is `CUstream_st*` — this is the same type CUDA defines as `cudaStream_t` (a typedef). Ginkgo does not wrap streams in its own type; pass whatever you got from `cudaStreamCreate()`. Use an explicit stream to overlap kernel execution with host work or with other streams — the foundation for multi-stream pipelines and CUDA-graph integration.
+By default `CudaExecutor` uses the legacy default stream. To run on your own stream, pass it as the last argument of `create`. It can be a raw `cudaStream_t` or come from Ginkgo's RAII wrapper `gko::cuda_stream` (`<ginkgo/core/base/stream.hpp>`), which creates the stream on construction and destroys it with the wrapper:
+
+```cpp
+// A CUDA stream that does not synchronize with the legacy default stream.
+gko::cuda_stream stream{0, /* non_blocking */ true};
+auto cuda = gko::CudaExecutor::create(0, gko::ReferenceExecutor::create(),
+                                      std::make_shared<gko::CudaAllocator>(),
+                                      stream.get());
+```
+
+Ginkgo issues all kernels and copies for the executor on that stream. A non-blocking stream (`cudaStreamNonBlocking`) does not synchronize implicitly with the legacy default stream, so Ginkgo work can overlap with other work in the application. The wrapper must outlive the executor.
 
 ## Memory model
 

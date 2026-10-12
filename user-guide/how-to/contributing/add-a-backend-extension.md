@@ -100,6 +100,10 @@ if(NOT GINKGO_BUILD_CUDA)
     return()
 endif()
 if(NOT cudss_FOUND)
+    message(
+        STATUS
+        "cuDSS 0.8.0 or newer not found — gko::ext::cuda::solver::Cudss will not be built"
+    )
     return()
 endif()
 
@@ -118,7 +122,7 @@ The vendor dependency is discovered at the `extensions/` top level:
 ```cmake
 # extensions/CMakeLists.txt
 if(GINKGO_BUILD_CUDA)
-    find_package(cudss 0.7.1 CONFIG)
+    find_package(cudss 0.8.0 CONFIG)
 endif()
 add_subdirectory(cuda)
 ```
@@ -133,8 +137,8 @@ Notes on this pattern:
   extension the same install layout and include-path setup as the
   core Ginkgo target.
 
-The wrapped class itself is a regular `LinOp` — `Cudss` inherits from
-`EnableLinOp<Cudss>` and has the standard `parameters_type` / `Factory`
+The wrapped class itself is a regular `LinOp`: `Cudss` derives from
+`LinOp` and has the standard `parameters_type` / `Factory`
 / `parse` triplet (see [Add a new solver](add-a-solver.md) for the
 scaffolding). The cuDSS handles and factorization state are private
 members, opaque to the public class.
@@ -151,7 +155,7 @@ walks into `test/` when `GINKGO_BUILD_TESTS=ON`:
 ```cmake
 # extensions/CMakeLists.txt
 if(GINKGO_BUILD_CUDA)
-    find_package(cudss 0.7.1 CONFIG)
+    find_package(cudss 0.8.0 CONFIG)
 endif()
 
 add_subdirectory(cuda)
@@ -168,7 +172,7 @@ What gets built depends on the extension:
   `find_package` (with `FetchContent` fallback for JSON / YAML).
 - **Compiled-library extensions** add a library target under
   `extensions/<area>/CMakeLists.txt`, conditional on the vendor
-  package being found. The build silently skips the target when the
+  package being found. The build skips the target when the
   vendor dependency is missing (cuDSS prints an informational
   `STATUS` message and returns).
 
@@ -238,7 +242,7 @@ shipped Ginkgo type, rather than in `extensions/`:
   type.
 - **In `extensions/`** — when the type is *only* the vendor wrapper
   and would not exist without it. Example: `gko::ext::cuda::solver::Cudss`
-  has no non-cuDSS implementation, so it's its own extension library
+  is implemented only through cuDSS, so it is its own extension library
   that consumers opt into.
 
 :::{seealso}

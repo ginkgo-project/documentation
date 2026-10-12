@@ -12,14 +12,21 @@ page.
 - [`Csr`](csr.md) — compressed sparse row.
 - [`Coo`](coo.md) — coordinate format.
 - [`Ell`](ell.md) — equal-length rows.
-- [`Sellp`](sellp.md) — sliced ELL with permutation.
+- [`Sellp`](sellp.md) — sliced ELL with padding (SELL-P).
 - [`Hybrid`](hybrid.md) — ELL + COO fall-back.
 - [`Fbcsr`](fbcsr.md) — fixed-size block CSR.
 - [`SparsityCsr`](sparsity-csr.md) — sparsity pattern only.
 
 ## Dense
 
-- [`Dense`](dense.md) — column-major dense matrix.
+- [`Dense`](dense.md) — row-major dense matrix.
+
+## Device views
+
+- [`view::dense`, `view::csr`, ...](device-views.md) — non-owning, trivially
+  copyable views of `Dense`, `Coo`, `Csr`, `Ell`, `Sellp` and `Hybrid`
+  storage for use inside device kernels and for passing matrices between
+  libraries; obtained with `get_device_view()` / `get_const_device_view()`.
 
 ## Utility operators
 
@@ -46,4 +53,5 @@ diagonal
 permutation
 scaled-permutation
 row-gatherer
+device-views
 ```

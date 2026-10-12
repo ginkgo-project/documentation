@@ -34,16 +34,15 @@ solver->apply(batched_rhs, batched_x);
 
 ## Factory parameters
 
-| Parameter                          | Default                          | Effect                                                                 |
-| ---------------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `with_max_iterations(n)`           | (required)                       | Per-item iteration cap.                                                |
-| `with_tolerance(tol)`              | (required)                       | Stopping threshold on the per-item residual.                           |
-| `with_tolerance_type(t)`           | `tolerance_type::absolute`       | `absolute` checks $\lVert r_k \rVert$; `relative` checks $\lVert r_k \rVert / \lVert b \rVert$. |
-| `with_preconditioner(factory)`     | `BatchIdentity` (no preconditioning) | Any `BatchLinOpFactory`. The preconditioner is generated per-item from the system matrix. |
-| `with_generated_preconditioner(p)` | `nullptr`                        | Use a pre-built `BatchLinOp` instead of generating a new one. Mutually exclusive with `with_preconditioner`. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `max_iterations` | `int` | Per-item iteration cap; default `100`. |
+| `tolerance` | `double` | Stopping threshold on the per-item residual norm; default `1e-11`. |
+| `tolerance_type` | `gko::batch::stop::tolerance_type` | `absolute` (default) checks $\lVert r_k \rVert$; `relative` checks $\lVert r_k \rVert / \lVert b \rVert$. |
+| `preconditioner` | `std::shared_ptr<const BatchLinOpFactory>` | Preconditioner factory, generated from the batch matrix; the batch identity (`gko::batch::matrix::Identity`) when unset. |
+| `generated_preconditioner` | `std::shared_ptr<const BatchLinOp>` | Pre-built preconditioner; when set it takes precedence over `preconditioner`. |
 
-The `tolerance_type` enum lives in `<ginkgo/core/stop/batch_stop_enum.hpp>` and accepts only
-`absolute` or `relative`.
+The `tolerance_type` enum lives in `<ginkgo/core/stop/batch_stop_enum.hpp>`.
 
 ## Stopping rule and the implicit residual
 
@@ -62,8 +61,9 @@ flagged as such and skipped on subsequent iterations while the others keep worki
 
 The base class `BatchSolver` exposes `reset_tolerance(tol)`, `reset_max_iterations(n)`, and
 `reset_tolerance_type(t)` for tuning the stopping rule between solves without rebuilding the
-solver. `set_preconditioner_base(p)` swaps the preconditioner. These avoid paying the
-factory-`generate` cost when you only want to tweak the stop conditions.
+solver, avoiding the factory-`generate` cost when you only want to tweak the stop
+conditions. To use a different preconditioner, generate a new solver, passing a pre-built
+preconditioner through `with_generated_preconditioner` to skip its setup.
 
 ## Per-iteration cost
 

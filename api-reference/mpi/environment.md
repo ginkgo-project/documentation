@@ -1,6 +1,7 @@
 # `gko::experimental::mpi::environment`
 
-RAII wrapper around `MPI_Init_thread` / `MPI_Finalize`. Construct one
+RAII wrapper around `MPI_Init_thread` / `MPI_Finalize`, for
+applications that have not called `MPI_Init` themselves. Construct one
 at the top of `main` and let its destructor finalise MPI when the
 program exits.
 

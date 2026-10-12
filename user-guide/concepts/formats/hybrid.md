@@ -31,7 +31,9 @@ Matrix (4 × 4, one heavy row at the bottom):
 ```
 
 The ELL part dominates storage on a typical matrix: the COO overflow holds
-only the entries the ELL split could not accommodate.
+only the entries the ELL split could not accommodate. The matching device view
+is `gko::matrix::view::hybrid` (see
+[Device views](../../../api-reference/matrix/device-views.md)).
 
 ## Choosing the split: strategies
 
@@ -41,11 +43,11 @@ ships five strategies that pick $k_\text{ell}$ for you at construction time:
 
 | Strategy | What it picks |
 |---|---|
-| `automatic` *(default)* | Heuristic based on the matrix's row-length distribution. |
-| `column_limit` | A fixed user-supplied column count. |
-| `imbalance_limit` | The smallest $k$ such that no more than a given fraction of rows overflow. |
-| `imbalance_bounded_limit` | Like `imbalance_limit` but with an absolute cap on $k$. |
-| `minimal_storage_limit` | The $k$ that minimises total bytes (ELL + COO). |
+| `automatic` *(default)* | `imbalance_bounded_limit(1/3, 0.001)`: a row-length percentile, capped relative to the row count. |
+| `column_limit(k)` | A fixed user-supplied ELL width `k`. |
+| `imbalance_limit(percent)` | The row length at the `percent` quantile (default `0.8`), so at least that fraction of rows fits entirely in ELL. |
+| `imbalance_bounded_limit(percent, ratio)` | Like `imbalance_limit`, capped at `ratio * n_rows` (defaults `0.8` and `0.0001`). |
+| `minimal_storage_limit` | The quantile that minimises total ELL + COO storage for the value and index types. |
 
 The chosen strategy is set on the Hybrid object before reading the data:
 
@@ -53,7 +55,7 @@ The chosen strategy is set on the Hybrid object before reading the data:
 auto hybrid = gko::matrix::Hybrid<double, int>::create(
     exec,
     std::make_shared<
-        gko::matrix::Hybrid<double, int>::imbalance_limit>(0.2));
+        gko::matrix::Hybrid<double, int>::imbalance_limit>(0.8));
 hybrid->read(matrix_data);
 ```
 
@@ -79,15 +81,15 @@ auto hybrid = gko::matrix::Hybrid<double, int>::create(exec);
 hybrid->read(matrix_data);
 
 // With an explicit strategy
-auto hybrid = gko::matrix::Hybrid<double, int>::create(
+auto with_strategy = gko::matrix::Hybrid<double, int>::create(
     exec,
     std::make_shared<
         gko::matrix::Hybrid<double, int>::column_limit>(/*ell_width=*/ 8));
-hybrid->read(matrix_data);
+with_strategy->read(matrix_data);
 
 // Converted from CSR
-auto hybrid = gko::matrix::Hybrid<double, int>::create(exec);
-hybrid->copy_from(csr);
+auto from_csr = gko::matrix::Hybrid<double, int>::create(exec);
+from_csr->copy_from(csr);
 ```
 
 The chosen strategy is sticky on the Hybrid instance: any `copy_from` or
@@ -99,8 +101,8 @@ The total SpMV cost is the sum of:
 
 - An ELL SpMV over a fixed-width $k_\text{ell}$ block — typically the bulk
   of the work, executing with full coalescing.
-- A COO SpMV over the overflow entries — atomic-add to the output vector,
-  one thread per non-zero on the GPU.
+- A COO SpMV over the overflow entries — partial sums of the same row are
+  combined with a segmented scan and added to the output vector with atomics.
 
 For matrices well-suited to Hybrid the COO part is a small fraction of the
 non-zero count (often < 10 %), so its cost is dominated by the ELL kernel.
@@ -110,7 +112,7 @@ its advantage; check the split with `get_ell_num_stored_elements()` and
 
 ## Conversion behaviour
 
-Hybrid converts to and from CSR, COO, and ELL:
+Hybrid converts to and from CSR and Dense; reach COO or ELL through CSR:
 
 ```cpp
 // Hybrid → CSR
@@ -118,12 +120,12 @@ auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->copy_from(hybrid);
 
 // CSR → Hybrid
-auto hybrid = gko::matrix::Hybrid<double, int>::create(exec);
-hybrid->copy_from(csr);   // uses the default automatic strategy
+auto hybrid2 = gko::matrix::Hybrid<double, int>::create(exec);
+hybrid2->copy_from(csr);   // uses the default automatic strategy
 ```
 
 Conversion preserves all numerical entries: the COO overflow re-merges with
-the ELL part to produce a flat CSR / COO view.
+the ELL part to produce a flat CSR view.
 
 :::{seealso}
 - [Matrix formats — overview](../matrix-formats.md) — when to pick Hybrid vs alternatives.

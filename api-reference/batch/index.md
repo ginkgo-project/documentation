@@ -25,7 +25,7 @@ For background on when batched solvers help, see the
 - [`solver::Bicgstab`](solver-bicgstab.md) — batched stabilised
   biconjugate gradient (non-symmetric).
 - [`solver::BatchSolver`](solver-batch-solver.md) — common runtime
-  setters (tolerance, max-iterations, preconditioner) shared by every
+  controls (tolerance, tolerance type, max-iterations) shared by every
   batched solver.
 
 ## Preconditioners

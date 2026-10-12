@@ -4,51 +4,72 @@
 scaling, a column scaling, and a reordering — together with an inner solver, so the
 whole pipeline looks like one operator to the caller. The user passes the **original**
 system matrix and right-hand side; the wrapper applies the transforms internally,
-runs the inner solve on the transformed system, and inverts the transforms on the
-solution before returning.
+runs the inner solve on the transformed system, and maps the solution back to the
+original variable order before returning.
 
-Conceptually, given diagonal scalings $D_r, D_c$, a permutation $P$, and an inner
-solver for $\hat A = D_r\, P A P^T\, D_c$, the wrapper computes
+Conceptually, given precomputed diagonal scalings $R, C$, a reordering permutation $P$,
+and an inner solver for $\hat A = P\,R\,A\,C\,P^T$, the wrapper solves
+$\hat A\, y = P\,R\,b$ and returns
 
 $$
-x = P^T\, D_c\, \hat A^{-1}\, D_r\, P\, b.
+x = C\,P^T\,\hat A^{-1}\,P\,R\,b.
 $$
 
-All of the row scaling, the column scaling, and the reordering are **optional** —
-omit any of them and the corresponding transform is the identity.
+All of the row scaling, the column scaling, the reordering and the inner operator are
+**optional**. Without a scaling or reordering the corresponding transform is the
+identity, and without an inner operator the wrapper uses `Identity`.
 
 ## When to use it
 
-- **You want to reorder a system before solving** but do not want the caller's code
-  to manage the permutation explicitly. `ScaledReordered` keeps the permutation
-  bookkeeping local to the wrapper.
-- **You are composing the canonical *match → reorder → factorise* pipeline** for a
-  sparse direct solver — drop in an [`Mc64`](mc64.md) row scaler, an
-  [`Amd`](amd.md) reorderer, and a `Direct` inner solver, and the result is a
-  single `LinOp` that takes the original $b$ and returns the original $x$.
-- **You want an extra Jacobi-style diagonal scaling** in front of an iterative
-  solver without writing a wrapper yourself.
+- **You have fixed diagonal scalings** (for example from an equilibration step) **and
+  want an RCM reordering** applied around a direct or iterative solver, while callers
+  keep using the original $b$ and $x$.
+- **You want the reordering bookkeeping kept local to the wrapper.** The system matrix
+  must be square, and a reordering requires a `Csr` or `Dense` system matrix.
 
 ## Using ScaledReordered
 
 ```cpp
+using ValueType = double;
+using IndexType = int;
+auto row_scaling = gko::share(gko::matrix::Diagonal<ValueType>::create(
+    exec, n, std::move(row_scale_values)));
+auto col_scaling = gko::share(gko::matrix::Diagonal<ValueType>::create(
+    exec, n, std::move(col_scale_values)));
+
 auto sr_factory =
-    gko::experimental::reorder::ScaledReordered<double, int>::build()
-        .with_row_scaling_factory(  // optional row scaler — MC64 or Jacobi-like
-            gko::experimental::reorder::Mc64<double, int>::build().on(exec))
-        .with_reordering_factory(    // optional reordering — AMD, ND, RCM
-            gko::experimental::reorder::Amd<int>::build().on(exec))
-        .with_inner_operator_factory( // the actual solver
-            gko::experimental::solver::Direct<double, int>::build()
+    gko::experimental::reorder::ScaledReordered<ValueType, IndexType>::build()
+        .with_row_scaling(row_scaling)  // optional
+        .with_col_scaling(col_scaling)  // optional
+        .with_reordering(               // optional
+            gko::reorder::Rcm<ValueType, IndexType>::build().on(exec))
+        .with_inner_operator(
+            gko::experimental::solver::Direct<ValueType, IndexType>::build()
                 .with_factorization(
-                    gko::experimental::factorization::Lu<double, int>::build()
+                    gko::experimental::factorization::Lu<ValueType,
+                                                         IndexType>::build()
                         .on(exec))
                 .on(exec))
         .on(exec);
 
 auto solver = sr_factory->generate(system_matrix);
-solver->apply(b, x);   // b, x are in the original variable order
+solver->apply(b, x);  // b, x are in the original variable order
 ```
+
+The factory parameters are:
+
+:::{attention}
+`gko::reorder::Rcm` is deprecated in favour of `gko::experimental::reorder::Rcm` for
+standalone reordering; `ScaledReordered`'s `reordering` parameter takes the
+`ReorderingBase` factory that `gko::reorder::Rcm` provides.
+:::
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `inner_operator` | `std::shared_ptr<const LinOpFactory>` | Solver generated on the scaled, reordered matrix; the identity when unset. |
+| `reordering` | `std::shared_ptr<const ReorderingBaseFactory>` | Reordering factory (`gko::reorder::Rcm<ValueType, IndexType>`); requires a `Csr` or `Dense` system matrix. |
+| `row_scaling` | `std::shared_ptr<const matrix::Diagonal<ValueType>>` | Precomputed row scaling $R$. |
+| `col_scaling` | `std::shared_ptr<const matrix::Diagonal<ValueType>>` | Precomputed column scaling $C$. |
 
 ## Implementation notes
 
@@ -60,6 +81,6 @@ lifting is in the inner solver.
 :::{seealso}
 - API reference: [`gko::experimental::reorder::ScaledReordered`](../../../api-reference/reorder/scaled-reordered.md).
 - [Direct (LU / Cholesky)](../solvers/direct.md) — the typical inner operator.
-- [MC64](mc64.md), [AMD](amd.md), [Nested dissection](nested-dissection.md) — common transforms to plug in.
+- [RCM](rcm.md) — the standalone `gko::experimental::reorder::Rcm` reordering.
 - [Reordering and permutations](../reordering.md) — overview and comparison table.
 :::

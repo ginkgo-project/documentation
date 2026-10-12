@@ -13,8 +13,8 @@ entry points.
 ## Core interfaces and runtime
 
 - [Core types](base/index.md) — the abstract bases every Ginkgo class
-  lives behind: `LinOp`, `LinOpFactory`, the `EnableLinOp` CRTP mixin,
-  and the `Transposable` trait.
+  lives behind: `LinOp`, `LinOpFactory`, the `Cloneable` interface with
+  its `EnableCloneable` mixin, and the `Transposable` trait.
 - [Executors](executors/index.md) — the hardware abstraction: abstract
   `Executor` plus the five concrete backends (Reference, OMP, CUDA,
   HIP, DPC++).
@@ -22,14 +22,17 @@ entry points.
 ## Browse by namespace
 
 - [`gko::matrix`](matrix/index.md) — sparse and dense matrix formats:
-  Csr, Coo, Dense, Ell, Sellp, Hybrid, Fbcsr, SparsityCsr, and utility
-  types (Identity, Diagonal, Permutation, RowGatherer).
+  Csr, Coo, Dense, Ell, Sellp, Hybrid, Fbcsr, SparsityCsr, utility
+  types (Identity, Diagonal, Permutation, RowGatherer), and non-owning
+  device views.
 - [`gko::solver`](solver/index.md) — Krylov solvers (CG, BiCGSTAB,
   GMRES, IDR(s), …), iterative refinement, direct solvers, multigrid,
-  and triangular substitution.
+  triangular substitution, and the `Nullspace` projector for
+  singular systems.
 - [`gko::preconditioner`](preconditioner/index.md) — block-Jacobi,
   incomplete factorisation preconditioners (IC, ILU, ISAI), and
-  relaxation methods (Gauss-Seidel, SOR / SSOR).
+  relaxation methods (Gauss-Seidel, SOR / SSOR), and the
+  `NullspaceProjection` wrapper.
 - [`gko::factorization`](factorization/index.md) — exact (Cholesky, LU)
   and incomplete factorisations (IC(0), ILU(0), ParIC, ParILU, ParICT,
   ParILUT) that produce a `Factorization` LinOp.
@@ -37,14 +40,16 @@ entry points.
   executor events: Convergence, Stream, Record, SolverProgress,
   ProfilerHook, PerformanceHint.
 - [`gko::stop`](stop/index.md) — stopping criteria for iterative
-  solvers: Iteration, Time, residual-norm variants, and the Combined
-  meta-criterion.
+  solvers: Iteration, Time, residual-norm variants, the Combined
+  meta-criterion, and the `max_iters` / `min_iters` / `relative_residual_norm`
+  / `time_limit` helper functions.
 - [`gko::reorder`](reorder/index.md) — permutation generators for
   sparse matrices: RCM, AMD, MC64, nested dissection, and the
   ScaledReordered composition wrapper.
 - [`gko::multigrid`](multigrid/index.md) — building blocks for
   algebraic-multigrid hierarchies: the `MultigridLevel` interface
-  and the `Pgm` / `FixedCoarsening` level generators.
+  and the `Pgm`, `FixedCoarsening`, `Pmis`, `Rs` and `UniformCoarsening`
+  level generators.
 - [`gko::experimental::distributed`](distributed/index.md) —
   MPI-based distributed-memory primitives: Matrix, Vector, Partition,
   RowGatherer, the Schwarz preconditioner, and assembly helpers.

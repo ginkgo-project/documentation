@@ -23,19 +23,27 @@ Matrix:                COO storage:
 ```
 
 Unlike CSR, COO does not compress row information into a prefix-sum array. Each non-zero
-explicitly stores its row index. This makes random insertion cheap (append a triple) but
-SpMV more expensive (the hardware must handle arbitrary row scatter via atomic
-operations).
+explicitly stores its row index. This makes assembly simple (append a triple to a
+`matrix_data`) but SpMV more expensive (partial sums of the same row are combined
+through atomic operations).
 
-COO does not require entries to be sorted. `read(matrix_data)` produces row-major order,
-but explicit-array construction does not enforce any ordering.
+Ginkgo's COO keeps the entries grouped by row: `row_idxs` must be non-descending, while
+the column order inside a row is free. `read(matrix_data)` stores the entries in the
+order of the `matrix_data`, so call `data.sum_duplicates()` (which also sorts) before
+reading assembled data that arrived out of order (`gko::read_raw` already returns row-major data). When
+you build a COO from explicit arrays, order them by row; `coo->validate_data()` checks
+this along with index bounds and finite values (see
+[Validating matrix data](../matrix-formats.md#validating-matrix-data)).
+
+The matching device view is `gko::matrix::view::coo` (see
+[Device views](../../../api-reference/matrix/device-views.md)).
 
 ## When to use COO
 
 **Assembly.** Building a matrix from many small contributions — finite-element element
 matrices, stencil contributions, entries accumulated from distributed subdomains — is
-natural in COO. Appending triples is `O(1)` per entry. No reordering or compaction is
-needed during assembly.
+natural in COO. Append the triples to a `matrix_data`, then call `sum_duplicates()` (which
+also sorts) and `read`.
 
 **File IO.** Matrix Market (`.mtx`) is structurally a COO format. `gko::read_raw`
 returns a `matrix_data` whose entries correspond one-to-one to COO triples. If you read
@@ -53,7 +61,7 @@ auto coo = gko::matrix::Coo<double, int>::create(exec);
 coo->read(data);
 
 // Direct construction from three explicit arrays
-auto coo = gko::matrix::Coo<double, int>::create(
+auto coo_from_arrays = gko::matrix::Coo<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
                std::move(values_array),
@@ -72,18 +80,20 @@ If you are loading from a Matrix Market file and want COO, use
 
 ## SpMV in COO
 
-COO's SpMV implementation assigns one thread per non-zero and uses atomic accumulation
-into the output vector:
+On GPUs, each subwarp walks a contiguous chunk of the (row-grouped) entries, accumulates
+`values[k] * x[col_idxs[k]]`, combines the partial sums that belong to the same row with
+a segmented scan, and adds each row's sum to `y` with a single atomic operation:
 
 ```text
-for each non-zero k (in parallel):
-    atomic_add(y[row_idxs[k]], values[k] * x[col_idxs[k]])
+for each subwarp (in parallel), over its chunk of non-zeros:
+    partial = segmented_sum_by_row(values[k] * x[col_idxs[k]])
+    atomic_add(y[row], partial)        // once per row segment
 ```
 
-This is correct on every backend but carries two performance costs:
+This carries two performance costs:
 
-1. **Atomic overhead.** Multiple threads writing to the same `y[i]` (rows with many
-   non-zeros) serialise through the atomic, reducing parallelism.
+1. **Atomic overhead at row boundaries.** Rows that span several chunks are combined
+   through atomics.
 2. **Irregular memory access.** `row_idxs[k]` addresses `y` non-sequentially, reducing
    cache effectiveness compared to CSR's row-sequential access.
 

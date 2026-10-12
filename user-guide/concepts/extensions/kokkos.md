@@ -5,15 +5,17 @@ explicit copies. It is intended for codes that already use Kokkos for their main
 parallel kernels and want Ginkgo as a solver backend on the same data, on the same
 device.
 
-The extension lives in the `gko::ext::kokkos` namespace and requires
-`-DGINKGO_EXTENSION_KOKKOS=ON` plus a Kokkos installation discoverable by CMake.
+The extension lives in the `gko::ext::kokkos` namespace. It is header-only and ships with every
+Ginkgo install; link your target against both `Ginkgo::ginkgo` and `Kokkos::kokkos` (Kokkos 4.1 or
+newer). The Ginkgo option `GINKGO_EXTENSION_KOKKOS_CHECK_TYPE_ALIGNMENT` (default `ON`) enables an
+alignment check when mapping value types.
 
 ## What the extension provides
 
 | Helper | Header | Purpose |
 |---|---|---|
-| `create_executor(ExecSpace, MemorySpace)` | `kokkos/spaces.hpp` | Construct a Ginkgo `Executor` that is bound to the given Kokkos execution and memory spaces. |
-| `create_default_executor(ExecSpace)` | `kokkos/spaces.hpp` | Convenience overload using the execution space's default memory space. |
+| `create_executor(ExecSpace[, MemorySpace])` | `kokkos/spaces.hpp` | Construct a Ginkgo `Executor` that is bound to the given Kokkos execution and memory spaces. `MemorySpace` defaults to the execution space's memory space. |
+| `create_default_executor()` | `kokkos/spaces.hpp` | Executor for `Kokkos::DefaultExecutionSpace`. |
 | `map_data<MemorySpace>(container)` | `kokkos/types.hpp` | Wrap a Ginkgo `array<T>` or `matrix::Dense<T>` as a Kokkos `View` without copying. |
 
 The mapping is bidirectional: the helpers preserve memory ownership semantics — a
@@ -28,8 +30,7 @@ the Ginkgo container.
 
 Kokkos::initialize(argc, argv);
 {
-    auto exec = gko::ext::kokkos::create_default_executor(
-                    Kokkos::DefaultExecutionSpace{});
+    auto exec = gko::ext::kokkos::create_default_executor();
     // exec now points to a Ginkgo executor whose memory space matches Kokkos's
     // default. Use it to build matrices, vectors, and solvers.
 }

@@ -8,7 +8,7 @@ solve with $U$.
 
 Three pieces work together:
 
-- [`gko::factorization::Ilu`](../../../api-reference/factorization/ilu.md) — sequential
+- [`gko::factorization::Ilu`](../../../api-reference/factorization/ilu.md) — exact
   ILU(0): incomplete LU with the input matrix's own sparsity pattern.
 - [`gko::factorization::ParIlu`](../../../api-reference/factorization/par-ilu.md) —
   fine-grained parallel ILU(0); asynchronous fixed-point iteration of
@@ -45,7 +45,7 @@ symmetry and lets you pair with CG.
 
 | Variant | Algorithm | Best when |
 |---|---|---|
-| `factorization::Ilu` | Sequential ILU(0) on CPU | Small to moderate matrices; the canonical correctness baseline. |
+| `factorization::Ilu` | Exact ILU(0) on the input sparsity pattern: cuSPARSE/hipSPARSE or Ginkgo's sync-free kernel, chosen by the `algorithm` parameter; runs on the Reference, OpenMP, CUDA and HIP executors | Small to moderate matrices; the canonical correctness baseline. |
 | `factorization::ParIlu` | Asynchronous fixed-point ILU(0) | Larger matrices on GPU or many-core CPU; same sparsity pattern as `Ilu`. |
 | `factorization::ParIlut` | Threshold-based ILU with sparsity-pattern refinement | When ILU(0) is too sparse — ParILUT improves the pattern at the cost of more storage and longer generation. |
 
@@ -54,7 +54,8 @@ symmetry and lets you pair with CG.
 ```cpp
 // Standard ILU(0) preconditioner inside BiCGSTAB
 auto bicgstab = gko::solver::Bicgstab<double>::build()
-                    .with_criteria(...)
+                    .with_criteria(gko::stop::max_iters(1000u),
+                                   gko::stop::relative_residual_norm(1e-8))
                     .with_preconditioner(
                         gko::preconditioner::Ilu<>::build()
                             .with_factorization(
@@ -65,36 +66,34 @@ auto bicgstab = gko::solver::Bicgstab<double>::build()
 
 // With iterative inner solves for the triangular systems
 auto preconditioner =
-    gko::preconditioner::Ilu<gko::solver::Bicgstab<double>,
-                             gko::solver::Bicgstab<double>>::build()
+    gko::preconditioner::Ilu<double, false, gko::int32>::build()
         .with_factorization(
-            gko::factorization::ParIlu<double, gko::int32>::build().on(exec))
+            gko::factorization::ParIlu<double, gko::int32>::build())
         .with_l_solver(
-            gko::solver::Bicgstab<double>::build()
-                .with_criteria(
-                    gko::stop::Iteration::build()
-                        .with_max_iters(3u).on(exec))
-                .on(exec))
+            gko::solver::Bicgstab<double>::build().with_criteria(
+                gko::stop::max_iters(3u)))
         .with_u_solver(
-            gko::solver::Bicgstab<double>::build()
-                .with_criteria(
-                    gko::stop::Iteration::build()
-                        .with_max_iters(3u).on(exec))
-                .on(exec))
+            gko::solver::Bicgstab<double>::build().with_criteria(
+                gko::stop::max_iters(3u)))
         .on(exec);
 ```
 
-The first template parameter of `preconditioner::Ilu` is the $L$ solver
-type, the second is the $U$ solver type; both default to
-`solver::LowerTrs` / `solver::UpperTrs`.
+`preconditioner::Ilu<ValueType, ReverseApply, IndexType>` defaults to
+`<default_precision, false, int32>`. The $L$ and $U$ solvers are chosen at
+runtime through `with_l_solver` / `with_u_solver`, which accept any
+`LinOpFactory`; when unset, `Ilu` generates `solver::LowerTrs<ValueType,
+IndexType>` and `solver::UpperTrs<ValueType, IndexType>`. With
+`ReverseApply = true` the preconditioner solves with $U$ first, then $L$.
+`get_l_solver()` and `get_u_solver()` return `std::shared_ptr<const LinOp>`;
+use `gko::as<ConcreteType>(...)` to reach solver-specific accessors.
 
 ## Factory parameters
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `factorization` | `LinOpFactory` | The factorisation that produces $L$ and $U$. Typically `Ilu`, `ParIlu`, or `ParIlut`. Required. |
-| `l_solver` | `LinOpFactory` | Factory for the lower-triangular solver. Defaults to a direct lower-triangular solve. |
-| `u_solver` | `LinOpFactory` | Factory for the upper-triangular solver. Defaults to a direct upper-triangular solve. |
+| `factorization` | `LinOpFactory` | Factorisation that produces $L$ and $U$: `Ilu`, `ParIlu` or `ParIlut`. Defaults to `ParIlu` with default parameters. Not used when `generate()` receives a `Composition` holding $L$ and $U$ directly. |
+| `l_solver` | `LinOpFactory` | Factory for the lower-triangular solver. Defaults to `solver::LowerTrs`. |
+| `u_solver` | `LinOpFactory` | Factory for the upper-triangular solver. Defaults to `solver::UpperTrs`. |
 
 ## Implementation notes
 

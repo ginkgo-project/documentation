@@ -27,6 +27,9 @@ Row 0 occupies `col_idxs[0..2)`, row 1 occupies `col_idxs[2..3)`, and row 2 occu
 `col_idxs[3..5)`. The row-pointer indirection makes SpMV a tight inner loop over a
 compact slice of memory for each row.
 
+The three arrays are also available as a device view, `gko::matrix::view::csr`
+(see [Device views](../../../api-reference/matrix/device-views.md)).
+
 ## Construction
 
 Three patterns cover the typical use cases:
@@ -37,7 +40,7 @@ auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->read(matrix_data);
 
 // From explicit arrays (when you already hold the three CSR arrays)
-auto csr = gko::matrix::Csr<double, int>::create(
+auto from_arrays = gko::matrix::Csr<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
                std::move(values_array),
@@ -45,8 +48,8 @@ auto csr = gko::matrix::Csr<double, int>::create(
                std::move(row_ptrs_array));
 
 // Converted from another format
-auto csr = gko::matrix::Csr<double, int>::create(exec);
-csr->copy_from(some_coo);   // COO → CSR
+auto converted = gko::matrix::Csr<double, int>::create(exec);
+converted->copy_from(some_coo);   // COO → CSR
 ```
 
 Pattern 3 is the most common migration path: assemble in COO (easy to build
@@ -59,45 +62,62 @@ Use `gko::read<gko::matrix::Csr<double, int>>(stream, exec)` as a shorthand for
 
 ## SpMV strategies
 
-`gko::matrix::Csr` ships several SpMV implementations, selected by a *strategy* object:
+`gko::matrix::Csr` ships several SpMV implementations, selected by the enum
+`gko::matrix::csr::spmv_strategy`:
 
 | Strategy | Description | Best for |
 |---|---|---|
-| `automatical` | Picks `classical` or `load_balance` based on the matrix | Default; works well in most cases |
-| `classical` | A subwarp of threads per row, with a reduction across the subwarp; the subwarp width scales with the longest row | Most matrices on CPU and GPU |
-| `merge_path` | Merge-based load balancing across non-zeros | Highly imbalanced row lengths on GPU |
-| `load_balance` | Non-zero-balanced thread assignment | Long-row or high-nnz matrices on GPU |
-| `sparselib` | Delegate to vendor SpMV (cuSPARSE / hipSPARSE) | When vendor libraries outperform Ginkgo's kernels |
+| `spmv_strategy::automatic` | Picks `classical` or `load_balance` from the executor, the non-zero count and the longest row (see note) | Default; works well in most cases |
+| `spmv_strategy::classical` | A subwarp of threads per row, with a reduction across the subwarp; the subwarp width scales with the longest row | Most matrices on CPU and GPU |
+| `spmv_strategy::merge_path` | Merge-based load balancing across non-zeros and row pointers | Highly imbalanced row lengths on GPU |
+| `spmv_strategy::load_balance` | Non-zero-balanced thread assignment | Long-row or high-nnz matrices on GPU |
+| `spmv_strategy::sparselib` | Delegate to the vendor SpMV (cuSPARSE, hipSPARSE or oneMKL) | When vendor libraries outperform Ginkgo's kernels |
 
-To set a strategy explicitly:
+Choose the strategy at creation time or change it later:
 
 ```cpp
-csr->set_strategy(
-    std::make_shared<gko::matrix::Csr<double, int>::merge_path>());
+using csr = gko::matrix::Csr<double, int>;
+auto A = csr::create(exec, gko::dim<2>{n}, nnz,
+                     gko::matrix::csr::spmv_strategy::merge_path);
+// Pick another kernel later, e.g. after reading the matrix:
+A->set_strategy(gko::matrix::csr::spmv_strategy::load_balance);
 ```
 
-Most users should leave the strategy unset — `automatical` picks a reasonable default
+Every `create` and `create_const` overload accepts the strategy as its last argument
+and defaults to `spmv_strategy::automatic`; `get_strategy()` returns the configured
+value.
+
+:::{attention}
+The `strategy_type` classes (`Csr::classical`, `Csr::merge_path`, `Csr::automatical`,
+and so on) are deprecated in favour of the `spmv_strategy` enum.
+:::
+
+Most users should leave the strategy unset: `automatic` picks a reasonable default
 for the executor. Tune only if profiling identifies SpMV as a bottleneck.
 
 :::{note}
-The actual switch in `automatical` happens at construction-time during the matrix's
-`process` step. For the CUDA / HIP / SYCL backends it picks `load_balance` whenever
-either of these holds, and `classical` otherwise:
+`automatic` is resolved by the library whenever the matrix's row pointers change and
+at each `apply`. On the Reference and OpenMP executors it uses `classical`. On CUDA,
+HIP and SYCL it uses `load_balance` whenever either of these holds, and `classical`
+otherwise:
 
 - the total number of non-zeros exceeds a backend-specific limit
   (≈ `1e6` for NVIDIA, `1e8` for AMD, `3e8` for Intel), or
 - the longest row exceeds a backend-specific limit
-  (`1024` columns for NVIDIA, `768` for AMD, `25600` for Intel).
+  (`1024` entries for NVIDIA, `768` for AMD, `25600` for Intel).
 
-These limits are reproduced verbatim from `csr.hpp` and may change between Ginkgo
-releases — treat them as a rough guide, not a contract.
+`get_strategy()` reports the configured value (`automatic`). The limits are internal
+tuning values that may change between Ginkgo releases — treat them as a rough guide,
+not a contract.
 :::
 
 ## Performance characteristics
 
 SpMV in CSR is memory-bound for typical sparse matrices. The minimum traffic per SpMV is
-approximately `2 * nnz` bytes (one read of `values`, one read of `col_idxs`), plus
-`n_rows` reads of `row_ptrs`. The output vector `y` is written once.
+approximately `nnz * (sizeof(ValueType) + sizeof(IndexType))` bytes (one read of
+`values` and one of `col_idxs` per non-zero, 12 bytes for `double` and `int`), plus
+`n_rows + 1` reads of `row_ptrs` and the reads of `x`. The output vector `y` is written
+once.
 
 On GPU, coalesced memory access is the key factor. `classical` accesses `col_idxs` and
 `values` sequentially within each row's subwarp, which is coalesced when rows fit in
@@ -129,7 +149,9 @@ column indices are sorted before handing it to a preconditioner factory.
 :::{tip}
 If you suspect sortedness issues, call `csr->is_sorted_by_column_index()` before
 factory `generate()`. The cost is `O(nnz)` and pays for itself when it surfaces a bug
-that would otherwise be silent.
+that would otherwise be silent. `csr->validate_data()` checks the remaining structural
+invariants (row-pointer monotonicity, index bounds, duplicate columns, non-finite
+values); see [Validating matrix data](../matrix-formats.md#validating-matrix-data).
 :::
 
 ## Conversion to and from CSR

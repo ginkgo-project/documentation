@@ -9,14 +9,16 @@ accesses — ideal on GPUs whenever the rows are close in length.
 ## Storage layout
 
 ELL holds two 2-D arrays of shape `n_rows × max_nnz_per_row`, both stored
-**column-major** (stride = `n_rows`):
+**column-major** with a stride of at least `n_rows` (entry `(row, slot)` lives at
+`row + stride * slot`):
 
 - **`values`** — the non-zero entries.  Position `(row, slot)` is the
   `slot`-th non-zero of `row`.
-- **`col_idxs`** — the column index of every entry.  Padding slots store an
-  index of `invalid_index` (or a repeat of a valid column with a zero value);
-  the SpMV kernel skips them implicitly because the corresponding `values`
-  entry is 0.
+- **`col_idxs`** — the column index of every entry.  Padding slots store the
+  column index `invalid_index<IndexType>()` (with a zero value); the SpMV kernels
+  recognise that index and skip the slot. `ell->validate_data()` checks that every
+  row's column indices are in range and unique, with padding marked this way (see
+  [Validating matrix data](../matrix-formats.md#validating-matrix-data)).
 
 ```text
 Matrix:                ELL storage (max_nnz_per_row = 2, column-major):
@@ -24,6 +26,9 @@ Matrix:                ELL storage (max_nnz_per_row = 2, column-major):
 [ 0  3  0 ]            col_idxs = [0, 1, 0,  2, *, 2]
 [ 4  0  5 ]            (* = padding: value = 0, col_idx = invalid_index<IndexType>())
 ```
+
+The matching device view is `gko::matrix::view::ell` (see
+[Device views](../../../api-reference/matrix/device-views.md)).
 
 Column-major layout means thread $r$ in a warp reads `values[r, 0]`, `values[r,
 1]`, … from consecutive memory addresses across the warp — one coalesced
@@ -51,16 +56,17 @@ auto ell = gko::matrix::Ell<double, int>::create(exec);
 ell->read(matrix_data);   // picks max_nnz_per_row automatically
 
 // Converted from CSR (the typical migration path)
-auto ell = gko::matrix::Ell<double, int>::create(exec);
-ell->copy_from(csr);
+auto from_csr = gko::matrix::Ell<double, int>::create(exec);
+from_csr->copy_from(csr);
 
 // From explicit arrays, when you already have ELL-shaped data
-auto ell = gko::matrix::Ell<double, int>::create(
+auto from_arrays = gko::matrix::Ell<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
-               std::move(values_array),       // column-major, n_rows * k
-               std::move(col_idxs_array),     // column-major, n_rows * k
-               /*max_nnz_per_row=*/ k);
+               std::move(values_array),       // column-major, stride * k
+               std::move(col_idxs_array),     // column-major, stride * k
+               /*num_stored_elements_per_row=*/ k,
+               /*stride=*/ n_rows);
 ```
 
 ## Performance characteristics
@@ -78,7 +84,7 @@ heavy-tailed.
 
 ## Conversion behaviour
 
-ELL converts cheaply to and from CSR:
+ELL converts cheaply to and from CSR, and converts directly to and from Dense:
 
 ```cpp
 // ELL → CSR
@@ -91,8 +97,8 @@ ell2->copy_from(csr);
 ```
 
 The conversion drops the padding slots when going to CSR, and computes
-`max_nnz_per_row` from the input when going back to ELL.  Conversions to COO
-and Hybrid are also supported.
+`max_nnz_per_row` from the input when going back to ELL.  Reach COO, Sellp or
+Hybrid through CSR.
 
 :::{seealso}
 - [Matrix formats — overview](../matrix-formats.md) — when to pick ELL vs alternatives.

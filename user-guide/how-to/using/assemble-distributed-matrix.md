@@ -9,8 +9,6 @@ participate in the halo exchange during `apply`.
 ## The recipe
 
 ```cpp
-#include <ginkgo/ginkgo.hpp>
-
 using LocalIdx  = int;
 using GlobalIdx = long;
 using Matrix    = gko::experimental::distributed::Matrix<double, LocalIdx, GlobalIdx>;
@@ -22,20 +20,23 @@ auto host = exec->get_master();
 
 // Decide ownership: which global rows each rank owns.
 const GlobalIdx global_n = 1'000'000;
-auto partition = Partition::build_from_global_size_uniform(
-    host, comm.size(), global_n);
+auto partition = gko::share(Partition::build_from_global_size_uniform(
+    host, comm.size(), global_n));
 
-// Build the full matrix data on the host. Each rank can contribute
-//    nonzeros for any global row; read_distributed routes them by ownership.
+// Build this rank's matrix data on the host. Entries may target rows owned
+// by other ranks (e.g. element contributions on a shared interface);
+// assembly_mode::communicate sends them to the owner and adds them up.
 gko::matrix_data<double, GlobalIdx> data{gko::dim<2>{global_n, global_n}};
-for (auto [i, j, v] : your_triplets_anywhere) {
-    data.nonzeros.emplace_back(i, j, v);
-}
+data.nonzeros.emplace_back(0, 0, 2.0);  // fill with your (row, col, value) triplets
 
-// Build the distributed matrix.
 auto A = gko::share(Matrix::create(exec, comm));
-A->read_distributed(data, partition.get());
+A->read_distributed(
+    data, partition,
+    gko::experimental::distributed::assembly_mode::communicate);
 ```
+
+With the default `assembly_mode::local_only`, each rank supplies only the rows it owns and entries
+in other rows are dropped; this skips the extra exchange.
 
 After `read_distributed`, each rank holds only the rows assigned to it
 by `partition`. Within that block-row, the matrix is split by column
@@ -86,28 +87,32 @@ auto b = Vector::create(exec, comm,
                         gko::dim<2>{global_n, 1},
                         gko::dim<2>{partition->get_part_sizes()[comm.rank()], 1});
 auto x = gko::clone(exec, b);
-// Fill b->get_local_vector()->at(i, 0) on each rank for the rank-local rows.
+// Fill the rank-local rows (b lives on a host executor here):
+auto b_vals = b->get_local_values();   // local row i -> b_vals[i]
 ```
+
+Alternatively, build a `matrix_data<double, GlobalIdx>` with the owned rows and call
+`b->read_distributed(b_data, partition)`, as the
+[tutorial](../../tutorials/heat-equation-distributed.md) does.
 
 The two `dim<2>` arguments are the *global* size and the *local* size
 respectively.
 
 ## Solve
 
-Distributed-ready Krylov solvers (`Cg`, `Fcg`, `Gmres`, `Bicgstab`,
+Distributed-ready solvers (`Cg`, `Fcg`, `PipeCg`, `Cgs`, `Bicgstab`, `Gcr`, `Gmres`, `Minres`,
 `Ir`, `Chebyshev`, `Multigrid` — see
 [Distributed solvers and preconditioners](../../concepts/distributed/solvers-and-preconditioners.md))
 work without modification:
 
 ```cpp
 auto solver = gko::solver::Cg<double>::build()
-    .with_criteria(
-        gko::stop::Iteration::build().with_max_iters(1000u).on(exec),
-        gko::stop::ResidualNorm<double>::build()
-            .with_reduction_factor(1e-8).on(exec))
+    .with_criteria(gko::stop::max_iters(1000u),
+                   gko::stop::relative_residual_norm(1e-8))
     .with_preconditioner(
         gko::experimental::distributed::preconditioner::Schwarz<double, LocalIdx, GlobalIdx>::build()
-            .with_local_solver(/* per-rank preconditioner factory */)
+            .with_local_solver(
+                gko::preconditioner::Jacobi<double, LocalIdx>::build())
             .on(exec))
     .on(exec)
     ->generate(A);
@@ -134,5 +139,5 @@ solver->apply(b, x);
 :::{seealso}
 - [Use an existing MPI communicator](use-existing-mpi-communicator.md) — wrap an `MPI_Comm` rather than using `MPI_COMM_WORLD`.
 - [Distributed Ginkgo](../../concepts/distributed.md) — the conceptual reference.
-- [Partition and IndexMap](../../concepts/distributed/partition-and-index-map.md) — partition options in detail.
+- [Partitions and index maps](../../concepts/distributed/partition-and-index-map.md) — partition options in detail.
 :::

@@ -1,10 +1,11 @@
 # Add a new iterative solver
 
 Ginkgo iterative solvers follow a strict CRTP skeleton: a class
-template `Solver<ValueType>` that inherits from `EnableLinOp<Solver>`,
-plumbs a workspace through `workspace_traits`, and runs its iteration
-loop in `apply_dense_impl`. This page walks through the pattern using
-`gko::solver::Cg` (`include/ginkgo/core/solver/cg.hpp`,
+template `Solver<ValueType>` that derives from `LinOp` and
+`EnablePreconditionedIterativeSolver`, plumbs a workspace through
+`workspace_traits`, and runs its iteration loop in `apply_dense_impl`.
+All names on this page live in `namespace gko::solver`. The page walks
+through the pattern using `gko::solver::Cg` (`include/ginkgo/core/solver/cg.hpp`,
 `core/solver/cg.cpp`) as the worked example.
 
 ## What you commit to implement
@@ -27,11 +28,9 @@ Kernel files follow the same rules as in [Add a new kernel](add-a-kernel.md).
 ```cpp
 template <typename ValueType = default_precision>
 class MySolver
-    : public EnableLinOp<MySolver<ValueType>>,
+    : public LinOp,
       public EnablePreconditionedIterativeSolver<ValueType, MySolver<ValueType>>,
       public Transposable {
-    friend class EnableLinOp<MySolver>;
-    friend class EnablePolymorphicObject<MySolver, LinOp>;
     GKO_ASSERT_SUPPORTED_VALUE_TYPE;
 
 public:
@@ -71,12 +70,12 @@ protected:
                     const LinOp* beta, LinOp* x) const override;
 
     explicit MySolver(std::shared_ptr<const Executor> exec)
-        : EnableLinOp<MySolver>(std::move(exec)) {}
+        : LinOp(std::move(exec)) {}
 
     explicit MySolver(const Factory* factory,
                       std::shared_ptr<const LinOp> system_matrix)
-        : EnableLinOp<MySolver>(factory->get_executor(),
-                                gko::transpose(system_matrix->get_size())),
+        : LinOp(factory->get_executor(),
+                gko::transpose(system_matrix->get_size())),
           EnablePreconditionedIterativeSolver<ValueType, MySolver>{
               std::move(system_matrix), factory->get_parameters()},
           parameters_{factory->get_parameters()} {}
@@ -85,8 +84,13 @@ protected:
 
 Key pieces:
 
-- `EnableLinOp<MySolver>` injects the public `apply` overloads — you only
-  implement `apply_impl`.
+- `LinOp` provides the public `apply` overloads and the executor and size
+  bookkeeping — you only implement the two `apply_impl` overrides. Keep
+  the executor-only constructor, as `Cg` does (if you add
+  `EnableCloneable`, its `create_default` and `clone` use it); the
+  second constructor is the one the factory's `generate` uses. A class that also needs `clone` and
+  `copy_from` adds `EnableCloneable`, as described in
+  [Add a new matrix format](add-a-matrix-format.md).
 - `EnablePreconditionedIterativeSolver` is a mixin that gives every
   preconditioned iterative solver `with_criteria(...)`,
   `with_preconditioner(...)`, `with_generated_preconditioner(...)`,
@@ -129,6 +133,7 @@ struct workspace_traits<MySolver<ValueType>> {
     constexpr static int rho      = 6;
     constexpr static int one      = 7;  // constant 1.0
     constexpr static int minus_one = 8; // constant -1.0
+    constexpr static int proj_rhs = 9;  // rhs projected for a nullspace
 
     // Slot IDs for typed arrays:
     constexpr static int stop = 0;  // stopping_status array
@@ -137,8 +142,8 @@ struct workspace_traits<MySolver<ValueType>> {
 ```
 
 The trait method bodies in `.cpp` just return constants and string
-lists; e.g. CG returns `9` vectors and `2` arrays. The names appear in
-log output, so make them descriptive.
+lists; e.g. CG returns `10` vectors (including `proj_rhs`) and `2`
+arrays. The names appear in log output, so make them descriptive.
 
 `scalars()` returns the IDs of the slots that are `1×nrhs` (independent
 of problem size), `vectors()` returns the IDs of the slots that are
@@ -202,6 +207,8 @@ void MySolver<ValueType>::apply_dense_impl(const VectorType* dense_b,
 
     auto exec = this->get_executor();
     this->setup_workspace();
+    dense_b = this->get_consistent_rhs(
+        dense_b, workspace_traits<MySolver>::proj_rhs);
 
     GKO_SOLVER_VECTOR(r, dense_b);
     GKO_SOLVER_VECTOR(z, dense_b);
@@ -222,6 +229,7 @@ void MySolver<ValueType>::apply_dense_impl(const VectorType* dense_b,
         gko::detail::get_local(r)->get_device_view(),
         /* ... */ stop_status));
     this->get_system_matrix()->apply(neg_one_op, dense_x, one_op, r);
+    this->project_nullspace(dense_x);
 
     auto stop_criterion = this->get_stop_criterion_factory()->generate(
         this->get_system_matrix(),
@@ -269,6 +277,10 @@ from a vector pointer — works for both `experimental::distributed::Vector`
 and ordinary `matrix::Dense`, so the same iteration body covers both
 cases.
 
+The two nullspace lines (`get_consistent_rhs` and `project_nullspace`)
+are explained in [Nullspace support](#nullspace-support-optional); they
+leave the iteration unchanged when the user sets no nullspace.
+
 ## transpose, conj_transpose
 
 When the solver is symmetric (CG, MINRES, Chebyshev), `transposed_type
@@ -277,6 +289,41 @@ transposed system matrix and transposed preconditioner. Copy the body
 from `Cg::transpose` / `Cg::conj_transpose` in `core/solver/cg.cpp`
 and adjust the operator factory. If your solver is not transposable,
 do not include `public Transposable` in the base list.
+
+### Nullspace support (optional)
+
+Specialising `nullspace_traits` lets users pass `with_nullspace(...)`
+and `with_left_nullspace(...)` to your factory, for singular systems (see
+[Singular systems and nullspaces](../../concepts/solvers/singular-systems.md)).
+The mixin then wraps the preconditioner in
+`preconditioner::NullspaceProjection`.
+
+```cpp
+template <typename ValueType>
+struct nullspace_traits<MySolver<ValueType>> {
+    static constexpr bool is_supported = true;
+    // true for CG, FCG and MINRES style methods, false for GMRES/BiCGSTAB
+    static constexpr bool requires_hermitian = true;
+    // true when the method needs the projections on both sides (MINRES)
+    static constexpr bool two_sided_projection = false;
+};
+```
+
+Three places in the solver use the nullspace:
+
+- In `apply_dense_impl`, replace `dense_b` by
+  `this->get_consistent_rhs(dense_b, workspace_traits<MySolver>::proj_rhs)`
+  right after `setup_workspace()`, and call
+  `this->project_nullspace(dense_x)` after forming the initial residual.
+- In `transpose()` and `conj_transpose()`, rebuild the preconditioner
+  from `get_unprojected_preconditioner()` and pass
+  `get_transposed_nullspace(conj)` and
+  `get_transposed_left_nullspace(conj)` to `with_nullspace` and
+  `with_left_nullspace`.
+- The `proj_rhs` slot in `workspace_traits` (listed in `vectors()`)
+  holds the projected right-hand side.
+
+Copy all three from `core/solver/cg.cpp`.
 
 ## Parse and register for JSON config
 

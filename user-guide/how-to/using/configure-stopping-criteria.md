@@ -8,38 +8,68 @@ combinations and the choices behind them.
 ## The two most-used criteria
 
 ```cpp
-.with_criteria(
-    gko::stop::Iteration::build()
-        .with_max_iters(1000u).on(exec),
-    gko::stop::ResidualNorm<ValueType>::build()
-        .with_reduction_factor(1e-8).on(exec))
+auto factory = gko::solver::Cg<double>::build()
+                   .with_criteria(gko::stop::max_iters(1000u),
+                                  gko::stop::relative_residual_norm(1e-8))
+                   .on(exec);   // stops at ||r|| <= 1e-8 ||b||
 ```
 
 - `stop::Iteration` — hard cap on iterations. Always include one; it
   guards against runaway loops if convergence never triggers.
-- `stop::ResidualNorm` — relative residual reduction. Stops when
-  $\lVert r_k \rVert \le \tau \, \lVert r_0 \rVert$ where $\tau$ is
-  `reduction_factor`.
+- `stop::ResidualNorm` — stops when
+  $\lVert r_k \rVert \le \tau \, \beta$, where $\tau$ is
+  `reduction_factor` and the baseline $\beta$ defaults to
+  $\lVert b \rVert$ (`mode::rhs_norm`).
 
 These two together — a max-iter cap and a relative residual target —
 cover most use cases.
+
+### Criterion helpers
+
+The helper functions need neither an executor nor a value type, and can be passed straight to
+`with_criteria`:
+
+| Helper | Stops when |
+|---|---|
+| `max_iters(n)` | after `n` iterations |
+| `relative_residual_norm(tau)` | $\lVert r \rVert \le \tau \, \lVert b \rVert$ |
+| `initial_residual_norm(tau)` | $\lVert r \rVert \le \tau \, \lVert r_0 \rVert$ |
+| `absolute_residual_norm(tau)` | $\lVert r \rVert \le \tau$ |
+| `relative_implicit_residual_norm(tau)`, `initial_implicit_residual_norm(tau)`, `absolute_implicit_residual_norm(tau)` | the same baselines, using the solver's implicit norm estimate |
+| `time_limit(d)` | the wall-clock time `d` has elapsed |
+| `min_iters(n, criteria...)` | `criteria...` are checked only after `n` iterations |
+
+`min_iters` wraps the criteria that must wait for a minimum amount of work:
+
+```cpp
+auto solver_factory =
+    gko::solver::Gmres<double>::build()
+        .with_criteria(
+            gko::stop::min_iters(10u, gko::stop::relative_residual_norm(1e-10)),
+            gko::stop::max_iters(1000u))
+        .on(exec);
+```
+
+The explicit builders (`Iteration::build().with_max_iters(...)`, `ResidualNorm<ValueType>::build()...`)
+produce the same criteria, and the examples below use them where the builder
+parameters matter.
 
 ## Relative vs absolute residual
 
 ```cpp
 using BaseMode = gko::stop::mode;
 gko::stop::ResidualNorm<double>::build()
-    .with_baseline(BaseMode::initial_resnorm)   // default: relative to ||r_0||
+    .with_baseline(BaseMode::rhs_norm)          // default: relative to ||b||
+    .with_reduction_factor(1e-8)
+    .on(exec);
+
+gko::stop::ResidualNorm<double>::build()
+    .with_baseline(BaseMode::initial_resnorm)   // relative to ||r_0||
     .with_reduction_factor(1e-8)
     .on(exec);
 
 gko::stop::ResidualNorm<double>::build()
     .with_baseline(BaseMode::absolute)          // absolute: ||r_k|| <= tol
-    .with_reduction_factor(1e-8)
-    .on(exec);
-
-gko::stop::ResidualNorm<double>::build()
-    .with_baseline(BaseMode::rhs_norm)          // relative to ||b||
     .with_reduction_factor(1e-8)
     .on(exec);
 ```
@@ -49,8 +79,8 @@ baseline**:
 
 | `baseline` | Stops when |
 |---|---|
-| `initial_resnorm` *(default)* | $\lVert r_k \rVert \le \tau \, \lVert r_0 \rVert$ |
-| `rhs_norm` | $\lVert r_k \rVert \le \tau \, \lVert b \rVert$ |
+| `rhs_norm` *(default)* | $\lVert r_k \rVert \le \tau \, \lVert b \rVert$ |
+| `initial_resnorm` | $\lVert r_k \rVert \le \tau \, \lVert r_0 \rVert$ |
 | `absolute` | $\lVert r_k \rVert \le \tau$ |
 
 Pick `rhs_norm` when you want a tolerance that's independent of the
@@ -64,10 +94,10 @@ $\lVert b \rVert$, which stays constant across the chain.
 
 ## Implicit vs explicit residual
 
-Some Krylov solvers compute the residual norm **implicitly** as a
-by-product of their inner-product reductions; that costs nothing
-extra. Explicit residual computation runs an additional SpMV per
-iteration.
+`ResidualNorm` uses the residual norm the solver hands over, or computes the 2-norm of the
+solver's residual vector, which costs one global reduction per check.
+`ImplicitResidualNorm` reads the squared-norm estimate the solver already maintains (CG, BiCG,
+BiCGSTAB, CGS, FCG, MINRES, PipeCG), which saves that reduction.
 
 ```cpp
 gko::stop::ResidualNorm<double>::build()
@@ -80,12 +110,10 @@ gko::stop::ImplicitResidualNorm<double>::build()
     .on(exec);
 ```
 
-`ImplicitResidualNorm` is cheap — it reads the value the solver
-already computed. `ResidualNorm` is explicit — it recomputes
-$r = b - A x$. On matrix-bandwidth-bound iterative solvers, the
-explicit version roughly doubles per-iteration cost. Prefer
-`ImplicitResidualNorm` unless you specifically need the
-unpreconditioned residual.
+The estimate is updated by recurrence and can drift from the true residual on long runs, so
+pair `ImplicitResidualNorm` with an iteration cap. Prefer `ResidualNorm` when the tolerance must
+refer to the unpreconditioned residual. For MINRES and Multigrid, `ResidualNorm` computes
+$b - A x$ at each check, which costs an extra SpMV per check.
 
 ## Combine criteria
 
@@ -93,15 +121,14 @@ unpreconditioned residual.
 fires first**:
 
 ```cpp
-.with_criteria(
-    gko::stop::Iteration::build().with_max_iters(500u).on(exec),
-    gko::stop::ResidualNorm<double>::build()
-        .with_reduction_factor(1e-10).on(exec),
-    gko::stop::Time::build()
-        .with_time_limit(std::chrono::seconds{30}).on(exec))
+auto factory = gko::solver::Cg<double>::build()
+                   .with_criteria(gko::stop::max_iters(500u),
+                                  gko::stop::relative_residual_norm(1e-10),
+                                  gko::stop::time_limit(std::chrono::seconds{30}))
+                   .on(exec);
 ```
 
-`stop::Time` ends the solve after a wall-clock budget — useful for
+`stop::Time` (`time_limit`) ends the solve after a wall-clock budget — useful for
 real-time / latency-bounded applications.
 
 ## Custom criteria
@@ -120,8 +147,9 @@ for the interface.
 - **Preconditioner choice changes the residual.** GMRES and BiCGSTAB
   use right preconditioning ($A M^{-1} y = b$, recover $x = M^{-1} y$);
   CG and FCG apply $M^{-1}$ to the residual. Regardless of placement,
-  the stopping criterion always sees the *unpreconditioned* residual
-  $r = b - A x$.
+  `ResidualNorm` always refers to the *unpreconditioned* residual
+  $r = b - A x$, while `ImplicitResidualNorm` uses the solver's own
+  estimate (a preconditioned quantity for CG-type solvers).
 
 :::{seealso}
 - [Stopping criteria](../../concepts/stopping-criteria.md) — the conceptual reference.

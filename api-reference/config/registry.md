@@ -17,7 +17,7 @@ namespace.
 ```cpp
 gko::config::registry reg;
 reg.emplace("A", system_matrix);
-auto factory = gko::config::parse(pnode, reg, type_desc);
+auto factory = gko::config::parse(config, reg, type_desc);
 ```
 
 ```{doxygenclass} gko::config::registry

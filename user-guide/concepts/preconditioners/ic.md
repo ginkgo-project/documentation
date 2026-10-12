@@ -8,7 +8,7 @@ with its conjugate-transpose backward solve.
 
 Three pieces work together:
 
-- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — sequential
+- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — exact
   IC(0): incomplete Cholesky with the input matrix's own sparsity pattern.
 - [`gko::factorization::ParIc`](../../../api-reference/factorization/par-ic.md) —
   fine-grained parallel IC(0); asynchronous fixed-point iteration of
@@ -43,7 +43,7 @@ For non-symmetric matrices, use the [ILU family](ilu.md) instead.
 
 | Variant | Algorithm | Best when |
 |---|---|---|
-| `factorization::Ic` | Sequential IC(0) on CPU | Small to moderate matrices; the canonical correctness baseline. |
+| `factorization::Ic` | Exact IC(0) on the input sparsity pattern: cuSPARSE/hipSPARSE or Ginkgo's sync-free kernel, chosen by the `algorithm` parameter; runs on the Reference, OpenMP, CUDA and HIP executors | Small to moderate matrices; the canonical correctness baseline. |
 | `factorization::ParIc` | Asynchronous fixed-point IC(0) | Larger matrices on GPU or many-core CPU; same sparsity pattern as `Ic`. |
 | `factorization::ParIct` | Threshold-based IC with sparsity-pattern refinement | When IC(0) is too sparse to be effective — ParICT improves the pattern at the cost of more storage and longer generation. |
 
@@ -52,7 +52,8 @@ For non-symmetric matrices, use the [ILU family](ilu.md) instead.
 ```cpp
 // Standard IC(0) preconditioner inside CG
 auto cg = gko::solver::Cg<double>::build()
-              .with_criteria(...)
+              .with_criteria(gko::stop::max_iters(1000u),
+                             gko::stop::relative_residual_norm(1e-8))
               .with_preconditioner(
                   gko::preconditioner::Ic<>::build()
                       .with_factorization(
@@ -62,29 +63,28 @@ auto cg = gko::solver::Cg<double>::build()
               .on(exec);
 
 // With an iterative inner solve for the triangular system
-auto preconditioner = gko::preconditioner::Ic<gko::solver::Bicgstab<double>>::build()
+auto preconditioner = gko::preconditioner::Ic<double, gko::int32>::build()
     .with_factorization(
-        gko::factorization::ParIc<double, gko::int32>::build().on(exec))
+        gko::factorization::ParIc<double, gko::int32>::build())
     .with_l_solver(
-        gko::solver::Bicgstab<double>::build()
-            .with_criteria(
-                gko::stop::Iteration::build()
-                    .with_max_iters(3u).on(exec))
-            .on(exec))
+        gko::solver::Bicgstab<double>::build().with_criteria(
+            gko::stop::max_iters(3u)))
     .on(exec);
 ```
 
-The first template parameter of `preconditioner::Ic` is the triangular
-solver type; the default is `solver::LowerTrs`. The $L^H$ solve is
-constructed automatically as the conjugate-transpose of the $L$ solve, so
-only one solver factory is configured.
+`preconditioner::Ic<ValueType, IndexType>` defaults to
+`<default_precision, int32>`. The $L$ solver is chosen at runtime with
+`with_l_solver`, which accepts any `LinOpFactory` whose generated solver is
+`Transposable`; when unset, `Ic` generates `solver::LowerTrs<ValueType,
+IndexType>`. The $L^H$ solve is the conjugate transpose of the generated $L$
+solver, so only one solver factory is configured.
 
 ## Factory parameters
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `factorization` | `LinOpFactory` | The factorisation that produces the $L$ (and implicitly $L^H$) factor. Typically `Ic`, `ParIc`, or `ParIct`. Required. |
-| `l_solver` | `LinOpFactory` | Factory for the $L$ triangular solver. Defaults to a direct triangular solve. |
+| `factorization` | `LinOpFactory` | Factorisation that produces $L$: `Ic`, `ParIc` or `ParIct`. Defaults to `ParIc` computing only $L$. Not used when `generate()` receives a `Composition` holding the factor(s) directly. |
+| `l_solver` | `LinOpFactory` | Factory for the $L$ triangular solver. Defaults to `solver::LowerTrs`. |
 
 ## Implementation notes
 

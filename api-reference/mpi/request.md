@@ -6,7 +6,7 @@ operation. Returned by the asynchronous send/receive helpers on
 communicators.
 
 ```cpp
-auto req = comm.i_send(...);
+auto req = comm.i_send(exec, buf, count, dest, tag);
 // ... do other work ...
 auto stat = req.wait();
 ```

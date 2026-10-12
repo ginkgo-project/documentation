@@ -1,9 +1,11 @@
 # `gko::matrix::SparsityCsr`
 
-Sparsity pattern only — CSR row pointers and column indices, no values.
-Used wherever an algorithm needs the structure of a matrix but not its
-numerical entries: reordering, fill-in analysis, graph algorithms, and
-the sparsity-reuse path for repeated SpGEMM.
+Sparsity pattern of a CSR matrix: row pointers and column indices plus a
+single value shared by all nonzeros (1 by default), so `apply` acts as
+the pattern's adjacency matrix. Used wherever an algorithm needs the
+structure of a matrix: reordering, coarsening, and the
+`symbolic_factorization` input of the experimental `Cholesky` and `Lu`
+factorizations.
 
 ```{doxygenclass} gko::matrix::SparsityCsr
 :members:

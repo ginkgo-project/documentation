@@ -7,6 +7,24 @@ the columns actually referenced are stored). `apply` runs the
 diagonal SpMV locally while a `RowGatherer` exchanges the needed
 remote vector entries for the off-diagonal SpMV.
 
+The blocks are accessible through `get_diag_matrix()` and
+`get_off_diag_matrix()`; `get_row_partition()` returns the partition
+passed to `read_distributed`, and `get_row_gatherer()` the row gatherer
+whose collective communicator determines how the matrix exchanges its
+halo. Beyond `apply`, the matrix supports the distributed sparse
+product `A->multiply(B, C)` (Csr blocks; the column partition of `A`
+must equal the row partition of `B`), the collective transpose
+`A->transpose(At)` for matrices filled by `read_distributed`, and
+`write(data)` to write this rank's entries, with global row and
+column indices, into a `matrix_data` (square matrices).
+`read_distributed` takes its partitions as
+`std::shared_ptr<const Partition>`.
+
+:::{attention}
+`Matrix` lives in `gko::experimental::distributed`; its interface,
+including `multiply`, `transpose` and `write`, may change.
+:::
+
 ```{doxygenclass} gko::experimental::distributed::Matrix
 :members:
 ```

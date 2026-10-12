@@ -5,7 +5,7 @@ preconditioner: it inverts the diagonal blocks of the system matrix and
 applies that block-diagonal inverse as the approximate inverse of the full
 operator. At block size 1 it degenerates to *pointwise* (scalar) Jacobi —
 element-wise diagonal scaling. At larger block sizes (up to 32 rows /
-columns per block) it captures local couplings that scalar Jacobi misses.
+columns per block, 64 on AMD GPUs) it captures local couplings that scalar Jacobi misses.
 
 The defining property is locality: each block's inverse is computed and
 applied independently, so the preconditioner is embarrassingly parallel.
@@ -48,7 +48,8 @@ auto cg = gko::solver::Cg<double>::build()
                   gko::preconditioner::Jacobi<double, gko::int32>::build()
                       .with_max_block_size(8u)
                       .on(exec))
-              .with_criteria(...)
+              .with_criteria(gko::stop::max_iters(1000u),
+                             gko::stop::relative_residual_norm(1e-8))
               .on(exec);
 ```
 
@@ -62,7 +63,9 @@ the matrix.
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `max_block_size` | `uint32` | Upper bound on the per-block dimension (1 to 32 inclusive). Default `32`. Setting `1` activates pointwise-Jacobi specialised kernels for generation (diagonal inversion) and application (scaling). |
+| `max_block_size` | `uint32` | Upper bound on the per-block dimension: 1–32 (NVIDIA GPUs and CPU executors) or 1–64 (AMD GPUs). Default `32`. Setting `1` activates pointwise-Jacobi specialised kernels for generation (diagonal inversion) and application (scaling). |
+| `max_block_stride` | `uint32` | Stride between two columns of a stored block, in elements. `0` (default) picks the executor's native width (32 on NVIDIA and CPU executors, 64 on AMD). |
+| `skip_sorting` | `bool` | Set `true` when the input matrix is already sorted by row and column index to skip the internal sort. Default `false`. |
 | `block_pointers` | `array<index_type>` | Starting row of each diagonal block. Omit to auto-detect via the supervariable-agglomeration heuristic; the heuristic is conservative — explicit pointers from domain knowledge are usually faster and more accurate. |
 | `storage_optimization` | `storage_optimization_type` | Adaptive-precision policy: each block can be stored in a lower precision than `ValueType` to reduce bandwidth. Use the constructor that takes a per-block-precision array to enable, or the global form to apply a single reduction policy to every block. |
 | `accuracy` | `remove_complex<ValueType>` | Threshold used when `storage_optimization` is adaptive: a block is stored in a lower precision if the resulting rounding error is below this fraction of the block's condition. Default `1e-1`. |

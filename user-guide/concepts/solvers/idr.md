@@ -62,7 +62,7 @@ solver->apply(b, x);
 ## Factory parameters
 
 In addition to the standard iterative-solver parameters, IDR(s) exposes
-three IDR-specific knobs:
+four IDR-specific knobs:
 
 | Parameter | Type | Purpose |
 |---|---|---|
@@ -70,8 +70,9 @@ three IDR-specific knobs:
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()` call. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner. Bypasses the factory. |
 | `subspace_dim` | `size_type` | Shadow-space dimension $s$. Default `2`. Larger $s$ improves convergence at the cost of more inner products and storage per iteration. Typical choices: `2`, `4`, `8`. |
-| `kappa` | `remove_complex<ValueType>` | Stabilisation parameter for the $\omega_j$ choice (the residual-update scalar). Default `0.7`. Lower values smooth the residual at the cost of slightly slower convergence. |
-| `deterministic` | `bool` | If `true`, seed the shadow space from a fixed source instead of the system's random generator. Default `false`; set to `true` for reproducible runs. |
+| `kappa` | `remove_complex<ValueType>` | Threshold below which $A v_n$ and $v_n$ are considered too close to perpendicular, that is, when $\lvert (A v_n)^H v_n \rvert / (\lVert A v_n \rVert \lVert v_n \rVert) < \kappa$. Default `0.7`. |
+| `deterministic` | `bool` | If `true`, the vectors spanning the shadow space are chosen deterministically instead of randomly. They are then generated serially on the CPU, which can be slow, so this is mainly useful for testing. Default `false`. |
+| `complex_subspace` | `bool` | For a real `ValueType`, run IDR with a complex shadow space (the solve works on complex copies of `b` and `x`), which can speed up convergence by taking complex eigenvectors into account. Default `false`. |
 
 ## Memory footprint
 

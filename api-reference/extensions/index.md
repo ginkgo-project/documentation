@@ -1,9 +1,8 @@
 # `gko::ext`
 
-Optional integrations with external libraries. Code in `gko::ext` is
-opt-in — every entry here requires the corresponding third-party
-dependency at build time, and falls out of the build entirely when
-that dependency is not found.
+Optional integrations with external libraries. cuDSS is built when CMake
+finds it; the Kokkos and config-reader headers are always installed and need
+their dependency only in your application.
 
 For the user-facing walk-through of each extension, see
 [Extensions](../../user-guide/concepts/extensions.md).
@@ -13,6 +12,10 @@ For the user-facing walk-through of each extension, see
 - [`Cudss`](cudss.md) — wraps NVIDIA's cuDSS sparse direct solver as
   a Ginkgo `LinOp`. Lives in `gko::ext::cuda::solver` and requires
   a CUDA build with cuDSS available.
+- [Config file readers](config-readers.md) — `gko::ext::config::parse_json`,
+  `parse_json_file` and `parse_json_string` (nlohmann_json), and
+  `parse_yaml` and `parse_yaml_file` (yaml-cpp), turn a configuration file
+  into the `gko::config::pnode` that `gko::config::parse` consumes.
 - [`Kokkos interop`](kokkos.md) — helpers for round-tripping
   Ginkgo's `array`, `Dense`, and executor types through Kokkos views
   and execution spaces. Lives in `gko::ext::kokkos`; requires Kokkos
@@ -24,4 +27,5 @@ For the user-facing walk-through of each extension, see
 
 cudss
 kokkos
+config-readers
 ```

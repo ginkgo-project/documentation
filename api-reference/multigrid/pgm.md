@@ -2,22 +2,33 @@
 
 Parallel Graph Matching aggregation — Ginkgo's default algebraic
 coarsening. Pgm builds the coarse level by aggregating fine-level rows
-in two phases:
+in two steps:
 
 1. For every unaggregated row $i$, find the *strongest neighbour* —
    the column $j$ in $i$'s row that maximises $|a_{ij}|$.
 2. Match rows whose strongest-neighbour relation is mutual (row $i$
    picks $j$ and row $j$ picks $i$), forming aggregates of size 2.
 
-Rows that remain unaggregated after one pass are assigned to an
-existing aggregate or left as singletons. The procedure is repeated
-until every row has been placed. The current implementation supports
-aggregates of size 2 (one-phase handshaking); the resulting coarse
-operator is built by Galerkin projection $A_c = R\, A\, P$.
+Steps 1 and 2 are repeated until `max_iterations` passes (default 15) have
+run or the fraction of unaggregated rows falls below `max_unassigned_ratio`
+(default 0.05); the remaining rows are then attached to a neighbouring
+aggregate or left as singletons. The current implementation forms aggregates
+of size 2 (one-phase handshaking); the coarse operator is built by Galerkin
+projection $A_c = R\, A\, P$.
+
+The `Pgm` factory supports `generate_reuse()`: once a matrix has been recorded,
+later matrices with the same sparsity pattern keep its aggregates and only the
+coarse matrix is recomputed. The aggregates come from the values of the first
+matrix, so it should be representative of the later ones.
+
+:::{attention}
+The reuse interface is experimental and may change.
+:::
 
 Pgm is the natural default coarsening for non-geometric problems
 where no separator information is available — graph matching captures
-the strongest couplings using the matrix values themselves.
+the strongest couplings using the matrix values themselves. Pgm accepts
+`gko::experimental::distributed::Matrix` as well as `Csr` matrices.
 
 ```{doxygenclass} gko::multigrid::Pgm
 :members:

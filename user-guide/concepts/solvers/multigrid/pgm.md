@@ -18,24 +18,37 @@ The procedure for each iteration:
    neighbour `j` reachable via the largest absolute matrix entry.
 2. **Mutual-match aggregation.** If row `j`'s strongest neighbour is also `i`, merge
    the pair into a new aggregate.
-3. **Repeat** until either every row is aggregated or the
-   `max_unassigned_ratio` is reached.
+3. **Repeat** until the fraction of unaggregated rows has dropped to
+   `max_unassigned_ratio` or `max_iterations` passes have run.
 
-Rows still unaggregated after `max_iterations` are folded into an existing
+Rows still unaggregated after that are folded into an existing
 neighbouring aggregate (or kept singleton if no neighbour is available).
 
 The result is a row-to-aggregate mapping (`get_const_agg()`) that drives construction
 of the prolongation `P`, the restriction `R = P^T`, and the coarse operator
 `A_{i+1} = R A_i P`. These four operators satisfy the `MultigridLevel` contract.
 
+### Reusing aggregates
+
+The `Pgm` factory supports `generate_reuse()`. Once a matrix has been recorded, later
+matrices with the same sparsity pattern keep its aggregates and only the coarse
+matrix is recomputed, so the result can differ from a fresh `generate()`. The
+aggregates come from the values of the first matrix, so it should be representative
+of the later ones. `Multigrid` uses this when its own `generate_reuse()` is called;
+see [Reusing the hierarchy](../multigrid.md#reusing-the-hierarchy).
+
+:::{attention}
+The reuse interface is experimental and may change.
+:::
+
 ## Factory parameters
 
-| Parameter | Type | Default | Meaning |
-|---|---|---|---|
-| `max_iterations` | `unsigned` | `15` | Upper bound on the number of handshaking iterations. The default mirrors the NVIDIA AMGX reference manual. |
-| `max_unassigned_ratio` | `double` | `0.05` | Stop iterating when at most this fraction of rows remain unaggregated. Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. |
-| `deterministic` | `bool` | `false` | When `true`, the matching is reproducible across runs (at extra cost). When `false`, the order of strong-neighbour resolution can depend on parallel scheduling — different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. |
-| `skip_sorting` | `bool` | `false` | If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `max_iterations` | `unsigned` | Upper bound on the number of handshaking iterations. Default `15`, which mirrors the NVIDIA AMGX reference manual. |
+| `max_unassigned_ratio` | `double` | Stop iterating when at most this fraction of rows remain unaggregated. Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. Default `0.05`. |
+| `deterministic` | `bool` | When `true`, the matching is reproducible across runs (at extra cost). When `false`, the order of strong-neighbour resolution can depend on parallel scheduling — different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. Default `false`. |
+| `skip_sorting` | `bool` | If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. Default `false`. |
 
 ## When to use Pgm
 
@@ -56,25 +69,28 @@ Pgm may underperform when:
 ## Construction example
 
 ```cpp
-auto pgm = gko::multigrid::Pgm<double, gko::int32>::build()
-               .with_max_iterations(15u)
-               .with_max_unassigned_ratio(0.05)
-               .with_deterministic(false)
-               .on(exec);
+auto pgm = gko::share(gko::multigrid::Pgm<double, gko::int32>::build()
+                          .with_max_iterations(15u)
+                          .with_max_unassigned_ratio(0.05)
+                          .with_deterministic(false)
+                          .on(exec));
 
 auto mg = gko::solver::Multigrid::build()
               .with_mg_level(pgm)
               .with_max_levels(10u)
+              .with_criteria(gko::stop::max_iters(1u))
               .on(exec);
 ```
 
-The `Pgm` factory is passed to `Multigrid` via `with_mg_level`. `Multigrid` then
+The `Pgm` factory is passed to `Multigrid` via `with_mg_level`; `.on(exec)` returns a
+`std::unique_ptr`, so it is wrapped in `gko::share` first. `Multigrid` then
 calls `pgm->generate(A_i)` once per level during its own `generate()` step,
 producing the level hierarchy.
 
 ## Distributed Pgm
 
-Pgm is the only coarsening method in Ginkgo that supports distributed matrices —
+Pgm and [UniformCoarsening](uniform-coarsening.md) are the coarsening methods that
+accept distributed matrices —
 `gko::experimental::distributed::Matrix<V, L, G>`. The same `Pgm` factory accepts
 both single-rank `gko::matrix::Csr` and the distributed matrix type; `generate()`
 detects which is which at runtime and takes one of two branches
@@ -114,9 +130,8 @@ the existing communication volume of the matrix, not with the matrix size.
 ### What this means for the hierarchy
 
 - The coarse matrix is itself a `distributed::Matrix`, so Multigrid's recursive
-  coarsening continues to use distributed Pgm at every level. There is no automatic
-  consolidation onto a single rank as the matrix shrinks — if you want the
-  coarsest level to live on one process (often the right choice once the global
+  coarsening continues to use distributed Pgm at every level, with every level spread
+  over all ranks. To place the coarsest level on one process (often the right choice once the global
   size is small), gather it explicitly before configuring Multigrid's
   `coarsest_solver`.
 - The aggregation is purely local at the row-aggregate-decision level. Couplings
@@ -136,13 +151,10 @@ Distributed Pgm requires Ginkgo to have been built with
 `#if GINKGO_BUILD_MPI`; without MPI support, Pgm only accepts single-rank
 matrices.
 
-## Publications
-
-- [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
-- [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
-
 :::{seealso}
 - [Multigrid](../multigrid.md) — how Pgm fits into the overall hierarchy.
-- [FixedCoarsening](fixed-coarsening.md) — the alternative coarsening method.
+- [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md) — the other automatic coarsenings.
+- [FixedCoarsening](fixed-coarsening.md) — coarse rows chosen by the caller.
+- Publications: [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024), [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
 - API reference: [`gko::multigrid::Pgm`](../../../../api-reference/multigrid/pgm.md)
 :::

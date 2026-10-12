@@ -27,7 +27,7 @@ A few notes on availability:
 - **OmpExecutor** requires an OpenMP-capable compiler. Most modern host compilers qualify.
 - **CudaExecutor** requires a CUDA toolkit and a CUDA-capable GPU at runtime. Ginkgo discovers the device automatically.
 - **HipExecutor** requires ROCm.
-- **DpcppExecutor** requires a SYCL-capable compiler (Intel oneAPI DPC++).
+- **DpcppExecutor** requires Intel oneAPI 2024.1 or newer with `icpx` (or `dpcpp`) as the compiler.
 
 Detailed coverage of each backend lives in the per-executor sub-pages below.
 
@@ -62,7 +62,7 @@ auto a_host = gko::array<double>{host, {1.0, 2.0, 3.0}};
 auto a_gpu  = gko::array<double>{gpu, a_host};   // copies host → device
 ```
 
-The cross-executor constructor is the standard idiom. Alternatively, `gko::clone(exec, object)` produces a deep copy of any Ginkgo object on a different executor.
+The cross-executor constructor is the standard idiom. For matrices and vectors, `gko::clone(exec, ptr)` produces a deep copy on another executor (see [Cloning](linop-and-composition.md#cloning)). To run a solver on another executor, generate it there from its factory.
 
 A few situations introduce *implicit* transfers that are easy to miss:
 
@@ -73,7 +73,7 @@ A few situations introduce *implicit* transfers that are easy to miss:
 Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.
 
 :::{tip}
-If you suspect unexpected host↔device traffic is slowing your code, attach a [`Performance` logger](logging.md) to the executor. It records every allocation, deallocation, and transfer with timestamps, so you can spot redundant transfers in inner loops.
+If you suspect unexpected host↔device traffic is slowing your code, attach a `gko::log::PerformanceHint` logger to the executor (`exec->add_logger(gko::log::PerformanceHint::create(std::cerr));`, see [Logging](logging.md)). It reports repeated cross-executor copies of the same buffer and repeated allocate/free pairs of the same size, the usual signs of a transfer or allocation in an inner loop. For per-operation timings use `gko::log::ProfilerHook::create_summary()`.
 :::
 
 ## Allocators
@@ -91,16 +91,15 @@ To plug a custom allocator into a `CudaExecutor`:
 
 ```cpp
 auto host   = gko::OmpExecutor::create();
-cudaStream_t stream;
-cudaStreamCreate(&stream);
-auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream);
-auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream);
+gko::cuda_stream stream{0};
+auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream.get());
+auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream.get());
 ```
 
-The `HipExecutor` follows the same pattern with `hipStream_t` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+The `HipExecutor` follows the same pattern with `gko::hip_stream` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
 
 :::{note}
-The stream parameter is a raw runtime-type pointer — `CUstream_st*` for CUDA (identical to the standard `cudaStream_t` typedef) and `GKO_HIP_STREAM_STRUCT*` for HIP (identical to `hipStream_t`). Ginkgo does not wrap streams in its own type; you pass whatever the CUDA / HIP runtime gave you from `cudaStreamCreate` / `hipStreamCreate`.
+Executors take the raw runtime stream type — `CUstream_st*` (identical to `cudaStream_t`) for CUDA and `GKO_HIP_STREAM_STRUCT*` (identical to `hipStream_t`) for HIP — so a stream from `cudaStreamCreate` / `hipStreamCreate` works directly. Ginkgo also provides RAII wrappers in `<ginkgo/core/base/stream.hpp>`: `gko::cuda_stream{device_id, non_blocking}` and `gko::hip_stream{device_id, non_blocking}` create a stream on construction, destroy it with the wrapper, and expose the handle via `get()`. Pass `non_blocking = true` for a stream created with `cudaStreamNonBlocking` / `hipStreamNonBlocking`, which does not synchronize implicitly with the legacy default stream. Keep the wrapper alive as long as the executor uses the stream.
 :::
 
 ## Memory accessibility between executors

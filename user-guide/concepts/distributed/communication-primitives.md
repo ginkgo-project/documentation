@@ -23,7 +23,7 @@ diagonal matrix and `mat->get_off_diag_matrix()` returns the off-diagonal matrix
 rank's diagonal piece sits on the block-diagonal of the permuted global matrix — not to a
 matrix that is literally diagonal.
 
-The halo pattern (which remote rows this rank needs) is derived from `IndexMap` at construction
+The halo pattern (which remote rows this rank needs) is derived from the matrix's `index_map` at construction
 time and is fixed for the lifetime of the matrix. It is not recomputed on every `apply` call.
 
 ## Halo exchange — gather and scatter
@@ -45,25 +45,26 @@ point-to-point `MPI_Isend` / `MPI_Irecv` pairs. This lets MPI implementations pi
 underlying transport — including direct neighbour-to-neighbour sends when the communicator topology
 makes that natural — without Ginkgo having to enumerate the send/receive list manually.
 
-In Ginkgo, the gather step is implemented by a `RowGatherer`. The scatter (step 5) uses the
-per-`Vector` halo buffer. Both objects are set up once during matrix construction and reused across
-all subsequent `apply` calls, so the bookkeeping cost is amortised.
+In Ginkgo, the gather step is implemented by a `RowGatherer`, set up by `read_distributed` and
+reused across all subsequent `apply` calls, so the bookkeeping cost is amortised. The received halo
+values land in a receive buffer cached inside the `Matrix`, which is resized on demand for the
+number of right-hand-side columns of each `apply`.
 
 ## Where MPI happens
 
-MPI calls are confined to the core distributed layer (`core/distributed/...`). Backend-specific
-kernel files (`cuda/`, `hip/`, `dpcpp/`) never include `mpi.h`. This separation is a deliberate
-maintainability constraint:
+MPI calls live in `core/`: the distributed layer (`core/distributed/...`) plus the distributed code
+paths of Gmres, Nullspace, Pgm and UniformCoarsening. Backend-specific kernel files (`cuda/`,
+`hip/`, `dpcpp/`, `omp/`, `common/`) never include `mpi.h`. This separation is a deliberate
+maintainability constraint. In a distributed `Matrix::apply` the steps run in this order:
 
-1. The distributed `Matrix::apply` starts the diagonal-matrix kernel on the executor.
-2. The `RowGatherer` packs send values into a contiguous buffer (host buffer for standard MPI;
-   a device-accessible buffer for CUDA-aware MPI).
+1. The `RowGatherer` packs the send values into a contiguous buffer (host buffer for standard MPI;
+   a device buffer with GPU-aware MPI) and, on device executors, records an event.
+2. The diagonal-matrix kernel is launched on the executor.
 3. The collective communicator issues an `i_all_to_all_v` to exchange the packed values.
-4. Once the receive completes, the off-diagonal-matrix kernel fires on the executor.
+4. Once the receive completes, the off-diagonal-matrix kernel accumulates into the result.
 
-GPU kernels never depend on MPI, and host-side MPI code never touches CUDA or HIP headers. The
-consequence is that adding a new GPU backend does not require touching the distributed communication
-layer at all.
+GPU kernels never depend on MPI, so adding a new GPU backend does not require touching the
+distributed communication layer at all.
 
 ## Stream-MPI ordering for GPU executors
 
@@ -88,9 +89,10 @@ event-recording machinery (`gko::detail::Event`, the `event::record_event` kerne
 `core/distributed/row_gatherer.cpp`) is internal-by-convention and not a stable user-facing API.
 For an external distributed `LinOp`, the executor-level sync is the supported path.
 
-With a GPU-aware MPI build (`-DGINKGO_FORCE_GPU_AWARE_MPI=ON` at configure time), the device
-pointer can be passed directly to the all-to-all call without any host-side synchronisation —
-the CUDA / HIP stream semantics still apply, but MPI manages the ordering.
+With Ginkgo configured with `-DGINKGO_FORCE_GPU_AWARE_MPI=ON`, the gathered device buffer is handed
+to MPI directly, skipping the host staging copy. The ordering rule still holds: `RowGatherer` waits
+on the gather event before starting the all-to-all, and custom code synchronises the executor (or an
+event) before passing a device buffer to MPI.
 
 :::{tip}
 Most user code does not orchestrate halo exchange manually. `Matrix::apply` handles all of the
@@ -124,7 +126,7 @@ while the exchange is in flight.
   the call sites above.
 - [Collective communicators](collective-communicator.md) — the interface that backs
   `i_all_to_all_v`, plus the dense and neighborhood implementations.
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that packs the send buffer
+- [RowGatherer](row-gather-scatter.md) — the helper that packs the send buffer
   and issues the collective.
 - [Partitions and index maps](partition-and-index-map.md) — the indexing that drives the halo
   construction.

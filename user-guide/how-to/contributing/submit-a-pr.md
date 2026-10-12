@@ -14,7 +14,9 @@ the `develop` branch.
   history is linear by policy — merges are produced via rebase, not via
   merge commits.
 - Push your branch to your fork (or to a branch on the public mirror if
-  you have write access). The full CI matrix runs when you open the PR.
+  you have write access). A quick subset of CI runs when you open the PR;
+  the full matrix starts once the PR gets the `1:ST:ready-to-merge` or
+  `1:ST:run-full-test` label (see [What CI runs](#what-ci-runs)).
 
 ## Commits
 
@@ -49,34 +51,37 @@ this is already installed as a git hook. From the build directory,
 
 ## What CI runs
 
-Two pipelines run on every push to the PR branch.
+Two pipelines run on every push to the PR branch, each with a quick
+subset of jobs. The full matrix runs once the PR carries the
+`1:ST:ready-to-merge` or `1:ST:run-full-test` label, and again on every
+later push while one of them is present. The `1:ST:SKIP_ALL_CI` label
+skips CI entirely, and `1:ST:skip-full-test` keeps the GitLab pipeline on
+the quick subset.
 
 **GitHub Actions** runs the portable checks:
 
 | Workflow | Checks |
 |---|---|
-| `check-formatting.yml` | `pre-commit` (clang-format v14, end-of-file fixer, cmake-format, REUSE annotations). |
-| `osx.yml` | Build + test on macOS. |
-| `windows-msvc-cuda.yml`, `windows-msvc-mpi.yml` | Build + test on Windows / MSVC. |
-| `arm.yml` | Build + test on ARM. |
-| `intel.yml` | Build + test on Intel-toolchain (DPC++/SYCL). |
+| `ci.yml` (every PR push) | ARM, macOS, Windows-MSVC and Linux-GCC build and test with reduced job sets, plus compile-only Linux-GCC builds for CUDA and HIP. |
+| `ci-extra.yml` (PRs labelled `1:ST:ready-to-merge` or `1:ST:run-full-test`) | The full ARM and macOS sets, plus Windows-MSVC-CUDA and Windows-MSVC-MPI. |
+| `bot-pr-updated.yml`, which calls `check-formatting.yml` | `pre-commit` (clang-format v14, end-of-file fixer, gersemi for CMake files, REUSE annotations). |
 | `spell-check.yml` | `typos`-based spell-check. |
-| `abidiff.yml` | ABI compatibility against the last release. |
+| `abidiff.yml` | ABI compatibility against the PR's base branch. |
 
 **GitLab CI** (mirrored from the public repo) runs the comprehensive
 build/test matrix. Stages are:
 
 | Stage | Jobs |
 |---|---|
-| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.1, ROCm 6.2.0–7.2.0, no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
+| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.3, ROCm 6.2.0–7.2.0, SYCL (icpx and DPC++), no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
 | `test` | Runs the unit-test suite on each backend produced in `build`. |
 | `code_quality` | Static analysis (clang-tidy, IWYU on a subset). |
 | `deploy` | Documentation deployment from `develop`. |
 | `QoS_tools` | Optional quality-of-service tooling. |
-| `benchmark-*` | The benchmark drivers exercised on a smoke subset of matrices, one stage per executor. |
+| `benchmark-*` | A manually triggered CUDA SpMV benchmark job for changes to the matrix code. |
 
 A PR has to be green across both pipelines. Treat a red GitHub Actions
-build (formatting, MacOS, Windows, ARM, Intel) the same way as a red
+build (formatting, macOS, Windows, ARM, Linux) the same way as a red
 GitLab build — re-push, don't merge over a failure.
 
 ## Labels
@@ -118,14 +123,15 @@ Release branches (`release-*`) skip the check automatically.
 
 ## Review and merge
 
-- **One approval** from a project member is required before merge.
+- **Two approvals** from project members are required before merge.
 - The assignee is the person responsible for the merge — currently this
   must be a member of the `ginkgo-project` organisation, because GitHub
   doesn't allow assigning users outside the org.
-- Once the PR has the required approval and the CI is green, a project
-  member marks it `READY TO MERGE`. At that point you (the PR author)
-  rebase onto the current `develop` if needed and force-push the result.
-- Merges land via rebase. There are no merge commits on `develop`.
+- Once the PR has the required approvals and the CI is green, a project
+  member adds the `1:ST:ready-to-merge` label, which also triggers the
+  full CI. At that point you (the PR author) rebase onto the current
+  `develop` if needed and force-push the result.
+- Merges land via rebase, so `develop` keeps a linear history.
 
 ## A typical PR walkthrough
 

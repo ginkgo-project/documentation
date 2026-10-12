@@ -24,7 +24,7 @@ using sz      = gko::acc::size_type;
 using acc_t   = gko::acc::row_major<double, 2>;
 using range_t = gko::acc::range<acc_t>;
 
-double* data = ...;          // user-owned buffer
+double* data = buffer.data();   // user-owned buffer
 
 std::array<sz, 2> size{n_rows, n_cols};
 std::array<sz, 1> stride{n_cols};
@@ -62,13 +62,16 @@ Mixed-precision GEMV with a reduced accessor: fp32 storage in main memory, fp64 
 The `reduced_row_major` and `scaled_reduced_row_major` accessors split the type values are *stored* as from the type they are *computed* in. The kernel sees one type; memory carries another.
 
 ```cpp
+#include <accessor/range.hpp>
+#include <accessor/reduced_row_major.hpp>
+
 // Store as float, compute as double.
 using acc = gko::acc::reduced_row_major</*Dim=*/2,
                                          /*ArithmeticType=*/double,
                                          /*StorageType=*/float>;
 using rng = gko::acc::range<acc>;
 
-float* storage = ...;
+float* storage = fbuffer.data();
 std::array<sz, 2> size{n_rows, n_cols};
 std::array<sz, 1> stride{n_cols};
 auto m = rng(size, storage, stride);

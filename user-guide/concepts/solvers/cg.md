@@ -64,6 +64,8 @@ and returns the solver `LinOp`.
 | `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()` call. Defaults to identity (no preconditioning). |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner. Bypasses the factory and is used directly. Useful when the preconditioner is shared across multiple solver instances. |
+| `nullspace` | `std::shared_ptr<const LinOp>` | Right nullspace $N(A)$ of a singular matrix, a `solver::Nullspace`. The solver removes it from the initial guess and wraps the preconditioner in a `NullspaceProjection`; for a consistent right-hand side it converges to the minimum-norm solution. See [Singular systems and nullspaces](singular-systems.md). Default none. |
+| `left_nullspace` | `std::shared_ptr<const LinOp>` | Left nullspace $N(A^H)$, a `solver::Nullspace`. Projects $b$ onto $\mathrm{range}(A)$, so an inconsistent system is solved in the least-squares sense. Defaults to `nullspace` when that is set, otherwise none. |
 
 The simplicity here is deliberate: CG's algorithmic behaviour is fixed by the
 mathematics — there are no orthogonalisation, restart, or shadow-space choices to

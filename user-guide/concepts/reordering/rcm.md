@@ -26,20 +26,26 @@ factorisation prefer [AMD](amd.md) or [nested dissection](nested-dissection.md).
 
 ```cpp
 auto reorder_factory =
-    gko::experimental::reorder::Rcm<double, int>::build().on(exec);
+    gko::experimental::reorder::Rcm<int>::build().on(exec);
 auto perm = reorder_factory->generate(system_matrix);
 
 auto permuted = system_matrix->permute(perm.get());
 ```
 
 RCM produces a symmetric permutation; for non-symmetric matrices it operates on the
-symmetrised adjacency pattern $A + A^T$.
+symmetrised adjacency pattern $A + A^T$. The factory parameters are:
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `skip_symmetrize` | `bool` | Use the pattern of $A$ directly instead of $A + A^T$; default `false`. |
+| `strategy` | `rcm_starting_strategy` | Starting-vertex choice: `pseudo_peripheral` (default) or `minimum_degree`. |
 
 ## Implementation notes
 
-The algorithm runs on host. The starting vertex is chosen by an inner BFS to
-approximate a pseudoperipheral vertex (high eccentricity), which empirically
-produces tighter profiles than starting from an arbitrary low-degree node.
+The algorithm runs on the factory's executor (Reference, OpenMP, CUDA and HIP; SYCL
+uses the host). By default the starting vertex of each connected component is a
+pseudo-peripheral vertex found by repeated BFS; `with_strategy(gko::experimental::reorder::rcm_starting_strategy::minimum_degree)`
+starts from a minimum-degree vertex instead.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::Rcm`](../../../api-reference/reorder/rcm.md).

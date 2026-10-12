@@ -1,11 +1,18 @@
 # `gko::experimental::distributed`
 
 Distributed-memory linear algebra primitives. Every type here is
-partitioned across MPI ranks: each rank owns a contiguous slice of the
-global rows and exchanges off-rank columns through halo communication
-during `apply`. All types are templated on
-`(ValueType, LocalIndexType, GlobalIndexType)` and require the build to
-include MPI (`GINKGO_BUILD_MPI`).
+partitioned across MPI ranks: a `Partition` assigns ranges of global
+rows to ranks, and off-rank columns are exchanged through halo
+communication during `apply`. `Matrix` and `preconditioner::Schwarz` are templated on
+`(ValueType, LocalIndexType, GlobalIndexType)`, `Vector` on `ValueType`,
+`Partition` and `index_map` on the two index types, and `RowGatherer`
+on `LocalIndexType`. The build must include MPI
+(`GINKGO_BUILD_MPI`).
+
+:::{attention}
+Everything in `gko::experimental::distributed` is experimental: the
+interfaces may change between releases.
+:::
 
 For background and a worked example see the
 [Distributed concept page](../../user-guide/concepts/distributed.md).
@@ -38,6 +45,9 @@ For background and a worked example see the
   contributions to globally-owned rows so a `matrix_data` assembled
   independently on each rank can be used to build a distributed
   matrix.
+- [`build_partition_from_local_range`, `build_partition_from_local_size`](partition.md)
+  — collective helpers that build a `Partition` from each rank's own
+  range or size.
 
 ```{toctree}
 :hidden:

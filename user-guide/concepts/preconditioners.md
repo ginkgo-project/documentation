@@ -61,9 +61,10 @@ preconditioned formulation for each Krylov family:
 - **IR** delegates to its inner solver, whose preconditioning placement is
   whatever the inner family above prescribes.
 
-In every case, the convergence test sees the *unpreconditioned* residual
+With `ResidualNorm`, the convergence test sees the *unpreconditioned* residual
 $r = b - A x$ — the stopping criterion is not affected by the preconditioner
-placement. See [Stopping criteria](stopping-criteria.md) for how to control the
+placement. `ImplicitResidualNorm` instead reads the solver's recurrence
+quantity, which for CG-type solvers is a preconditioned inner product. See [Stopping criteria](stopping-criteria.md) for how to control the
 convergence test independently.
 
 ## The catalog
@@ -77,8 +78,9 @@ convergence test independently.
 | IC / ParIC         | `gko::preconditioner::Ic`          | medium / low            | SPD systems (incomplete Cholesky)           |
 | ISAI               | `gko::preconditioner::Isai`        | medium / low            | Sparse approximate inverse                  |
 | AMG (Multigrid)    | `gko::solver::Multigrid`           | high / medium           | Elliptic systems                            |
+| Nullspace projection | `gko::preconditioner::NullspaceProjection` | wraps another preconditioner | Singular systems (e.g. pure-Neumann Poisson, rigid-body modes) |
 
-## Jacobi
+### Jacobi
 
 The Jacobi preconditioner inverts either the diagonal (`max_block_size = 1`) or a block-diagonal partition of the matrix. It requires no factorisation beyond reading and inverting those small blocks, so setup and apply are both very fast:
 
@@ -100,7 +102,7 @@ When to use: a cheap baseline for any problem; particularly effective when the m
 Block Jacobi also supports per-block precision reduction via `with_storage_optimization`. Storing well-conditioned blocks in FP32 or FP16 cuts preconditioner memory bandwidth significantly at no accuracy cost. See [Mixed-precision design](mixed-precision.md) for the full picture.
 :::
 
-## ILU and variants
+### ILU and variants
 
 Incomplete LU factorisation computes approximate triangular factors `L` and `U` such that `L U ≈ A`, discarding fill-in according to a sparsity pattern rule. Ginkgo provides three flavours:
 
@@ -125,37 +127,34 @@ Ginkgo does **not** support classical ILU(k) for $k > 0$:
 :::
 
 ```cpp
-auto ilu = gko::preconditioner::Ilu<gko::solver::LowerTrs<double, int>,
-                                    gko::solver::UpperTrs<double, int>,
-                                    false>::build()
+auto ilu = gko::preconditioner::Ilu<double, false, int>::build()
+               .with_l_solver(gko::solver::LowerTrs<double, int>::build())
+               .with_u_solver(gko::solver::UpperTrs<double, int>::build())
                .with_factorization(
-                   gko::factorization::ParIlut<double, int>::build()
-                       .with_fill_in_limit(2.0)
-                       .on(exec))
+                   gko::factorization::ParIlu<double, int>::build())
                .on(exec);
 ```
 
-The inner triangular solvers (`LowerTrs`, `UpperTrs`) are themselves `LinOp` factories, so you can swap in different implementations without touching the outer ILU interface.
+The triangular solvers are configured at runtime with `with_l_solver(...)` / `with_u_solver(...)`, which accept any `LinOpFactory` (for example an ISAI or a few iterations of a Krylov solver). Without them, `Ilu` uses `solver::LowerTrs` / `solver::UpperTrs` and `Ic` uses `solver::LowerTrs`. The `factorization` parameter defaults to `ParIlu` (`ParIc` for `Ic`). To use ParILUT, pass `gko::factorization::ParIlut<double, int>::build().with_fill_in_limit(2.0)` to `with_factorization`.
 
 :::{attention}
 `ParILU` and `ParILUT` produce a factorisation that converges to the true ILU in the limit of many sweeps. With the default number of sweeps the result is a good approximation, but it may differ slightly from sequential ILU on the same matrix. This is expected behaviour, not a bug.
 :::
 
-## IC (Incomplete Cholesky)
+### IC (Incomplete Cholesky)
 
 For symmetric positive-definite systems, incomplete Cholesky is the symmetric counterpart to ILU. Use `gko::preconditioner::Ic` together with `gko::factorization::ParIc` for GPU-parallel incomplete Cholesky:
 
 ```cpp
-auto ic = gko::preconditioner::Ic<gko::solver::LowerTrs<double, int>>::build()
+auto ic = gko::preconditioner::Ic<double, int>::build()
               .with_factorization(
-                  gko::factorization::ParIc<double, int>::build()
-                      .on(exec))
+                  gko::factorization::ParIc<double, int>::build())
               .on(exec);
 ```
 
 Pair IC with CG for SPD systems — the combination is robust and commonly outperforms ILU on elliptic problems where symmetry can be exploited.
 
-## ISAI (Incomplete Sparse Approximate Inverse)
+### ISAI (Incomplete Sparse Approximate Inverse)
 
 `gko::preconditioner::Isai` computes a sparse approximate inverse `M ≈ A⁻¹` by solving small local systems. The apply step is a sparse matrix-vector product rather than a triangular solve, which is more parallelism-friendly on GPU architectures:
 
@@ -168,33 +167,49 @@ auto isai = gko::preconditioner::Isai<gko::preconditioner::isai_type::general,
 
 The `isai_type` template argument selects the structure: `general`, `lower`, `upper`, or `spd`.
 
-## AMG (Algebraic Multigrid) as a preconditioner
+### AMG (Algebraic Multigrid) as a preconditioner
 
 Algebraic multigrid achieves mesh-independent convergence on elliptic problems by eliminating error at all scales. It is most effective when used as a preconditioner inside a Krylov solver:
 
 ```cpp
-auto amg = gko::solver::Multigrid::build()
-               .with_max_levels(10u)
-               .with_pre_smoother(/* smoother factory */)
-               .with_coarse_solver(/* coarse-level solver factory */)
-               .on(exec);
-
-auto cg_factory = gko::solver::Cg<double>::build()
-                      .with_preconditioner(amg)
-                      .with_criteria(/* ... */)
-                      .on(exec);
+auto solver =
+    gko::solver::Cg<double>::build()
+        .with_preconditioner(
+            gko::solver::Multigrid::build()
+                .with_mg_level(gko::multigrid::Pgm<double, int>::build())
+                .with_criteria(gko::stop::max_iters(1u)))
+        .with_criteria(gko::stop::max_iters(1000u),
+                       gko::stop::relative_residual_norm(1e-8))
+        .on(exec)
+        ->generate(A);
+solver->apply(b, x);
 ```
+
+`mg_level` and `criteria` are required: `generate()` throws `NotSupported` without at least one multigrid level and one stopping criterion. The criterion `max_iters(1u)` makes each application of the preconditioner run one cycle.
 
 Setup cost is high — the coarsening hierarchy must be constructed — so AMG is most cost-effective when the same matrix is solved many times, or when the problem is large enough that the iteration savings justify the setup.
 
+### Nullspace projection
+
+`gko::preconditioner::NullspaceProjection<ValueType>` wraps a preconditioner $M$ as $z = P M Q r$. Here $P$ removes the nullspace given by `nullspace` from the preconditioned vector, and the optional $Q$ removes `left_nullspace` from the input. Both are `gko::solver::Nullspace<ValueType>` objects. `Cg`, `Fcg`, `Minres`, `Gmres` and `Bicgstab` insert this wrapper automatically when configured with `with_nullspace(...)`; see [Singular systems and nullspaces](solvers/singular-systems.md). Used by hand as the preconditioner of another solver, it needs you to project the right-hand side and the initial guess yourself with `Nullspace::project`.
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `preconditioner` | `LinOpFactory` | Preconditioner $M$ to wrap. Defaults to the identity. |
+| `generated_preconditioner` | `LinOp` | Already-generated $M$; when set, `preconditioner` is ignored. |
+| `nullspace` | `LinOp` (a `solver::Nullspace`) | Removed from the preconditioned vector. |
+| `left_nullspace` | `LinOp` (a `solver::Nullspace`) | Removed from the input before $M$; pass the same object as `nullspace` for symmetric problems. |
+
 ## Plugging a preconditioner into a Krylov solver
 
-The `.with_preconditioner(...)` setter accepts a preconditioner *factory*, not a generated `LinOp`. The solver calls the factory internally when it generates itself for a particular system matrix:
+The `.with_preconditioner(...)` setter accepts a preconditioner *factory* (a builder such as `Jacobi<double, int>::build()`, or the result of `.on(exec)`), not a generated `LinOp`. The solver calls the factory internally when it generates itself for a particular system matrix:
 
 ```cpp
+auto jac = gko::preconditioner::Jacobi<double, int>::build();
 auto solver_factory = gko::solver::Cg<double>::build()
                           .with_preconditioner(jac)
-                          .with_criteria(/* ... */)
+                          .with_criteria(gko::stop::max_iters(1000u),
+                                         gko::stop::relative_residual_norm(1e-8))
                           .on(exec);
 
 // The solver generates the preconditioner for system_matrix internally.
@@ -227,7 +242,7 @@ preconditioners/isai
 preconditioners/amg
 ```
 
-## Publications
+### Publications
 
 - [Adaptive Precision Block-Jacobi for High Performance Preconditioning in the Ginkgo Linear Algebra Software](https://doi.org/10.1145/3441850)
 - [ParILUT — A New Parallel Threshold ILU Factorization](https://doi.org/10.1137/16M1079506)
@@ -238,6 +253,7 @@ preconditioners/amg
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
-- [Mixed-precision design](mixed-precision.md) — `AdaptivePrecisionJacobi` lives in this space.
+- [Mixed-precision design](mixed-precision.md) — adaptive-precision block-Jacobi (`Jacobi` with `storage_optimization`) lives in this space.
+- [Singular systems and nullspaces](solvers/singular-systems.md) — `NullspaceProjection` in use.
 - API reference: [`gko::preconditioner`](../../api-reference/preconditioner/index.md)
 :::

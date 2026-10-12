@@ -34,10 +34,10 @@ weights.
 
 ## Factory parameters
 
-| Parameter | Type | Default | Meaning |
-|---|---|---|---|
-| `coarse_rows` | `array<IndexType>` | `nullptr` | The required input — global row indices of the fine matrix to keep as coarse rows. Must be passed by the user; without it generation fails. |
-| `skip_sorting` | `bool` | `false` | If you can guarantee that the input system matrix is sorted (first by row, then by column index), set `true` to skip the internal sort. Wrong-setting silently corrupts the coarsening — see [`csr.md`'s sorted-column-indices section](../../formats/csr.md#sorted-column-indices) for context on when sortedness can or cannot be assumed. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `coarse_rows` | `array<IndexType>` | The required input — global row indices of the fine matrix to keep as coarse rows. Must be passed by the user; without it generation fails. Default `nullptr`. |
+| `skip_sorting` | `bool` | If you can guarantee that the input system matrix is sorted (first by row, then by column index), set `true` to skip the internal sort. Wrong-setting silently corrupts the coarsening — see [`csr.md`'s sorted-column-indices section](../../formats/csr.md#sorted-column-indices) for context on when sortedness can or cannot be assumed. Default `false`. |
 
 ## When to use FixedCoarsening
 
@@ -50,7 +50,9 @@ Choose FixedCoarsening when:
 
 Avoid FixedCoarsening when:
 - You are setting up multigrid on a generic matrix without prior knowledge of the
-  unknown structure — use [Pgm](pgm.md) instead.
+  unknown structure — [Pgm](pgm.md), [Pmis](pmis.md) and [Rs](rs.md) choose the coarse
+  level algebraically from the matrix values, and
+  [UniformCoarsening](uniform-coarsening.md) picks it by a constant index stride.
 - The problem requires interpolation (smoothed prolongation) for accuracy —
   FixedCoarsening's pure-injection prolongation is too coarse for many AMG
   use-cases.
@@ -60,13 +62,15 @@ Avoid FixedCoarsening when:
 ```cpp
 gko::array<gko::int32> coarse_indices(exec, {0, 2, 4, 6, 8, 10});
 
-auto fixed = gko::multigrid::FixedCoarsening<double, gko::int32>::build()
-                 .with_coarse_rows(std::move(coarse_indices))
-                 .on(exec);
+auto fixed = gko::share(
+    gko::multigrid::FixedCoarsening<double, gko::int32>::build()
+        .with_coarse_rows(std::move(coarse_indices))
+        .on(exec));
 
 auto mg = gko::solver::Multigrid::build()
               .with_mg_level(fixed)
               .with_max_levels(1u)   // typically only one level for fixed coarsening
+              .with_criteria(gko::stop::max_iters(1u))
               .on(exec);
 ```
 
@@ -77,6 +81,6 @@ pick the right indices per level.
 
 :::{seealso}
 - [Multigrid](../multigrid.md) — how FixedCoarsening fits into the overall hierarchy.
-- [Pgm](pgm.md) — the algorithmic alternative for generic matrices.
+- [Pgm](pgm.md), [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md) — the automatic alternatives for generic matrices.
 - API reference: [`gko::multigrid::FixedCoarsening`](../../../../api-reference/multigrid/fixed-coarsening.md)
 :::

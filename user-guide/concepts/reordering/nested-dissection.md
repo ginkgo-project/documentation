@@ -34,21 +34,22 @@ auto perm = reorder_factory->generate(system_matrix);
 auto permuted = system_matrix->permute(perm.get());
 ```
 
-To combine ND with an MC64 matching/scaling step and a downstream direct solver in
-one shot, see [`ScaledReordered`](scaled-reordered.md).
+Apply the resulting permutation with `Csr::permute` before handing the matrix to a
+downstream direct solver.
 
 ## Implementation notes
 
 The partitioning is delegated to [METIS](https://github.com/KarypisLab/METIS); the
 quality of the resulting ordering is dominated by METIS's separator quality.
-Ginkgo's `NestedDissection` is therefore only available when Ginkgo is built with
-`-DGINKGO_BUILD_METIS=ON`. Trying to instantiate it without METIS available raises a
-build-time error.
+Ginkgo's `NestedDissection` is available when CMake finds METIS at configure time;
+`-DMETIS_DIR=<prefix>` (or `CMAKE_PREFIX_PATH`) points CMake at a non-standard METIS
+installation, as does the `METIS_DIR` environment variable.
 
 :::{note}
-The recursive base case uses an internal AMD-like local ordering rather than
-calling [AMD](amd.md) directly. If you need a different bottom-level strategy, you
-have to modify METIS itself.
+METIS orders the small sub-graphs at the bottom of the recursion itself.
+`with_options({{METIS_OPTION_..., value}, ...})` passes METIS options (for example the
+number of separators tried or the compression settings) through to `METIS_NodeND`;
+unset options keep METIS's defaults.
 :::
 
 :::{seealso}

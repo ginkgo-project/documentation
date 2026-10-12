@@ -25,9 +25,11 @@ int main(int argc, char** argv) {
 }
 ```
 
-If your application already initialises MPI elsewhere, you can skip the guard — Ginkgo detects
-that initialisation via `MPI_Initialized` and reuses the existing environment. The constructor
-also lets you request a thread-support level (defaults to `MPI_THREAD_SERIALIZED`).
+The guard is for applications that have not called `MPI_Init` themselves. If your application
+already initialises MPI, skip the guard and construct `mpi::communicator` objects directly;
+`mpi::environment::is_initialized()` reports whether `MPI_Init` has run. The constructor takes an
+optional `mpi::thread_type` (default `thread_type::serialized`, i.e. `MPI_THREAD_SERIALIZED`), and
+`get_provided_thread_support()` returns the level MPI granted.
 
 ## The central `mpi::communicator`
 
@@ -42,8 +44,8 @@ int size = comm.size();
 MPI_Comm raw = comm.get();   // for direct MPI calls when you need them
 ```
 
-Every distributed object inherits from `DistributedBase` and exposes `get_communicator()` to
-return the same object:
+The distributed `Matrix`, `Vector` and `RowGatherer` inherit from `DistributedBase` and expose
+`get_communicator()` to return the same object:
 
 ```cpp
 auto comm = dist_matrix->get_communicator();   // same type as the one constructed above
@@ -65,12 +67,13 @@ through a `std::shared_ptr`. Pass it by value freely; you do not need to wrap it
 
 ### Host-buffer override
 
-The communicator has a `force_host_buffer` flag (set at construction). When `true`, every
-collective operation goes through host memory regardless of whether the executor is on the
-device. This is the safety hatch for systems whose MPI implementation is not CUDA/HIP-aware.
-Ginkgo also detects this case automatically via the `mpi::requires_host_buffer(exec, comm)`
-helper — see [Stream-MPI ordering](communication-primitives.md#stream-mpi-ordering-for-gpu-executors)
-in the communication-primitives page.
+By default Ginkgo stages device data through host memory for every MPI call. Configuring with
+`-DGINKGO_FORCE_GPU_AWARE_MPI=ON` lets Ginkgo hand device pointers to MPI directly. The
+communicator's `force_host_buffer` flag (set at construction) restores host staging for that
+communicator in such a build — useful when one communicator spans a fabric without GPU support.
+`mpi::requires_host_buffer(exec, comm)` combines the build setting, the executor and this flag; see
+[Stream-MPI ordering](communication-primitives.md#stream-mpi-ordering-for-gpu-executors) in the
+communication-primitives page.
 
 ## The `mpi::request` handle
 
@@ -84,26 +87,24 @@ auto req = comm.i_broadcast(exec, buf, count, root);
 auto stat = req.wait();   // block until the broadcast completes; returns mpi::status
 ```
 
-`request` does not provide a `test()` member. If you need a non-blocking completion check, call
-`MPI_Test` directly on the raw handle returned by `req.get()`. The standard idiom for waiting on
+For a non-blocking completion check, call `MPI_Test` directly on the raw handle returned by
+`req.get()`. The standard idiom for waiting on
 many outstanding requests is the free function `mpi::wait_all(std::vector<request>&)`, which calls
 `wait()` on each request in turn.
 
 ## Supported collective operations
 
 The communicator exposes a near-complete subset of MPI's collective interface. The full surface
-is documented in `mpi.hpp`; the operations Ginkgo's distributed types actually invoke are listed
-below:
+is documented in `mpi.hpp`; the table below lists where Ginkgo's own distributed code invokes it,
+and the remaining operations are there for application code:
 
 | Operation | Method on `communicator` | Used by |
 |---|---|---|
-| Broadcast | `broadcast`, `i_broadcast` | matrix construction (broadcasting partition info), debug helpers |
-| Allreduce | `all_reduce`, `i_all_reduce` | distributed `Vector::compute_norm`, `compute_dot`, etc. |
-| Reduce / scan | `reduce`, `i_reduce`, `scan`, `i_scan` | partition-helper algorithms |
-| Gather / Allgather | `gather`, `i_gather`, `gather_v`, `all_gather`, `i_all_gather` | partition setup, debugging |
-| All-to-all | `all_to_all`, `i_all_to_all` | dense communicator paths |
-| **All-to-all-variable** | `all_to_all_v`, `i_all_to_all_v` | **the halo exchange in distributed SpMV** |
-| Send / Recv | `send`, `recv`, `i_send`, `i_recv` | low-level building blocks; not used by the SpMV path |
+| Allreduce | `all_reduce`, `i_all_reduce` | `Vector::compute_dot` / `compute_conj_dot` / `compute_norm1` / `compute_norm2` (blocking `all_reduce`), the GMRES CGS/CGS2 Hessenberg reduction |
+| Allgather | `all_gather`, `i_all_gather` | the partition helpers (`build_partition_from_local_size`, `build_partition_from_local_range`) |
+| All-to-all | `all_to_all`, `i_all_to_all` | send-size discovery in `DenseCommunicator` / `NeighborhoodCommunicator` construction, `assembly_mode::communicate` |
+| **All-to-all-variable** | `all_to_all_v`, `i_all_to_all_v` | **the halo exchange in distributed SpMV**, `assembly_mode::communicate`, distributed SpGEMM, Pgm / UniformCoarsening setup |
+| Broadcast, reduce, scan, gather, scatter (+ `_v`), send / recv | `broadcast`, `reduce`, `scan`, `gather`, `gather_v`, `scatter`, `scatter_v`, `send`, `recv` and the `i_` variants | application code |
 
 The naming convention is consistent: methods without an `i_` prefix block, methods prefixed with
 `i_` return an `mpi::request` and the caller is responsible for `wait()`-ing on it.
@@ -143,8 +144,8 @@ Putting it together, a single distributed `apply` invokes the layer roughly as f
 5. The off-diagonal-matrix kernel applies to x_halo and accumulates into y_local.
 ```
 
-This is the only path that performs MPI traffic during a normal solve. Reductions for stopping
-criteria and norms go through `i_all_reduce` on the same communicator. No point-to-point
+This is the only path that performs MPI traffic during a normal solve. Reductions for norms,
+dot products and stopping criteria use the blocking `all_reduce` on the same communicator. No point-to-point
 `MPI_Isend` / `MPI_Irecv` traffic happens — the SpMV path is collective end-to-end.
 
 :::{seealso}
@@ -152,9 +153,9 @@ criteria and norms go through `i_all_reduce` on the same communicator. No point-
   pipeline.
 - [Collective communicator](collective-communicator.md) — the interface and its two
   implementations (Dense and Neighborhood).
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that drives the halo
+- [RowGatherer](row-gather-scatter.md) — the helper that drives the halo
   exchange built on top of the collective communicator.
 - [Distributed solvers and preconditioners](solvers-and-preconditioners.md) — where
-  `i_all_reduce` shows up.
+  `all_reduce` shows up.
 - API reference: [`gko::experimental::mpi`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1experimental_1_1mpi.html), [`gko::experimental::mpi::CollectiveCommunicator`](../../../api-reference/mpi/collective-communicator.md)
 :::

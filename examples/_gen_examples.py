@@ -6,12 +6,13 @@ commentary + code page, followed by a 'Full program' block with the
 complete source.
 
 Run from /home/pratik/00Sources/ginkgo/documentation:
-    python3 examples/_gen_examples.py
+    python3 examples/_gen_examples.py [--src GINKGO/examples] [--out DIR]
 
 The script is idempotent — it regenerates every output file. Hand-polishing
 should happen in the generated file directly *after* running; re-running
 will overwrite changes. (Useful when iterating on the generator itself.)
 """
+import argparse
 import os
 import re
 import sys
@@ -45,12 +46,39 @@ BOILERPLATE_RESULTS_PHRASES = [
 ]
 
 
+DOXY_MATH_ENV = re.compile(r"\\f\{([a-zA-Z*]+)\}\{(.*?)\\f\}", re.DOTALL)
+DOXY_MATH_BRACKET = re.compile(r"(?:\\f|@f)\[(.*?)(?:\\f|@f)\]", re.DOTALL)
+DOXY_MATH_DOLLAR_BLOCK = re.compile(
+    r"^[ \t]*\\f\$[ \t]*\n(.*?)\n[ \t]*\\f\$[ \t]*$", re.DOTALL | re.MULTILINE)
+DOXY_MATH_INLINE = re.compile(r"\\f\$(.+?)\\f\$", re.DOTALL)
+
+
+def _display_math(body: str, env: str = "") -> str:
+    """A MyST `$$` block. Blank lines would end the block, so drop them;
+    `\\\\` line breaks need an environment for MathJax to honour them."""
+    lines = [line.rstrip() for line in body.strip("\n").splitlines() if line.strip()]
+    if not env and any("\\\\" in line for line in lines):
+        env = "gathered"
+    if env:
+        lines = [f"\\begin{{{env}}}", *lines, f"\\end{{{env}}}"]
+    return "\n$$\n" + "\n".join(lines) + "\n$$\n"
+
+
+def doxygen_math_to_myst(text: str) -> str:
+    """Doxygen math (\\f$..\\f$, \\f[..\\f], @f[..@f], \\f{env}{..\\f}) -> MyST math."""
+    text = DOXY_MATH_ENV.sub(lambda m: _display_math(m.group(2), m.group(1)), text)
+    text = DOXY_MATH_BRACKET.sub(lambda m: _display_math(m.group(1)), text)
+    text = DOXY_MATH_DOLLAR_BLOCK.sub(lambda m: _display_math(m.group(1)), text)
+    return DOXY_MATH_INLINE.sub(lambda m: "$" + m.group(1).strip() + "$", text)
+
+
 def strip_html(text: str, boilerplate_phrases=()):
     """Very light HTML → plain text for intro.dox / results.dox.
 
     Also drops paragraphs that contain any of the boilerplate phrases — these
     are repeated verbatim across every upstream example and add no
     per-example signal."""
+    text = doxygen_math_to_myst(text)
     # @code{.cpp} ... @endcode  ->  ```cpp ... ```
     text = re.sub(r"@code\{\.cpp\}", "```text", text)
     text = re.sub(r"@code", "```text", text)
@@ -245,7 +273,15 @@ def render_page(name: str, src_root: Path) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main(argv=None):
+    global EXAMPLES_SRC, OUT_DIR
+    ap = argparse.ArgumentParser(description="Generate the example pages.")
+    ap.add_argument("--src", type=Path, default=EXAMPLES_SRC,
+                    help="Ginkgo's examples/ directory")
+    ap.add_argument("--out", type=Path, default=OUT_DIR,
+                    help="directory the pages are written to")
+    args = ap.parse_args(argv)
+    EXAMPLES_SRC, OUT_DIR = args.src, args.out
     OUT_DIR.mkdir(exist_ok=True)
     names = []
     for d in sorted(EXAMPLES_SRC.iterdir()):

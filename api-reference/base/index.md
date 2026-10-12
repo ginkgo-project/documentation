@@ -10,8 +10,8 @@ concrete operators implement.
 ## The operator interface
 
 - [`LinOp`](lin-op.md) — abstract base for every linear operator in
-  Ginkgo. Defines `apply`, copy/clone, size, executor, and the logging
-  hooks that flow through every operation.
+  Ginkgo. Defines `apply`, size, executor, and the logging hooks that
+  flow through every operation.
 - [`LinOpFactory`](lin-op-factory.md) — abstract base for factories
   that produce a `LinOp` (typically a solver or preconditioner) when
   given a system matrix.
@@ -33,8 +33,20 @@ concrete operators implement.
 
 ## Mixins and traits
 
+- [`PolymorphicObject`](polymorphic-object.md) — the base of every Ginkgo
+  object: it holds the executor and provides `validate_data()`.
+- [`Cloneable` / `EnableCloneable`](cloneable.md) — interface for objects
+  that can be cloned, copied and moved polymorphically (`clone()`,
+  `clone(exec)`, `copy_from`, `move_from`, `create_default`), and the mixin
+  that implements it for a concrete type. Matrices implement it;
+  `gko::clone(obj)` / `gko::clone(exec, obj)` works on any cloneable object.
 - [`Transposable`](transposable.md) — trait interface for operators that
   can produce their transpose and conjugate transpose.
+
+## Errors
+
+- [Exceptions](exceptions.md) — `gko::Error` and the exception types Ginkgo
+  throws.
 
 ```{toctree}
 :hidden:
@@ -47,4 +59,7 @@ composition
 array
 matrix-data
 transposable
+polymorphic-object
+cloneable
+exceptions
 ```

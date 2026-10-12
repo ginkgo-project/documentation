@@ -51,6 +51,8 @@ same as CG's — only the inherited `EnablePreconditionedIterativeSolver` settin
 | `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()`. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner; bypasses `preconditioner` if set. |
+| `nullspace` | `std::shared_ptr<const LinOp>` | Right nullspace $N(A)$ of a singular matrix, a `solver::Nullspace`. The solver removes it from the initial guess and from every preconditioned vector (through `NullspaceProjection`). See [Singular systems and nullspaces](singular-systems.md). Default none. |
+| `left_nullspace` | `std::shared_ptr<const LinOp>` | Left nullspace $N(A^H)$, a `solver::Nullspace`. Projects $b$ onto $\mathrm{range}(A)$; set it together with `nullspace` whenever $b$ may have a component outside $\mathrm{range}(A)$. Default none. |
 
 All tuning happens in the choice of preconditioner and stopping criteria.
 

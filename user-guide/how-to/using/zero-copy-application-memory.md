@@ -12,8 +12,8 @@ The lowest-level building block is `gko::make_array_view`, which turns
 an existing pointer + size into a non-owning `gko::array`:
 
 ```cpp
-double* values_ptr = /* application-owned */;
-gko::size_type n  = /* element count */;
+double* values_ptr = app_values;   // application-owned buffer
+gko::size_type n  = app_count;     // element count
 
 auto values = gko::make_array_view(exec, n, values_ptr);
 ```

@@ -9,6 +9,7 @@
 // Companion to:
 //   user-guide/how-to/using/build-mixed-precision-with-accessors.md
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>

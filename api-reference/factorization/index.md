@@ -1,9 +1,12 @@
 # `gko::factorization`
 
 Matrix factorisations used to build preconditioners and direct solvers.
-Each factorisation is a `LinOpFactory` that consumes a system matrix
-and produces a `Factorization` object storing the resulting factors in
-CSR format.
+The exact factorisations `Cholesky` and `Lu` are `LinOpFactory` classes
+whose `generate` returns a `Factorization` holding the CSR factors. The
+incomplete factorisations (`Ic`, `Ilu`, `ParIc`, `ParIlu`, `ParIct`,
+`ParIlut`) are generated through their own `Factory` and are
+`Composition`s of their CSR factors ($L$ and $U$, or $L$ and $L^H$), ready
+to be passed to `preconditioner::Ilu` / `preconditioner::Ic`.
 
 ## Exact factorisations (experimental)
 
@@ -11,7 +14,7 @@ CSR format.
   symmetric positive-definite systems.
 - [`experimental::Lu`](lu.md) — sparse LU for general systems.
 
-## Incomplete factorisations (sequential / level-based)
+## Incomplete factorisations (exact IC(0) and ILU(0))
 
 - [`Ic`](ic.md) — IC(0): incomplete Cholesky with the same sparsity
   pattern as the input matrix.
