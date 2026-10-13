@@ -39,7 +39,7 @@ finest level (output)
 
 - **Smoothers** (`pre_smoother`, `post_smoother`, optional `mid_smoother`) attack
   high-frequency errors that the coarse grid cannot represent. Defaults to one step
-  of iterative refinement with a scalar Jacobi preconditioner if not specified.
+  of iterative refinement with a scalar Jacobi preconditioner if not specified (in distributed runs, scalar Jacobi is the local solver of a `Schwarz` preconditioner).
   A smoother is applied as `smoother->apply(b, x)` and has to update `x`, so it is
   a solver such as the default smoother or one made with
   `gko::solver::build_smoother(...)` (see [Smoothers](#smoothers) below).
@@ -93,7 +93,7 @@ intended to work on standard elliptic problems.
 |---|---|---|
 | `mg_level` | vector of `LinOpFactory` | Coarsening factories — see [Coarsening methods](#coarsening-methods). At least one factory is required. |
 | `criteria` | vector of `stop::CriterionFactory` | Stopping criteria of the multigrid iteration. At least one criterion is required, also when `Multigrid` serves as a preconditioner (for example a single `Iteration` of one cycle). |
-| `pre_smoother`, `post_smoother`, `mid_smoother` | vector of `LinOpFactory` | Smoother factory per level (or one shared). Empty vector means "use the default smoother": one step of iterative refinement with scalar Jacobi. Each smoother is a solver that updates `x`. `nullptr` entries skip smoothing at that level. |
+| `pre_smoother`, `post_smoother`, `mid_smoother` | vector of `LinOpFactory` | Smoother factory per level (or one shared). Empty vector means "use the default smoother": one step of iterative refinement with scalar Jacobi (as the local solver of `Schwarz` in distributed runs). Each smoother is a solver that updates `x`. `nullptr` entries skip smoothing at that level. |
 | `post_uses_pre` | `bool` *(default `true`)* | When `true`, post-smoothing reuses the pre-smoother factory; the explicit `post_smoother` parameter is ignored. |
 | `mid_case` | `mid_smooth_type` | Behaviour of the mid-smoother in F and W cycles: `both`, `post_smoother`, `pre_smoother`, `standalone` *(default)*. With `standalone`, `mid_smoother` supplies the smoother. Has no effect on V cycles. |
 | `max_levels` | `size_type` *(default 10)* | Maximum number of coarsening steps (excluding the coarsest solver). |

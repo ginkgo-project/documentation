@@ -19,8 +19,8 @@ The procedure for each iteration:
    `|a_ji|` relative to the larger of the two diagonal entries.
 2. **Mutual-match aggregation.** If row `j`'s strongest neighbour is also `i`, merge
    the pair into a new aggregate.
-3. **Repeat** until `max_iterations` passes have run or the unaggregated fraction
-   of rows falls to `max_unassigned_ratio`.
+3. **Repeat** until `max_iterations` passes have run, a pass makes no new match, or the number of unaggregated
+   rows drops below `max_unassigned_ratio` times the number of rows.
 
 The rows still unaggregated at that point are attached to an existing neighbouring
 aggregate or left as singletons.
@@ -34,7 +34,7 @@ of the prolongation `P`, the restriction `R = P^T`, and the coarse operator
 | Parameter | Type | Purpose |
 |---|---|---|
 | `max_iterations` | `unsigned` | Upper bound on the number of handshaking iterations (default `15`, mirroring the NVIDIA AMGX reference manual). |
-| `max_unassigned_ratio` | `double` | Stop iterating when at most this fraction of rows remain unaggregated (default `0.05`). Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. |
+| `max_unassigned_ratio` | `double` | Stop iterating when fewer than this fraction of the rows remain unaggregated (default `0.05`). Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. |
 | `deterministic` | `bool` | Default `false`. When `true`, the deterministic `assign_to_exist_agg` step attaches the leftover rows, so the same matrix always yields the same aggregates (at extra cost). When `false`, that step can depend on the execution order, so different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. |
 | `skip_sorting` | `bool` | Default `false`. If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. |
 

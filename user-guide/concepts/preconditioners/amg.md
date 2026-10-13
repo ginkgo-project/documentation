@@ -25,8 +25,9 @@ auto cg = gko::solver::Cg<double>::build()
 
 `Multigrid` needs at least one `mg_level` factory and a `criteria` entry, also as a
 preconditioner; the single `Iteration` criterion makes each application one
-multigrid cycle. The smoothers default to one step of iterative refinement with a
-scalar Jacobi preconditioner; the [Multigrid](../solvers/multigrid.md) page lists the
+multigrid cycle. In single-process runs the smoothers default to one step of iterative
+refinement with a scalar Jacobi preconditioner (distributed runs wrap it in
+`Schwarz`); the [Multigrid](../solvers/multigrid.md) page lists the
 default coarsest solver.
 
 The full architectural treatment — `MultigridLevel`, cycle types, the `mg_level`

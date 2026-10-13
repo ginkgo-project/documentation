@@ -180,7 +180,7 @@ The `zero` mode is worth knowing about:
 - **Multigrid smoother** — the Richardson form, configured via `build_smoother`,
   is the canonical way to use a preconditioner as a multigrid smoother.
 - **Wrapping an external solver** — if you have a non-Ginkgo solver as a
-  `LinOp` (e.g., via `create_custom`), IR provides the residual-correct outer
+  `LinOp` (for example a class derived from `gko::EnableLinOp`), IR provides the residual-correct outer
   loop without modifying the solver itself.
 
 Avoid IR when:

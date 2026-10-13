@@ -199,9 +199,9 @@ auto cg_factory = gko::solver::Cg<double>::build()
 `Pgm`) and a `criteria` entry, also when it serves as a preconditioner;
 `coarsest_solver` selects the solver on the coarsest level. The fixed number of
 iterative-refinement sweeps used here applies the same linear operator on every
-call, which is what an outer `Cg` expects from its preconditioner. The smoothers
+call, which is what an outer `Cg` expects from its preconditioner. In single-process runs the smoothers
 default to one step of iterative refinement with a scalar Jacobi
-preconditioner.
+preconditioner (distributed runs wrap it in `Schwarz`).
 
 Setup cost is high — the coarsening hierarchy must be constructed — so AMG is most cost-effective when the same matrix is solved many times, or when the problem is large enough that the iteration savings justify the setup.
 

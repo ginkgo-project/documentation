@@ -12,8 +12,8 @@ in two phases:
    picks $j$ and row $j$ picks $i$), forming aggregates of size 2.
 
 The handshaking repeats until `max_iterations` passes (default 15) have
-run or the unaggregated fraction of rows falls below
-`max_unassigned_ratio` (default 0.05); the remaining rows are attached
+run, a pass makes no new match, or the number of unaggregated rows drops
+below `max_unassigned_ratio` (default 0.05) times the number of rows; the remaining rows are attached
 to an existing aggregate or left as singletons. The current implementation supports
 aggregates of size 2 (one-phase handshaking); the resulting coarse
 operator is built by Galerkin projection $A_c = R\, A\, P$.
