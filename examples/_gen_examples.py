@@ -49,7 +49,7 @@ BOILERPLATE_RESULTS_PHRASES = [
 DOXY_MATH_ENV = re.compile(r"\\f\{([a-zA-Z*]+)\}\{(.*?)\\f\}", re.DOTALL)
 DOXY_MATH_BRACKET = re.compile(r"(?:\\f|@f)\[(.*?)(?:\\f|@f)\]", re.DOTALL)
 DOXY_MATH_DOLLAR_BLOCK = re.compile(
-    r"^[ \t]*\\f\$[ \t]*\n(.*?)\n[ \t]*\\f\$[ \t]*$", re.DOTALL | re.MULTILINE)
+    r"^[ \t]*(?:\\f)?\$[ \t]*\n(.*?)\n[ \t]*(?:\\f)?\$[ \t]*$", re.DOTALL | re.MULTILINE)
 DOXY_MATH_INLINE = re.compile(r"\\f\$(.+?)\\f\$", re.DOTALL)
 
 
@@ -64,12 +64,33 @@ def _display_math(body: str, env: str = "") -> str:
     return "\n$$\n" + "\n".join(lines) + "\n$$\n"
 
 
-def doxygen_math_to_myst(text: str) -> str:
-    """Doxygen math (\\f$..\\f$, \\f[..\\f], @f[..@f], \\f{env}{..\\f}) -> MyST math."""
+DOXY_CODE_BLOCK = re.compile(r"@code.*?@endcode", re.DOTALL)
+# GitLab-style inline math: $`f(x)`$ (a space before the closing `$` is dropped).
+GITLAB_INLINE_MATH = re.compile(r"\$`([^`\n]+)`[ \t]*\$(?=(\w?))")
+
+
+def _gitlab_inline(m):
+    return "$" + m.group(1).strip() + "$" + (" " if m.group(2) else "")
+
+
+def _math_outside_code(text: str) -> str:
     text = DOXY_MATH_ENV.sub(lambda m: _display_math(m.group(2), m.group(1)), text)
     text = DOXY_MATH_BRACKET.sub(lambda m: _display_math(m.group(1)), text)
     text = DOXY_MATH_DOLLAR_BLOCK.sub(lambda m: _display_math(m.group(1)), text)
+    text = GITLAB_INLINE_MATH.sub(_gitlab_inline, text)
     return DOXY_MATH_INLINE.sub(lambda m: "$" + m.group(1).strip() + "$", text)
+
+
+def doxygen_math_to_myst(text: str) -> str:
+    """Doxygen math (\\f$..\\f$, \\f[..\\f], @f[..@f], \\f{env}{..\\f}, lone `$` fences,
+    $`..`$) -> MyST math. Text inside @code ... @endcode is left alone."""
+    out, pos = [], 0
+    for m in DOXY_CODE_BLOCK.finditer(text):
+        out.append(_math_outside_code(text[pos:m.start()]))
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(_math_outside_code(text[pos:]))
+    return "".join(out)
 
 
 def strip_html(text: str, boilerplate_phrases=()):

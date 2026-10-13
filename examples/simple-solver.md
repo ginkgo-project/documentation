@@ -26,8 +26,9 @@ to multigrid, distributed, batched, and everything else in the library.
 
 ### Includes and type aliases
 
-The main Ginkgo header pulls in the entire public API. The other headers
-are only used for command-line parsing and I/O.
+The main Ginkgo header `ginkgo/ginkgo.hpp` pulls in the core library headers:
+executors, matrices, solvers, preconditioners and stopping criteria. The other
+headers are only used for command-line parsing and I/O.
 
 ```cpp
 #include <ginkgo/ginkgo.hpp>
