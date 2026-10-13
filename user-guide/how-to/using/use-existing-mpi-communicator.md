@@ -12,20 +12,19 @@ use it for every distributed object you build with it.
 #include <ginkgo/ginkgo.hpp>
 #include <mpi.h>
 
-// Your application's existing communicator.
-MPI_Comm app_comm = /* whatever your application built */;
-
+// Your application's existing communicator is app_comm.
 // Wrap it. The wrapper is non-owning — the caller still controls the lifetime
 // of app_comm (i.e. when MPI_Comm_free is called).
 auto gko_comm = gko::experimental::mpi::communicator{app_comm};
 
 // Now every distributed type you build with gko_comm uses your handle.
-auto partition = gko::experimental::distributed::Partition<int, long>::
-    build_from_global_size_uniform(exec, gko_comm.size(), global_n);
+auto partition = gko::share(
+    gko::experimental::distributed::Partition<int, long>::
+        build_from_global_size_uniform(exec, gko_comm.size(), global_n));
 
 auto A = gko::experimental::distributed::Matrix<double, int, long>::create(
     exec, gko_comm);
-A->read_distributed(matrix_data, partition.get());
+A->read_distributed(data, partition);
 ```
 
 ## When to take ownership
@@ -58,16 +57,19 @@ other `gko::experimental::mpi::communicator`.
 
 ## Force host-buffer staging
 
-When your MPI build is not GPU-aware but you want to keep CUDA-aware
-Ginkgo running, set the second constructor argument:
+Ginkgo stages the data of device executors through host memory by
+default. A build configured with `-DGINKGO_FORCE_GPU_AWARE_MPI=ON` hands
+device pointers to MPI directly. For a single communicator that should
+still use host staging in such a build, set the second constructor
+argument:
 
 ```cpp
 auto gko_comm = gko::experimental::mpi::communicator{app_comm,
                                                      /*force_host_buffer=*/true};
 ```
 
-Ginkgo will route every distributed exchange through a host staging
-buffer, sidestepping the assumption that MPI accepts device pointers.
+Every distributed exchange of that communicator then goes through a host
+staging buffer, independent of the executor.
 
 ## Pair with the right device id
 

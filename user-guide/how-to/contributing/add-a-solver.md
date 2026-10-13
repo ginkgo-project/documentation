@@ -32,7 +32,6 @@ class MySolver
       public Transposable {
     friend class EnableLinOp<MySolver>;
     friend class EnablePolymorphicObject<MySolver, LinOp>;
-    GKO_ASSERT_SUPPORTED_VALUE_TYPE;
 
 public:
     using value_type      = ValueType;
@@ -99,6 +98,9 @@ Key pieces:
   the `with_*` setters. They're macro-heavy boilerplate; the
   `parameters_type` struct above is the one place you decide what new
   knobs the solver exposes.
+- The value types the solver supports are the ones the instantiation
+  block at the end of the `.cpp` stamps out (see
+  [Instantiation](#instantiation)).
 
 ## workspace_traits — the typed scratch pool
 
@@ -149,7 +151,7 @@ when to reallocate and when to reuse.
 
 The two `apply_impl` overrides dispatch precision and then delegate to
 the templated `apply_dense_impl`. Use the distributed-aware variant —
-it accepts both `dist::Vector` and `matrix::Dense`, so the same code
+it accepts both `experimental::distributed::Vector` and `matrix::Dense`, so the same code
 path works in serial and MPI builds:
 
 ```cpp
@@ -218,9 +220,8 @@ void MySolver<ValueType>::apply_dense_impl(const VectorType* dense_b,
 
     // r = b - A*x;  rho = 0;  prev_rho = 1;  z, p, q = 0
     exec->run(my_solver::make_initialize(
-        gko::detail::get_local(dense_b)->get_const_device_view(),
-        gko::detail::get_local(r)->get_device_view(),
-        /* ... */ stop_status));
+        gko::detail::get_local(dense_b), gko::detail::get_local(r),
+        /* ... */ &stop_status));
     this->get_system_matrix()->apply(neg_one_op, dense_x, one_op, r);
 
     auto stop_criterion = this->get_stop_criterion_factory()->generate(
@@ -264,10 +265,11 @@ Boilerplate macros (from `core/solver/solver_boilerplate.hpp`):
 | `GKO_SOLVER_ONE_MINUS_ONE()` | Creates the constants `one_op = 1` and `neg_one_op = −1`. |
 | `GKO_SOLVER_STOP_REDUCTION_ARRAYS()` | Allocates the `stop_status` and `reduction_tmp` `array<...>`s. |
 
-`gko::detail::get_local(v)` extracts the rank-local `matrix::Dense<V>*`
-from a vector pointer — works for both `experimental::distributed::Vector`
-and ordinary `matrix::Dense`, so the same iteration body covers both
-cases.
+`gko::detail::get_local(v)` is the internal helper (in
+`core/distributed/helpers.hpp`) that Ginkgo's own solvers use to extract
+the rank-local `matrix::Dense<V>*` from a vector pointer. It works for
+both `experimental::distributed::Vector` and ordinary `matrix::Dense`,
+so the same iteration body covers both cases.
 
 ## transpose, conj_transpose
 
@@ -309,14 +311,13 @@ typename MySolver<ValueType>::parameters_type MySolver<ValueType>::parse(
     const config::type_descriptor& td_for_child)
 {
     auto params = MySolver<ValueType>::build();
-    config::config_check_decorator config_check(config);
-    config::common_solver_parse(params, config_check, context, td_for_child);
+    config::common_solver_parse(params, config, context, td_for_child);
     return params;
 }
 ```
 
 If your solver has parameters beyond the preconditioned-iterative-solver
-defaults, parse those out of `config_check` between the
+defaults, read those keys with `config.get(...)` between the
 `common_solver_parse` call and the return.
 
 ## Instantiation

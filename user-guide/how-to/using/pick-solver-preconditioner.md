@@ -9,7 +9,7 @@ page just says *what to build*.
 | Matrix property | Solver | Preconditioner | Notes |
 |---|---|---|---|
 | **SPD**, well-conditioned | `solver::Cg` | `preconditioner::Jacobi` | The textbook default. |
-| **SPD**, ill-conditioned, large | `solver::Cg` | `factorization::Ic` + `solver::LowerTrs` / `UpperTrs` | Incomplete Cholesky. |
+| **SPD**, ill-conditioned, large | `solver::Cg` | `preconditioner::Ic<solver::LowerTrs<>>` (factors from `factorization::Ic` or `ParIc`) | Incomplete Cholesky. |
 | **SPD**, very large, mesh-based | `solver::Cg` | `solver::Multigrid` (as preconditioner) | AMG with `multigrid::Pgm` coarsening. |
 | **Symmetric indefinite** | `solver::Minres` | `preconditioner::Jacobi` | Three-term recurrence like CG, no breakdown on indefinite systems. |
 | **Non-symmetric**, general | `solver::Gmres` | `factorization::Ilu` + `LowerTrs` / `UpperTrs` | Restart with `with_krylov_dim`. |
@@ -17,8 +17,7 @@ page just says *what to build*.
 | **Variable preconditioner** (inner Krylov, adaptive AMG) | `solver::Gmres` with `with_flexible(true)` | (anything) | FGMRES. |
 | **Many small independent systems** | `batch::solver::Cg` / `batch::solver::Bicgstab` | `batch::preconditioner::Jacobi` | Fused-kernel batched path. |
 | **Distributed (MPI)** SPD | `solver::Cg` | `distributed::preconditioner::Schwarz` (with `Ic` or AMG local solver) | Schwarz is the canonical distributed preconditioner. |
-| **Sparse direct, one-off** | `experimental::solver::Direct` with `factorization::Lu` or `Cholesky` | — | Reorder first; see [Tune a sparse direct solve](tune-direct-solver.md). |
-| **Sparse direct, NVIDIA GPU** | `ext::cuda::solver::Cudss` | — | Vendor-tuned with `refactorize` for repeat solves. |
+| **Sparse direct** (CPU or GPU) | `experimental::solver::Direct` with `factorization::Lu` or `Cholesky` | — | Runs on the Reference, OpenMP, CUDA and HIP executors; on CUDA set `num_rhs` to the number of right-hand sides. Reorder first; see [Tune a sparse direct solve](tune-direct-solver.md). |
 
 ## The shape of the construction
 
@@ -32,9 +31,8 @@ auto solver_factory =
             gko::stop::ResidualNorm<ValueType>::build()
                 .with_reduction_factor(1e-8).on(exec))
         .with_preconditioner(
-            PreconditionerType::build()
-                .with_/* ... */
-                .on(exec))
+            // PreconditionerType::build() takes its own with_* parameters.
+            PreconditionerType::build().on(exec))
         .on(exec);
 
 auto solver = solver_factory->generate(system_matrix);

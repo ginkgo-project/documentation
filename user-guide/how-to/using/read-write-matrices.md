@@ -49,8 +49,16 @@ auto out = std::ofstream{"result.mtx"};
 gko::write(out, A);
 ```
 
-`write` takes any `LinOp` and serialises in textual Matrix Market
-format. There is also `gko::write_binary(out, A)` for the binary
+`write` takes a (smart or raw) pointer to a matrix type that implements
+`WritableToMatrixData` (`Csr`, `Coo`, `Dense`, ...) and serialises it in
+textual Matrix Market format. The pointer's static type fixes the value
+and index types, so cast a matrix held through a `LinOp` pointer
+to its concrete matrix type, for example `gko::write(out,
+gko::as<gko::matrix::Csr<double, int>>(op))`; `gko::as` throws if the
+type differs. `Dense` is written in the array layout and the other
+formats in the coordinate layout. An optional third argument
+(`gko::layout_type::array` or `gko::layout_type::coordinate`) overrides
+that. There is also `gko::write_binary(out, A)` for the binary
 variant.
 
 ## Convert between formats on disk

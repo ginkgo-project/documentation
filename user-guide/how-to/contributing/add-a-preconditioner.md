@@ -2,9 +2,9 @@
 
 A preconditioner in Ginkgo is a `LinOp` with two extra entry points:
 `generate(system_matrix)` which builds the operator from a source matrix,
-and `apply(b, x)` which applies the resulting operator. There is no
-workspace machinery — preconditioners do their work in a single
-`apply` and have no iteration loop.
+and `apply(b, x)` which applies the resulting operator. Preconditioners
+do their work in a single `apply`, in one pass without an iteration
+loop or workspace machinery.
 
 This page covers two patterns: a **local** preconditioner modelled on
 `preconditioner::Jacobi` (`include/ginkgo/core/preconditioner/jacobi.hpp`,
@@ -35,7 +35,6 @@ class MyPrecond
       public Transposable {
     friend class EnableLinOp<MyPrecond>;
     friend class EnablePolymorphicObject<MyPrecond, LinOp>;
-    GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE;
 
 public:
     using value_type      = ValueType;
@@ -126,13 +125,15 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* b,
     precision_dispatch_real_complex<ValueType>(
         [this](auto dense_b, auto dense_x) {
             this->get_executor()->run(my_precond::make_apply(
-                /* preconditioner state */ data_,
-                dense_b->get_const_device_view(),
-                dense_x->get_device_view()));
+                /* preconditioner state */ data_, dense_b, dense_x));
         },
         b, x);
 }
+```
 
+The advanced overload passes `alpha` and `beta` through:
+
+```cpp
 template <typename ValueType, typename IndexType>
 void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
                                                  const LinOp* b,
@@ -143,11 +144,7 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
         [this](auto dense_alpha, auto dense_b,
                auto dense_beta, auto dense_x) {
             this->get_executor()->run(my_precond::make_apply(
-                dense_alpha->get_const_device_view(),
-                data_,
-                dense_b->get_const_device_view(),
-                dense_beta->get_const_device_view(),
-                dense_x->get_device_view()));
+                data_, dense_alpha, dense_b, dense_beta, dense_x));
         },
         alpha, b, beta, x);
 }
@@ -163,7 +160,6 @@ class MyPrecond
     : public EnableLinOp<MyPrecond<ValueType, LocalIndexType, GlobalIndexType>> {
     friend class EnableLinOp<MyPrecond>;
     friend class EnablePolymorphicObject<MyPrecond, LinOp>;
-    GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE;
 
 public:
     using value_type        = ValueType;
@@ -218,9 +214,11 @@ Two differences from the local case:
   `gko::experimental::distributed::preconditioner`. The header is wrapped
   in `#if GINKGO_BUILD_MPI` and the source is added to `core/CMakeLists.txt`
   under the `if(GINKGO_BUILD_MPI)` block.
-- The static-assert is `GKO_ASSERT_SUPPORTED_VALUE_AND_DIST_INDEX_TYPE`,
-  which constrains `LocalIndexType` and `GlobalIndexType` to the
-  distributed-supported combinations.
+- The supported `(LocalIndexType, GlobalIndexType)` combinations are the
+  ones the instantiation block stamps out.
+  `GKO_INSTANTIATE_FOR_EACH_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE` (see
+  [Instantiation](#instantiation)) instantiates `(int32, int32)`,
+  `(int32, int64)` and `(int64, int64)` for every value type.
 
 The `apply_impl` for a purely local Schwarz-style preconditioner applies
 the inner solver to the rank-local Dense slice and returns. The
@@ -231,7 +229,7 @@ template <typename ValueType, typename LocalIndexType, typename GlobalIndexType>
 void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_impl(
     const LinOp* b, LinOp* x) const
 {
-    precision_dispatch_real_complex_distributed<ValueType>(
+    experimental::precision_dispatch_real_complex_distributed<ValueType>(
         [this](auto dense_b, auto dense_x) {
             this->apply_dense_impl(dense_b, dense_x);
         },
@@ -250,10 +248,11 @@ void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_dense_impl(
 }
 ```
 
-`gko::detail::get_local(v)` is the helper from
-`core/distributed/helpers.hpp`. It returns the rank-local
-`matrix::Dense<V>*` for both `distributed::Vector` and ordinary
-`matrix::Dense`, so the same iteration body covers serial and MPI use.
+`gko::detail::get_local(v)` is the internal helper (in
+`core/distributed/helpers.hpp`) that Ginkgo's own solvers and
+preconditioners use. It returns the rank-local `matrix::Dense<V>*` for
+both `experimental::distributed::Vector` and ordinary `matrix::Dense`,
+so the same body covers serial and MPI use.
 
 ### Where MPI can live
 
@@ -275,16 +274,25 @@ When communication is needed, structure `apply_dense_impl` as an
 interleaving of kernel launches and MPI calls so MPI latency hides
 behind on-device work:
 
-1. Launch the kernel work that has no remote dependency.
+1. Launch the kernel that packs the send buffer, then synchronize the
+   executor so the host-side MPI call reads a complete buffer (see
+   [Stream-MPI ordering for GPU
+   executors](../../concepts/distributed/communication-primitives.md#stream-mpi-ordering-for-gpu-executors)).
 2. Issue the non-blocking MPI call (`i_all_to_all_v`, `Isend`/`Irecv`,
-   ...) from the host — returns immediately, kernel keeps running.
-3. Wait on the MPI request, or use a stream event (see [Stream-MPI
-   ordering for GPU executors](../../concepts/distributed/communication-primitives.md#stream-mpi-ordering-for-gpu-executors)).
-4. Launch the kernel that consumes the received data.
+   ...) from the host — with a non-blocking communicator it returns
+   immediately (the blocking `DenseCommunicator` has completed the
+   exchange by the time the call returns).
+3. Launch the kernel work that has no remote dependency; with a
+   non-blocking communicator it runs while the message is in flight.
+4. Wait on the MPI request.
+5. Launch the kernel that consumes the received data.
 
-The distributed `Matrix::apply` is the canonical example: diagonal
-matrix kernel runs concurrently with the halo `i_all_to_all_v`, then
-the off-diagonal kernel fires once the receive completes (see
+The distributed `Matrix::apply` is the canonical example: the local
+block's kernel runs concurrently with the halo `i_all_to_all_v` when the
+communicator is non-blocking (the default `NeighborhoodCommunicator`; with
+`DenseCommunicator` the exchange has already completed when the local
+kernel starts), then the non-local block's kernel fires once the receive
+completes (see
 [Communication
 primitives](../../concepts/distributed/communication-primitives.md)).
 Replicate that structure rather than putting an `MPI_Allreduce`

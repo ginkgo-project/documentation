@@ -12,10 +12,11 @@ The lowest-level building block is `gko::make_array_view`, which turns
 an existing pointer + size into a non-owning `gko::array`:
 
 ```cpp
-double* values_ptr = /* application-owned */;
-gko::size_type n  = /* element count */;
+// app_values points to app_count doubles owned by the application.
+auto values = gko::make_array_view(exec, app_count, app_values);
 
-auto values = gko::make_array_view(exec, n, values_ptr);
+// The array shares the buffer: values.get_data() == app_values.
+gko::size_type n = values.get_size();
 ```
 
 For read-only buffers use `gko::make_const_array_view`. Both return

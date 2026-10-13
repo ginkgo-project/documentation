@@ -55,28 +55,25 @@ Two pipelines run on every push to the PR branch.
 
 | Workflow | Checks |
 |---|---|
-| `check-formatting.yml` | `pre-commit` (clang-format v14, end-of-file fixer, cmake-format, REUSE annotations). |
+| `check-formatting.yml` | `pre-commit` (clang-format v14, end-of-file fixer, gersemi (CMake formatting), REUSE annotations). |
 | `osx.yml` | Build + test on macOS. |
-| `windows-msvc-cuda.yml`, `windows-msvc-mpi.yml` | Build + test on Windows / MSVC. |
-| `arm.yml` | Build + test on ARM. |
 | `intel.yml` | Build + test on Intel-toolchain (DPC++/SYCL). |
 | `spell-check.yml` | `typos`-based spell-check. |
-| `abidiff.yml` | ABI compatibility against the last release. |
+| `abidiff.yml` | ABI compatibility against the PR's base branch. |
 
 **GitLab CI** (mirrored from the public repo) runs the comprehensive
-build/test matrix. Stages are:
+build/test matrix, including Windows (MSVC, with and without CUDA). Stages are:
 
 | Stage | Jobs |
 |---|---|
-| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.1, ROCm 6.2.0–7.2.0, no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
+| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. The matrix covers CUDA 11.0–12.0, ROCm 4.5–5.1.4, oneAPI/SYCL GPU builds (`icpx` and `dpcpp`), and no-CUDA configurations (core-only, OpenMP, with and without mixed precision). Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
 | `test` | Runs the unit-test suite on each backend produced in `build`. |
 | `code_quality` | Static analysis (clang-tidy, IWYU on a subset). |
-| `deploy` | Documentation deployment from `develop`. |
+| `deploy` | Documentation deployment from `main`, `develop` and release tags. |
 | `QoS_tools` | Optional quality-of-service tooling. |
-| `benchmark-*` | The benchmark drivers exercised on a smoke subset of matrices, one stage per executor. |
 
 A PR has to be green across both pipelines. Treat a red GitHub Actions
-build (formatting, MacOS, Windows, ARM, Intel) the same way as a red
+build (formatting, MacOS, Intel) the same way as a red
 GitLab build — re-push, don't merge over a failure.
 
 ## Labels
@@ -93,7 +90,7 @@ the missing semantic labels yourself:
   changelog entry pointing back to the PR — see the next section.
 
 The full label vocabulary is visible in
-[`.github/label.sh`](https://github.com/ginkgo-project/ginkgo/blob/develop/.github/label.sh).
+[`.github/label.sh`](https://github.com/ginkgo-project/ginkgo/blob/v1.10.0/.github/label.sh).
 
 ## Changelog entry
 
@@ -118,14 +115,14 @@ Release branches (`release-*`) skip the check automatically.
 
 ## Review and merge
 
-- **One approval** from a project member is required before merge.
+- **At least two approvals** are required before merge.
 - The assignee is the person responsible for the merge — currently this
   must be a member of the `ginkgo-project` organisation, because GitHub
   doesn't allow assigning users outside the org.
-- Once the PR has the required approval and the CI is green, a project
+- Once the PR has the required approvals and the CI is green, a project
   member marks it `READY TO MERGE`. At that point you (the PR author)
   rebase onto the current `develop` if needed and force-push the result.
-- Merges land via rebase. There are no merge commits on `develop`.
+- Merges land via rebase, which keeps the history of `develop` linear.
 
 ## A typical PR walkthrough
 

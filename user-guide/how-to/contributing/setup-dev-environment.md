@@ -136,8 +136,7 @@ cmake -G Ninja .. \
     -DGINKGO_BUILD_REFERENCE=ON \
     -DGINKGO_BUILD_OMP=ON \
     -DGINKGO_BUILD_CUDA=ON \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+    -DGINKGO_WITH_CCACHE=ON \
     -DGINKGO_CUDA_ARCHITECTURES=Ampere
 cmake --build . -j8
 ctest -R 'core|reference'   # equivalent to make quick_test

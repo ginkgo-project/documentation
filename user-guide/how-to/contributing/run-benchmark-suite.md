@@ -26,8 +26,10 @@ Two optional helpers are worth installing alongside:
 
 - [`ssget`](https://github.com/ginkgo-project/ssget) — fetches matrices
   from the SuiteSparse collection by ID / name. Required by
-  `run_all_benchmarks.sh`. Either install it to a directory on `PATH`
-  or invoke it inline with `-a <archive-dir>`.
+  `run_all_benchmarks.sh`. Install it to a directory on `PATH` (a
+  global path or e.g. `$HOME/.local/bin`), then review the `ssget`
+  script and set its `ARCHIVE_LOCATION` variable to the directory where
+  the matrices should be stored.
 - `gflags` — the benchmark drivers use it for command-line parsing; if
   the system version is too old, CMake fetches it for you.
 
@@ -47,13 +49,14 @@ documents the expected JSON shape in addition to the flags:
 | `benchmark/conversion/conversion` | Matrix format conversion |
 | `benchmark/matrix_statistics/matrix_statistics` | Size / load-imbalance / variance |
 | `benchmark/matrix_generator/matrix_generator` | Synthesise block-diagonal matrices |
-| `benchmark/spmv/distributed/spmv` | Distributed SpMV (needs MPI build) |
-| `benchmark/solver/distributed/solver` | Distributed solvers (needs MPI build) |
-| `benchmark/blas/distributed/multi_vector` | Distributed BLAS on multi-vectors |
+| `benchmark/spmv/distributed/spmv_distributed` | Distributed SpMV (needs MPI build) |
+| `benchmark/solver/distributed/solver_distributed` | Distributed solvers (needs MPI build) |
+| `benchmark/blas/distributed/multi_vector_distributed` | Distributed BLAS on multi-vectors |
 
-Each driver accepts at least one of three value-type variants:
-`--double` (the default), `--single`, and `--complex` (with `dcomplex` /
-`scomplex` for complex variants).
+Each driver is built once per value type, as `<name>` (double),
+`<name>_single`, `<name>_dcomplex` and `<name>_scomplex`. For example,
+`benchmark/spmv/spmv_single` runs the SpMV benchmark in single
+precision.
 
 ## Input JSON
 
@@ -114,21 +117,21 @@ collection and produces JSON files under
 `<build>/benchmark/results/<SYSTEM_NAME>/...`. The most useful
 variables:
 
-| Variable | Effect |
-|---|---|
-| `BENCHMARK={spmv, solver, preconditioner}` | Which pipeline to run. Default: `spmv`. |
-| `EXECUTOR={reference, omp, cuda, hip, dpcpp}` | Backend to benchmark on. Default: `cuda`. |
-| `SYSTEM_NAME=<name>` | Tag the results — used in the output directory layout. |
-| `SEGMENTS=<N>` + `SEGMENT_ID=<I>` | Run only the `I`-th of `N` chunks of the matrix list (parallel runs across machines). |
-| `MATRIX_LIST_FILE=<path>` | Restrict to a hand-picked subset; lines are `ID` or `Group/Name`. |
-| `BENCHMARK_PRECISION={double, single, dcomplex, scomplex}` | Value type. Default: `double`. |
-| `SOLVERS=<list>` | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,idr`. |
-| `PRECONDS=<list>` | Preconditioners to use. Default: `none`. |
-| `FORMATS=<list>` | Matrix formats to compare for SpMV. Default: `csr,coo,ell,hybrid,sellp`. |
-| `SOLVERS_PRECISION=<eps>` | Target residual reduction. Default: `1e-6`. |
-| `SOLVERS_MAX_ITERATIONS=<N>` | Iteration cap. Default: `10000`. |
-| `DETAILED={0, 1}` | Emit per-iteration residuals and per-operation timing. Default: `0`. |
-| `GPU_TIMER={true, false}` | Use the device timer rather than the wall clock. Default: `false`. |
+| Variable | Values | Purpose |
+|---|---|---|
+| `BENCHMARK` | `spmv`, `solver`, `preconditioner` | Which pipeline to run. Default: `spmv`. |
+| `EXECUTOR` | `reference`, `omp`, `cuda`, `hip`, `dpcpp` | Backend to benchmark on. Default: `cuda`. |
+| `SYSTEM_NAME` | any name | Tag the results; used in the output directory layout. |
+| `SEGMENTS` + `SEGMENT_ID` | integers `N` and `I` | Run only the `I`-th of `N` chunks of the matrix list (parallel runs across machines). |
+| `MATRIX_LIST_FILE` | file path | Restrict to a hand-picked subset; lines are `ID` or `Group/Name`. |
+| `BENCHMARK_PRECISION` | `double`, `single`, `dcomplex`, `scomplex` | Value type; selects the matching `<name>_single` / `_dcomplex` / `_scomplex` executable. Default: `double`. |
+| `SOLVERS` | comma-separated list | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,cb_gmres_reduce1,idr`. |
+| `PRECONDS` | comma-separated list | Preconditioners to use. Default: `none`. |
+| `FORMATS` | comma-separated list | Matrix formats to compare for SpMV. Default: `csr,coo,ell,hybrid,sellp`. |
+| `SOLVERS_PRECISION` | residual reduction | Target residual reduction. Default: `1e-6`. |
+| `SOLVERS_MAX_ITERATIONS` | integer | Iteration cap. Default: `10000`. |
+| `DETAILED` | `0`, `1` | Emit per-iteration residuals and per-operation timing. Default: `0`. |
+| `GPU_TIMER` | `true`, `false` | Use the device timer rather than the wall clock. Default: `false`. |
 
 Variables can be `export`-ed once and reused across runs, or set
 inline:
@@ -148,15 +151,16 @@ optional if you intend to publish the numbers:
 - Compile in `Release` mode.
 - Run on an idle machine. `last`, `htop`, `nvidia-smi`, `rocm-smi` show
   competing load.
-- Each benchmark does one warm-up run and then averages 10 timed runs
-  (fewer for the longer solver benchmarks). Override with the driver's
-  `--repetitions` flag if you need different counts.
+- Each benchmark does two warm-up runs (`--warmup`, default 2) and then
+  averages 10 timed runs (fewer for the longer solver benchmarks).
+  Override with the driver's `--repetitions` flag if you need different
+  counts.
 - For the adaptive block Jacobi preconditioner specifically, enable
   `-DGINKGO_JACOBI_FULL_OPTIMIZATIONS=ON` — the gain is large, but the
   build time also goes up materially (see [Speed up rebuilds](speed-up-builds.md)).
-- The `overhead` LinOp in `--preconditioner overhead`, `--spmv overhead`,
-  `--solver overhead` measures Ginkgo's framework overhead without
-  doing any real work — useful to characterise the library's own cost
+- The `overhead` LinOp, selected with `--solvers=overhead` or
+  `--preconditioners=overhead`, measures Ginkgo's framework overhead
+  without doing any real work — useful to characterise the library's own cost
   relative to the kernels.
 
 ## Adding a benchmark for a new operator
@@ -164,26 +168,25 @@ optional if you intend to publish the numbers:
 When you add a new solver, preconditioner, or matrix format, extend the
 relevant driver so the operator participates in the comparison matrix.
 The driver picks operators from a string list keyed by name in
-`benchmark/utils/`:
+`benchmark/`:
 
 | File | Holds |
 |---|---|
-| `benchmark/utils/types.hpp` | The recognised matrix-format names (CSR, COO, ELL, ...) |
-| `benchmark/utils/general.hpp` | Solver / preconditioner factory string maps |
+| `benchmark/utils/formats.hpp` | The recognised matrix-format names (CSR, COO, ELL, ...) and the factories that create them |
+| `benchmark/utils/preconditioners.hpp` | The preconditioner names and their factory builders |
+| `benchmark/solver/solver_common.hpp` | The solver names and their factory builders |
 | `benchmark/utils/loggers.hpp` | The detailed-mode loggers (per-iteration residual, per-op timing) |
 
-Adding a new entry usually means one line each in the relevant string
-map plus a small factory builder. Mirror what the existing entries do
-for an analogous operator. Then add a case to the suite's CI matrix
-(see [Submit a pull request](submit-a-pr.md)) so the new operator is
-covered going forward.
+`benchmark/utils/types.hpp` only holds the `etype` / `itype` aliases.
+Adding a new entry usually means one line in the relevant map plus a
+small factory builder. Mirror what the existing entries do for an
+analogous operator.
 
 :::{seealso}
 - `BENCHMARKING.md` in the Ginkgo source tree — the authoritative
   reference, including the full SuiteSparse setup loop.
 - [Speed up rebuilds](speed-up-builds.md) — for getting the suite
   built quickly.
-- [Submit a pull request](submit-a-pr.md) — CI runs a subset of the
-  benchmark suite on every merge, so this is what changes are
-  validated against.
+- [Submit a pull request](submit-a-pr.md) — what CI checks before a
+  PR can merge.
 :::

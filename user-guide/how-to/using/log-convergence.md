@@ -12,13 +12,13 @@ count and the residual norm at the **point of convergence** (or at
 max-iter, whichever fires first).
 
 ```cpp
-auto convergence = gko::log::Convergence<double>::create(exec);
+auto convergence = gko::share(gko::log::Convergence<double>::create());
 solver->add_logger(convergence);
 
 solver->apply(b, x);
 
 std::cout << "iters       = " << convergence->get_num_iterations()  << '\n';
-std::cout << "||r_final|| = " << convergence->has_converged()       << '\n';
+std::cout << "converged   = " << convergence->has_converged()       << '\n';
 
 // The residual norm is a Dense pointer on the solver's executor.
 auto resnorm = gko::as<gko::matrix::Dense<double>>(
@@ -45,7 +45,10 @@ applies.
 stream. Verbose, but great for first-time debugging:
 
 ```cpp
-solver->add_logger(gko::log::Stream<>::create(std::cout));
+// Log every event to std::cout.
+auto stream = gko::share(gko::log::Stream<>::create(
+    gko::log::Logger::all_events_mask, std::cout));
+solver->add_logger(stream);
 solver->apply(b, x);
 ```
 
@@ -53,9 +56,11 @@ You can narrow the event mask to focus on a subset (e.g. only
 iteration completion and convergence):
 
 ```cpp
+// Log only iteration completion and the stopping-criterion events.
 auto mask = gko::log::Logger::iteration_complete_mask
           | gko::log::Logger::criterion_events_mask;
-auto stream_logger = gko::log::Stream<>::create(std::cout, mask);
+auto stream_logger = gko::share(gko::log::Stream<>::create(mask, std::cout));
+solver->add_logger(stream_logger);
 ```
 
 ## Per-iteration residual history
@@ -64,14 +69,18 @@ auto stream_logger = gko::log::Stream<>::create(std::cout, mask);
 in-memory data structure, which you can iterate after the solve:
 
 ```cpp
-auto record = gko::log::Record::create();
+auto record = gko::share(gko::log::Record::create(
+    gko::log::Logger::all_events_mask, /*max_storage=*/0));
 solver->add_logger(record);
 solver->apply(b, x);
 
 for (const auto& it : record->get().iteration_completed) {
-    // it.num_iterations, it.implicit_sq_residual_norm, etc.
+    // it->num_iterations, it->implicit_sq_residual_norm, etc.
 }
 ```
+
+`max_storage = 0` keeps every event; the default of 1 keeps only the
+most recent one of each kind.
 
 This is the right shape when you want to plot a residual history or
 dump the trace as JSON.
@@ -89,7 +98,8 @@ solver->apply(b, x);   // NVTX ranges now appear in nsys / Nsight
 ```
 
 Other factories: `create_roctx`, `create_vtune`, `create_tau`,
-`create_for_executor` (auto-pick based on executor), and
+`create_summary` (a per-operation timing table without an external
+profiler), `create_for_executor` (auto-pick based on executor), and
 `create_custom` (provide your own begin/end callbacks — the standard
 path for Caliper, see
 [Integrate ProfilerHook with Caliper](profiler-hook-caliper.md)).
@@ -105,9 +115,9 @@ want logging only during a setup phase.
 
 ## Common pitfalls
 
-- **Logger lifetime.** The logger must outlive every object it's
-  attached to. Build it before the solver and let it go out of scope
-  after.
+- **Logger lifetime.** `add_logger` takes a `std::shared_ptr`, so the
+  attached object keeps the logger alive. Keep your own `gko::share`d
+  pointer to read its results after the solve.
 - **Add the logger before calling `apply`.** Events fire during
   `apply`; a logger attached after is silent for that call.
 - **The `Convergence` residual is the *final* one, not per-iteration.**

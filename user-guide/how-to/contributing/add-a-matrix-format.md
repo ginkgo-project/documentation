@@ -39,7 +39,6 @@ class MyFormat
       public DiagonalExtractable<ValueType>,
       public EnableAbsoluteComputation<remove_complex<MyFormat<ValueType, IndexType>>> {
     friend class EnablePolymorphicObject<MyFormat, LinOp>;
-    GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE;
 
 public:
     using value_type = ValueType;
@@ -67,6 +66,9 @@ public:
     std::unique_ptr<absolute_type>       compute_absolute() const override;
     void                                 compute_absolute_inplace() override;
 
+    static std::unique_ptr<MyFormat> create(
+        std::shared_ptr<const Executor> exec, const dim<2>& size = {});
+
     // Per-format storage accessors (data shape depends on your format):
     value_type*       get_values() noexcept { return values_.get_data(); }
     const value_type* get_const_values() const noexcept { return values_.get_const_data(); }
@@ -80,6 +82,9 @@ protected:
     void apply_impl(const LinOp* alpha, const LinOp* b,
                     const LinOp* beta, LinOp* x) const override;
 
+    // Re-allocates the storage for a new size and per-row shape:
+    void resize(dim<2> new_size, size_type max_row_nnz);
+
 private:
     array<value_type> values_;
     array<index_type> col_idxs_;
@@ -89,18 +94,21 @@ private:
 
 A few notes on the base list:
 
-- `EnableLinOp<MyFormat>` injects the public `apply` overloads and the
-  `create(...)` factory. You only write `apply_impl`.
+- `EnableLinOp<MyFormat>` injects the public `apply` overloads. You
+  only write `apply_impl`, and you declare the static `create(...)`
+  yourself, as `Ell` does in `ell.hpp`.
 - The half/bfloat16 precision strands (`next_precision<V, 2>`,
   `next_precision<V, 3>`) live under `#if GINKGO_ENABLE_HALF || ...`
   guards in `ell.hpp`. Copy that pattern if you want low-precision
   variants.
-- `GKO_ASSERT_SUPPORTED_VALUE_AND_INDEX_TYPE` is a static-assert that
-  catches accidentally-instantiated combinations outside the supported
-  set (e.g. `(int8, int64)`).
-- The non-public constructor + base-class-generated `create` is
-  deliberate. Users always go through `MyFormat::create(exec, ...)`,
-  which returns a `std::unique_ptr<MyFormat>`.
+- The supported `(ValueType, IndexType)` combinations are the ones
+  `core/matrix/my_format.cpp` instantiates. End that file the way
+  `ell.cpp` does: define `GKO_DECLARE_MY_FORMAT_MATRIX(ValueType,
+  IndexType)` as `class MyFormat<ValueType, IndexType>` and pass it to
+  `GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE`.
+- The protected constructor plus a static `create` is deliberate.
+  Users always go through `MyFormat::create(exec, ...)`, which returns
+  a `std::unique_ptr<MyFormat>`.
 
 ## apply_impl
 
@@ -127,14 +135,16 @@ void MyFormat<ValueType, IndexType>::apply_impl(const LinOp* b, LinOp* x) const
 {
     mixed_precision_dispatch_real_complex<ValueType>(
         [this](auto dense_b, auto dense_x) {
-            this->get_executor()->run(my_format::make_spmv(
-                this->get_const_device_view(),
-                dense_b->get_const_device_view(),
-                dense_x->get_device_view()));
+            this->get_executor()->run(
+                my_format::make_spmv(this, dense_b, dense_x));
         },
         b, x);
 }
+```
 
+The advanced overload additionally converts `alpha` and `beta`:
+
+```cpp
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::apply_impl(const LinOp* alpha,
                                                 const LinOp* b,
@@ -147,11 +157,7 @@ void MyFormat<ValueType, IndexType>::apply_impl(const LinOp* alpha,
             auto dense_beta  = make_temporary_conversion<
                 typename std::decay_t<decltype(*dense_x)>::value_type>(beta);
             this->get_executor()->run(my_format::make_advanced_spmv(
-                dense_alpha->get_const_device_view(),
-                this->get_const_device_view(),
-                dense_b->get_const_device_view(),
-                dense_beta->get_const_device_view(),
-                dense_x->get_device_view()));
+                dense_alpha.get(), this, dense_b, dense_beta.get(), dense_x));
         },
         b, x);
 }
@@ -167,12 +173,13 @@ Notes on the snippet:
 - `my_format::make_spmv` / `make_advanced_spmv` are the operation
   builders produced by `GKO_REGISTER_OPERATION` (see [Add a new
   kernel](add-a-kernel.md)).
-- All kernel arguments use views (`matrix::view::dense<...>`,
-  `matrix::view::<your_format><...>`) rather than raw `Dense*` /
-  `Format*`. Views make const-ness and value-type explicit in the
-  signature and are the required convention for new formats. `Ell`
-  and `Coo` are the precedents to copy; `Csr` and the older formats
-  pass raw `const Format*` for the matrix as legacy.
+- Kernel arguments are the matrix objects themselves:
+  `const matrix::MyFormat<ValueType, IndexType>*` for inputs,
+  `matrix::MyFormat<...>*` for outputs, and
+  `const matrix::Dense<...>*` / `matrix::Dense<...>*` for the dense
+  operands, as in the `Ell` and `Csr` kernel headers. Inside the
+  kernel, read raw arrays through `get_const_values()`,
+  `get_const_col_idxs()` and the other accessors.
 
 ## read / write — host-side assembly
 
@@ -184,15 +191,25 @@ your arrays, then hand the device-side fill-in to a kernel:
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::read(const device_mat_data& data)
 {
-    auto size = data.get_size();
-    // Compute layout (max nnz per row, padding, etc.) from `data` on its executor.
-    // Resize storage:
-    this->resize(size, /* format-specific shape */);
-    // Hand off to backend kernel:
-    this->get_executor()->run(my_format::make_fill_in_matrix_data(
-        data, this));
+    auto exec = this->get_executor();
+    auto local_data = make_temporary_clone(exec, &data);
+    // Compute the layout (here: max nnz per row) from `data` on the executor.
+    array<int64> row_ptrs(exec, data.get_size()[0] + 1);
+    exec->run(my_format::make_convert_idxs_to_ptrs(
+        local_data->get_const_row_idxs(), local_data->get_num_stored_elements(),
+        data.get_size()[0], row_ptrs.get_data()));
+    size_type max_row_nnz{};
+    exec->run(my_format::make_compute_max_row_nnz(row_ptrs, max_row_nnz));
+    // Resize storage, then hand the fill-in to the backend kernel:
+    this->resize(data.get_size(), max_row_nnz);
+    exec->run(my_format::make_fill_in_matrix_data(
+        *local_data, row_ptrs.get_const_data(), this));
 }
+```
 
+The other two overloads forward to it:
+
+```cpp
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::read(const mat_data& data)
 {
@@ -202,7 +219,8 @@ void MyFormat<ValueType, IndexType>::read(const mat_data& data)
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::read(device_mat_data&& data)
 {
-    this->read(data);   // or specialise: avoid the extra copy if possible
+    this->read(data);
+    data.empty_out();
 }
 ```
 
@@ -249,8 +267,7 @@ described in [Add a new kernel](add-a-kernel.md). For a new format
 | `reference/matrix/my_format_kernels.cpp` | Reference single-thread impl |
 | `omp/matrix/my_format_kernels.cpp` | OMP impl (if hand-tuned) |
 | `common/unified/matrix/my_format_kernels.cpp` | Portable CUDA/HIP/SYCL/OMP impl |
-| `cuda/matrix/my_format_kernels.cu` (optional) | Hand-tuned CUDA |
-| `hip/matrix/my_format_kernels.hip.cpp` (optional) | Hand-tuned HIP |
+| `common/cuda_hip/matrix/my_format_kernels.cpp` (optional) | Hand-tuned CUDA and HIP, compiled once for both |
 | `dpcpp/matrix/my_format_kernels.dp.cpp` (optional) | Hand-tuned SYCL |
 
 ## CMake wiring
@@ -265,22 +282,24 @@ existing format. Add the file to each backend's source list:
   (`.dp.cpp` for DPC++) next to `matrix/ell_kernels.cpp`.
 - `common/unified/CMakeLists.txt` — add
   `matrix/my_format_kernels.cpp` if you have a portable kernel.
-- `cuda/CMakeLists.txt`, `hip/CMakeLists.txt` — add the
-  backend-specific files only if you wrote hand-tuned variants.
+- `common/cuda_hip/CMakeLists.txt` — add
+  `matrix/my_format_kernels.cpp` only if you wrote a hand-tuned CUDA/HIP
+  variant.
 
 The public header `include/ginkgo/core/matrix/my_format.hpp` becomes
 discoverable through the standard install layout once the file exists in
 the tree — no CMake list to update for the include.
 
-## You do not need to register matrix formats with the config layer
+## Matrix formats are constructed directly
 
 - The runtime JSON / `gko::config` registry is for *factories*
   (solvers, preconditioners, factorizations).
 - Matrix formats are constructed directly:
   `MyFormat::create(exec, ...)`.
 - If you want the format to participate in the benchmark suite's
-  `FORMATS=...` selector, extend `benchmark/utils/types.hpp` (lists the
-  recognised format names).
+  `FORMATS=...` selector, add an entry to the format map in
+  `benchmark/utils/formats.hpp`; `benchmark/utils/types.hpp` only holds
+  the `etype` / `itype` aliases.
 
 ## Reference-parity test
 
@@ -304,9 +323,9 @@ new format you write two files:
   (typically 100×100 or larger) so warp-boundary corner cases are
   exercised.
 
-The legacy per-backend trees (`cuda/test/matrix/`, `hip/test/matrix/`,
-...) are largely empty now — only formats that still need backend-
-specific test paths live there. Put new tests in `test/matrix/`.
+The per-backend test trees (for example `hip/test/matrix/`) hold only the
+few tests that need a backend-specific path. Put new tests in
+`test/matrix/`.
 
 :::{seealso}
 - [Add a new kernel](add-a-kernel.md) — the kernel files that back `apply_impl`.
