@@ -15,14 +15,15 @@ candidate.
 The procedure for each iteration:
 
 1. **Strongest-neighbour selection.** For each unaggregated row `i`, identify the
-   neighbour `j` reachable via the largest absolute matrix entry.
+   neighbour `j` with the strongest symmetric coupling, the average of `|a_ij|` and
+   `|a_ji|` relative to the larger of the two diagonal entries.
 2. **Mutual-match aggregation.** If row `j`'s strongest neighbour is also `i`, merge
    the pair into a new aggregate.
-3. **Repeat** until either every row is aggregated or the
-   `max_unassigned_ratio` is reached.
+3. **Repeat** until `max_iterations` passes have run or the unaggregated fraction
+   of rows falls to `max_unassigned_ratio`.
 
-Rows still unaggregated after `max_iterations` are folded into an existing
-neighbouring aggregate (or kept singleton if no neighbour is available).
+The rows still unaggregated at that point are attached to an existing neighbouring
+aggregate or left as singletons.
 
 The result is a row-to-aggregate mapping (`get_const_agg()`) that drives construction
 of the prolongation `P`, the restriction `R = P^T`, and the coarse operator
@@ -30,12 +31,12 @@ of the prolongation `P`, the restriction `R = P^T`, and the coarse operator
 
 ## Factory parameters
 
-| Parameter | Type | Default | Meaning |
-|---|---|---|---|
-| `max_iterations` | `unsigned` | `15` | Upper bound on the number of handshaking iterations. The default mirrors the NVIDIA AMGX reference manual. |
-| `max_unassigned_ratio` | `double` | `0.05` | Stop iterating when at most this fraction of rows remain unaggregated. Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. |
-| `deterministic` | `bool` | `false` | When `true`, the matching is reproducible across runs (at extra cost). When `false`, the order of strong-neighbour resolution can depend on parallel scheduling — different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. |
-| `skip_sorting` | `bool` | `false` | If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `max_iterations` | `unsigned` | Upper bound on the number of handshaking iterations (default `15`, mirroring the NVIDIA AMGX reference manual). |
+| `max_unassigned_ratio` | `double` | Stop iterating when at most this fraction of rows remain unaggregated (default `0.05`). Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. |
+| `deterministic` | `bool` | Default `false`. When `true`, the deterministic `assign_to_exist_agg` step attaches the leftover rows, so the same matrix always yields the same aggregates (at extra cost). When `false`, that step can depend on the execution order, so different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. |
+| `skip_sorting` | `bool` | Default `false`. If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. |
 
 ## When to use Pgm
 
@@ -63,12 +64,14 @@ auto pgm = gko::multigrid::Pgm<double, gko::int32>::build()
                .on(exec);
 
 auto mg = gko::solver::Multigrid::build()
-              .with_mg_level(pgm)
+              .with_mg_level(gko::share(std::move(pgm)))
               .with_max_levels(10u)
+              .with_criteria(gko::stop::Iteration::build().with_max_iters(1u))
               .on(exec);
 ```
 
-The `Pgm` factory is passed to `Multigrid` via `with_mg_level`. `Multigrid` then
+The `Pgm` factory is passed to `Multigrid` via `with_mg_level`, here wrapped in
+`gko::share` (the `Pgm::build()` builder can be passed directly as well). `Multigrid` then
 calls `pgm->generate(A_i)` once per level during its own `generate()` step,
 producing the level hierarchy.
 
@@ -86,41 +89,40 @@ When the input is a distributed matrix, Pgm runs the aggregation per rank and
 stitches the results together with a single all-to-all communication. The procedure:
 
 1. **Local aggregation.** Each rank runs the standard one-phase handshaking
-   algorithm on the *diagonal matrix* (`get_diag_matrix()`) of its share of the
-   matrix. Off-diagonal entries — couplings to rows owned by other ranks — are
+   algorithm on the *local matrix* (`get_local_matrix()`) of its share of the
+   matrix. Non-local entries — couplings to rows owned by other ranks — are
    ignored at this step. Each rank ends up with a local-aggregate index per local
    row.
 2. **Coarse-partition setup.** Pgm constructs a block-wise coarse partition where
    each rank owns a contiguous range of coarse-row global indices, sized by that
    rank's local aggregate count. The result is one range per part, one part per
    rank.
-3. **Cross-rank aggregate exchange.** For every off-diagonal column index that this
+3. **Cross-rank aggregate exchange.** For every non-local column index that this
    rank reads from (and that another rank owns), the other rank's aggregate ID for
-   that row is needed in order to translate the off-diagonal matrix into coarse-row
+   that row is needed in order to translate the non-local matrix into coarse-row
    indices. Pgm uses the matrix's row-gatherer to issue an `i_all_to_all_v` so each
-   rank receives the coarse global aggregate IDs for the off-diagonal columns it
-   touches (see `communicate_off_diag_agg` in `core/multigrid/pgm.cpp`). When the executor
+   rank receives the coarse global aggregate IDs for the non-local columns it
+   touches (see `communicate_non_local_agg` in `core/multigrid/pgm.cpp`). When the executor
    does not support direct GPU-side MPI, the buffer is staged through host memory.
 4. **Coarse index map and matrix assembly.** Pgm builds a coarse-level
-   `experimental::distributed::index_map` from the received off-diagonal aggregate
+   `experimental::distributed::index_map` from the received non-local aggregate
    IDs, then constructs three new `distributed::Matrix`es: the coarse operator, the
    restriction, and the prolongation. Each carries the same communicator as the
    input matrix.
 
 The communication cost per coarsening step is one `i_all_to_all_v` whose payload
-size is the total number of off-diagonal column connections — i.e. it scales with
+size is the total number of non-local column connections — i.e. it scales with
 the existing communication volume of the matrix, not with the matrix size.
 
 ### What this means for the hierarchy
 
 - The coarse matrix is itself a `distributed::Matrix`, so Multigrid's recursive
-  coarsening continues to use distributed Pgm at every level. There is no automatic
-  consolidation onto a single rank as the matrix shrinks — if you want the
-  coarsest level to live on one process (often the right choice once the global
-  size is small), gather it explicitly before configuring Multigrid's
-  `coarsest_solver`.
+  coarsening continues to use distributed Pgm at every level, and every rank keeps its
+  share of the matrix as it shrinks. The default distributed coarsest solver is
+  GMRES with a Schwarz preconditioner; pick a different one through Multigrid's
+  `coarsest_solver` when the coarsest level needs another treatment.
 - The aggregation is purely local at the row-aggregate-decision level. Couplings
-  across ranks affect only the coarse operator's off-diagonal matrix, not which
+  across ranks affect only the coarse operator's non-local matrix, not which
   rows get grouped together. This means the quality of the coarsening can degrade
   near rank boundaries on poorly-partitioned matrices — apply a graph partitioner
   first if rank boundaries are arbitrary.

@@ -2,9 +2,9 @@
 
 `gko::preconditioner::Isai<IsaiType, ValueType, IndexType>` computes a
 **sparse approximation** $M_A \approx A^{-1}$ directly, then applies it as
-the preconditioner via a single sparse matrix-vector product. There is no
-triangular solve at apply time — which is exactly the appeal on hardware
-where triangular substitution serialises poorly.
+the preconditioner via a single sparse matrix-vector product. The apply
+step stays free of triangular solves — which is exactly the appeal on
+hardware where triangular substitution serialises poorly.
 
 The trade-off is that the quality of the preconditioner is bounded by the
 sparsity pattern it is constrained to. ISAI fixes the pattern of $M_A$ to
@@ -69,22 +69,25 @@ shorthands when wiring ISAI into ILU.
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `skip_symmetrize` | `bool` | Skip the symmetric-pattern step when the input is known to already be symmetric. Default `false`. |
+| `skip_sorting` | `bool` | Skip sorting the input matrix when it is known to be sorted by row, then by column; the algorithm requires sorted input. Default `false`. |
 | `sparsity_power` | `int` | Use the sparsity pattern of $A^k$ instead of $A^1$ for the approximate inverse. Larger values give denser approximations and better preconditioner quality at the cost of generation time and storage. Default `1`. |
-| `excess_solver_factory` | `LinOpFactory` | Solver factory used for the small dense systems that determine the approximate-inverse entries; defaults to an iterative residual-norm-based solve. |
-| `excess_solver_reduction` | `remove_complex<ValueType>` | Convergence tolerance for the `excess_solver_factory` inner solves. |
+| `excess_limit` | `size_type` | Size limit for the excess system (see below). When set to some $m > 0$, the excess system is solved as soon as its size exceeds $m$, repeatedly until the full excess solution is computed. Default `0`. |
+| `excess_solver_factory` | `LinOpFactory` | Solver factory for the excess system. Defaults to a triangular solver for `lower` and `upper` ISAI, and to block-Jacobi preconditioned GMRES for `general` and `spd` ISAI. |
+| `excess_solver_reduction` | `remove_complex<ValueType>` | Residual-reduction factor of the default GMRES excess solver used for `general` and `spd` ISAI. Only the default GMRES excess solver (`general` / `spd`) reads it. Default `1e-6`. |
 
 ## Implementation notes
 
-GPU implementations process one matrix row per warp, so the effective
-upper bound on entries per row is the warp width (32 on NVIDIA, 64 on
-AMD). Rows whose pattern exceeds that width get truncated on GPU
-backends. Use `sparsity_power > 1` cautiously when targeting GPU
-backends if your matrix has many entries per row.
+Rows with more than 32 nonzero entries produce an *excess system*. Ginkgo
+collects these systems and solves them with sparse triangular solves (for
+`lower` and `upper` ISAI) or with GMRES (for `general` and `spd` ISAI),
+configured through `excess_solver_factory`; `excess_solver_reduction` sets
+the residual-reduction target of the default GMRES.
+`excess_limit` bounds the size of the collected system. Since a larger
+`sparsity_power` widens the rows, expect more excess systems when the
+matrix already has many entries per row.
 
-ISAI is **not** transpose-symmetric in the general case — that is,
-$\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$ — except for the `spd`
-flavour. If you need the transposed approximate inverse, compute it from
+In the general case, $\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$; only
+the `spd` flavour is transpose-symmetric. If you need the transposed approximate inverse, compute it from
 $A^T$ directly.
 
 :::{seealso}

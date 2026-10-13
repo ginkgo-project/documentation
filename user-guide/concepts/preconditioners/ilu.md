@@ -8,8 +8,9 @@ solve with $U$.
 
 Three pieces work together:
 
-- [`gko::factorization::Ilu`](../../../api-reference/factorization/ilu.md) — sequential
-  ILU(0): incomplete LU with the input matrix's own sparsity pattern.
+- [`gko::factorization::Ilu`](../../../api-reference/factorization/ilu.md) — exact
+  ILU(0): incomplete LU with the input matrix's own sparsity pattern; its
+  `algorithm` parameter selects the `sparselib` or `syncfree` implementation.
 - [`gko::factorization::ParIlu`](../../../api-reference/factorization/par-ilu.md) —
   fine-grained parallel ILU(0); asynchronous fixed-point iteration of
   Chow & Patel.
@@ -31,8 +32,8 @@ substituted for cases where the triangular solves are the bottleneck.
   sparsity pattern of $A$ (for ILU(0)) or by a tunable budget (for ParILUT).
 - **As the preconditioner inside [BiCGSTAB](../solvers/bicgstab.md),
   [GMRES](../solvers/gmres.md), or [IDR(s)](../solvers/idr.md)** — ILU
-  does not preserve symmetry, so non-symmetric Krylov methods are the
-  natural pairing.
+  factors generally break the symmetry of $A$, so non-symmetric Krylov
+  methods are the natural pairing.
 - **Pair with a fill-reducing reordering** ([AMD](../reordering/amd.md),
   [nested dissection](../reordering/nested-dissection.md)) and/or an
   [MC64](../reordering/mc64.md) matching pre-step on indefinite systems
@@ -45,7 +46,7 @@ symmetry and lets you pair with CG.
 
 | Variant | Algorithm | Best when |
 |---|---|---|
-| `factorization::Ilu` | Sequential ILU(0) on CPU | Small to moderate matrices; the canonical correctness baseline. |
+| `factorization::Ilu` | Exact ILU(0); `algorithm` selects `sparselib` (default) or `syncfree` | Small to moderate matrices; the canonical correctness baseline. |
 | `factorization::ParIlu` | Asynchronous fixed-point ILU(0) | Larger matrices on GPU or many-core CPU; same sparsity pattern as `Ilu`. |
 | `factorization::ParIlut` | Threshold-based ILU with sparsity-pattern refinement | When ILU(0) is too sparse — ParILUT improves the pattern at the cost of more storage and longer generation. |
 
@@ -54,7 +55,10 @@ symmetry and lets you pair with CG.
 ```cpp
 // Standard ILU(0) preconditioner inside BiCGSTAB
 auto bicgstab = gko::solver::Bicgstab<double>::build()
-                    .with_criteria(...)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(100u),
+                        gko::stop::ResidualNorm<double>::build()
+                            .with_reduction_factor(1e-8))
                     .with_preconditioner(
                         gko::preconditioner::Ilu<>::build()
                             .with_factorization(
@@ -62,7 +66,12 @@ auto bicgstab = gko::solver::Bicgstab<double>::build()
                                     ::build().on(exec))
                             .on(exec))
                     .on(exec);
+```
 
+Iterative inner solvers replace the direct triangular solves through the
+`l_solver` and `u_solver` parameters:
+
+```cpp
 // With iterative inner solves for the triangular systems
 auto preconditioner =
     gko::preconditioner::Ilu<gko::solver::Bicgstab<double>,
@@ -92,14 +101,14 @@ type, the second is the $U$ solver type; both default to
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `factorization` | `LinOpFactory` | The factorisation that produces $L$ and $U$. Typically `Ilu`, `ParIlu`, or `ParIlut`. Required. |
+| `factorization` | `LinOpFactory` | The factorisation that produces $L$ and $U$. Typically `Ilu`, `ParIlu`, or `ParIlut`. Defaults to `ParIlu`. |
 | `l_solver` | `LinOpFactory` | Factory for the lower-triangular solver. Defaults to a direct lower-triangular solve. |
 | `u_solver` | `LinOpFactory` | Factory for the upper-triangular solver. Defaults to a direct upper-triangular solve. |
 
 ## Implementation notes
 
-ILU does **not** preserve symmetry of the system matrix, so the
-preconditioned operator is generally non-symmetric even when $A$ is — use
+ILU factors generally break the symmetry of the system matrix, so the
+preconditioned operator is non-symmetric even when $A$ is symmetric — use
 non-symmetric Krylov methods (BiCGSTAB, GMRES, IDR(s)) with ILU rather
 than CG.
 

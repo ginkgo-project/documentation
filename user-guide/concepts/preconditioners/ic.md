@@ -8,8 +8,9 @@ with its conjugate-transpose backward solve.
 
 Three pieces work together:
 
-- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — sequential
-  IC(0): incomplete Cholesky with the input matrix's own sparsity pattern.
+- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — exact
+  IC(0): incomplete Cholesky with the input matrix's own sparsity pattern; its
+  `algorithm` parameter selects the `sparselib` or `syncfree` implementation.
 - [`gko::factorization::ParIc`](../../../api-reference/factorization/par-ic.md) —
   fine-grained parallel IC(0); asynchronous fixed-point iteration of
   Chow & Patel.
@@ -43,7 +44,7 @@ For non-symmetric matrices, use the [ILU family](ilu.md) instead.
 
 | Variant | Algorithm | Best when |
 |---|---|---|
-| `factorization::Ic` | Sequential IC(0) on CPU | Small to moderate matrices; the canonical correctness baseline. |
+| `factorization::Ic` | Exact IC(0); `algorithm` selects `sparselib` (default) or `syncfree` | Small to moderate matrices; the canonical correctness baseline. |
 | `factorization::ParIc` | Asynchronous fixed-point IC(0) | Larger matrices on GPU or many-core CPU; same sparsity pattern as `Ic`. |
 | `factorization::ParIct` | Threshold-based IC with sparsity-pattern refinement | When IC(0) is too sparse to be effective — ParICT improves the pattern at the cost of more storage and longer generation. |
 
@@ -52,7 +53,10 @@ For non-symmetric matrices, use the [ILU family](ilu.md) instead.
 ```cpp
 // Standard IC(0) preconditioner inside CG
 auto cg = gko::solver::Cg<double>::build()
-              .with_criteria(...)
+              .with_criteria(
+                  gko::stop::Iteration::build().with_max_iters(100u),
+                  gko::stop::ResidualNorm<double>::build()
+                      .with_reduction_factor(1e-8))
               .with_preconditioner(
                   gko::preconditioner::Ic<>::build()
                       .with_factorization(
@@ -83,7 +87,7 @@ only one solver factory is configured.
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `factorization` | `LinOpFactory` | The factorisation that produces the $L$ (and implicitly $L^H$) factor. Typically `Ic`, `ParIc`, or `ParIct`. Required. |
+| `factorization` | `LinOpFactory` | The factorisation that produces the $L$ (and implicitly $L^H$) factor. Typically `Ic`, `ParIc`, or `ParIct`. Defaults to `ParIc`. |
 | `l_solver` | `LinOpFactory` | Factory for the $L$ triangular solver. Defaults to a direct triangular solve. |
 
 ## Implementation notes

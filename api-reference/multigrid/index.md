@@ -2,8 +2,8 @@
 
 Building blocks for the algebraic-multigrid hierarchy that
 [`gko::solver::Multigrid`](../solver/multigrid.md) drives. A
-`MultigridLevel` represents the (restriction, coarse-operator,
-prolongation) triple at one level of the hierarchy, and the concrete
+`MultigridLevel` represents the fine operator together with the
+(restriction, coarse-operator, prolongation) triple at one level of the hierarchy, and the concrete
 classes here are the level generators — they take a fine-level system
 matrix and produce the next coarser level.
 
@@ -14,8 +14,8 @@ this section covers the per-level interfaces.
 ## The level interface
 
 - [`MultigridLevel`](multigrid-level.md) — abstract interface for one
-  level of the hierarchy: exposes restriction, coarse operator, and
-  prolongation as `LinOp`s.
+  level of the hierarchy: exposes the fine operator alongside the
+  restriction, coarse operator, and prolongation as `LinOp`s.
 
 ## Level generators
 
@@ -23,8 +23,8 @@ this section covers the per-level interfaces.
   algebraic-coarsening choice in Ginkgo. Aggregates fine-level rows
   based on matrix values (strongest-neighbour pairing).
 - [`FixedCoarsening`](fixed-coarsening.md) — pick coarse-level rows by
-  user-supplied index list, with identity restriction and
-  prolongation. Useful when the application already knows a good
+  user-supplied index list, restricting by selection and
+  prolonging by injection. Useful when the application already knows a good
   coarsening (e.g. from a structured mesh).
 
 ```{toctree}

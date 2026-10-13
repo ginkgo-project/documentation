@@ -25,15 +25,16 @@ more erratic residuals when $\psi_k$ is not small).
   needs only $A$, never the adjoint — convenient when the matrix is given
   matrix-free or when $A^H$ would double the assembly cost.
 - **Well-conditioned non-symmetric problems** where the residual polynomial
-  shrinks monotonically. In this regime CGS reaches the BiCGSTAB tolerance
-  in roughly half the matrix-vector products of BiCG.
+  shrinks monotonically. In this regime CGS can reach a given tolerance in
+  roughly half as many iterations as BiCG, at the same two matrix applies per
+  iteration.
 
 CGS is **not** a robust default. The residual can oscillate by orders of
 magnitude on ill-conditioned matrices, and finite-precision arithmetic
 amplifies that noise. If you find yourself reaching for CGS, also benchmark
 [BiCGSTAB](bicgstab.md) — it smooths the same squared-polynomial idea by
-combining each step with a one-dimensional GMRES minimisation, at the cost
-of one extra matvec and preconditioner apply per iteration.
+combining each step with a one-dimensional GMRES minimisation, at the same
+per-iteration cost of two matvecs and two preconditioner applies.
 
 ## Construction
 

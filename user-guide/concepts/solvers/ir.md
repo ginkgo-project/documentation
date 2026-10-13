@@ -50,11 +50,12 @@ auto inner = gko::solver::Cg<double>::build()
                      gko::stop::ResidualNorm<double>::build()
                          .with_reduction_factor(1e-2)
                          .on(exec))
-                 .with_preconditioner(/* ... */)
+                 .with_preconditioner(
+                     gko::preconditioner::Jacobi<double, int>::build())
                  .on(exec);
 
 auto refinement = gko::solver::Ir<double>::build()
-                      .with_solver(inner)
+                      .with_solver(gko::share(std::move(inner)))
                       .with_criteria(
                           gko::stop::ResidualNorm<double>::build()
                               .with_reduction_factor(1e-12)
@@ -78,13 +79,17 @@ a textbook accelerator-friendly pattern:
 ```cpp
 // Low-precision inner solve
 auto inner = gko::solver::Cg<float>::build()
-                 .with_criteria(/* loose tolerance */)
+                 .with_criteria(gko::stop::ResidualNorm<float>::build()
+                                    .with_reduction_factor(1e-3f)
+                                    .on(exec))
                  .on(exec);
 
 // High-precision refinement
 auto refinement = gko::solver::Ir<double>::build()
-                      .with_solver(inner)
-                      .with_criteria(/* tight tolerance */)
+                      .with_solver(gko::share(std::move(inner)))
+                      .with_criteria(gko::stop::ResidualNorm<double>::build()
+                                         .with_reduction_factor(1e-12)
+                                         .on(exec))
                       .on(exec);
 ```
 
@@ -98,13 +103,17 @@ high-frequency error. The header provides a `build_smoother` shortcut:
 
 ```cpp
 // Build an IR-based smoother: 2 iterations of `jacobi` with relaxation 0.9
+auto jacobi_factory = gko::share(
+    gko::preconditioner::Jacobi<double, int>::build().on(exec));
 auto smoother = gko::solver::build_smoother(jacobi_factory,
                                             /*iteration=*/2u,
                                             /*relaxation_factor=*/0.9);
 
 auto mg = gko::solver::Multigrid::build()
-              .with_pre_smoother(smoother)
-              // ...
+              .with_mg_level(gko::multigrid::Pgm<double, int>::build())
+              .with_pre_smoother(gko::share(std::move(smoother)))
+              .with_criteria(
+                  gko::stop::Iteration::build().with_max_iters(1u))
               .on(exec);
 ```
 
@@ -113,17 +122,16 @@ relaxation factor, and the supplied inner solver factory.
 
 ## Factory parameters
 
-| Parameter | Type | Default | Purpose |
-|---|---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | (required) | Outer-loop stopping criteria — see [Stopping criteria](../stopping-criteria.md). |
-| `solver` | `LinOpFactory` | identity | Inner solver factory. Generated against the system matrix at IR's `generate()` time. |
-| `generated_solver` | `LinOp` | `nullptr` | Pre-built inner solver. Bypasses `solver` if set — useful when the inner solver is shared across IR instances or has external state. |
-| `relaxation_factor` | `ValueType` | `1.0` | Update damping. `1.0` ⇒ pure IR; other values ⇒ Richardson. |
-| `default_initial_guess` | `initial_guess_mode` | `provided` | What to assume about the input `x` when `apply` is called. `provided` (use `x` as initial guess), `zero` (treat `x` as zero), or `rhs_is_zero`. |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `criteria` | vector of `stop::CriterionFactory` | Outer-loop stopping criteria — see [Stopping criteria](../stopping-criteria.md). Required. |
+| `solver` | `LinOpFactory` | Inner solver factory. Generated against the system matrix at IR's `generate()` time. Default identity. |
+| `generated_solver` | `LinOp` | Pre-built inner solver. Bypasses `solver` if set — useful when the inner solver is shared across IR instances or has external state. Default `nullptr`. |
+| `relaxation_factor` | `ValueType` | Update damping. `1.0` ⇒ pure IR; other values ⇒ Richardson. Default `1.0`. |
+| `default_initial_guess` | `initial_guess_mode` | What to assume about the input `x` when `apply` is called. `provided` (use `x` as initial guess), `zero` (treat `x` as zero), or `rhs` (start from `x = b`). Default `provided`. |
 
-Note that IR does **not** have a `preconditioner` parameter — the inner solver
-*is* the correction operator, so there is no separate preconditioning slot. If
-you want preconditioning, configure it on the inner solver itself.
+IR's inner solver is its correction operator: configure preconditioning on the
+inner solver itself.
 
 ## The default-identity caveat
 
@@ -136,7 +144,7 @@ $$
 x_{k+1} = x_k + \omega (b - A x_k).
 $$
 
-This converges if and only if every eigenvalue $\lambda$ of $A$ satisfies
+This converges for every initial guess if and only if every eigenvalue $\lambda$ of $A$ satisfies
 $|\omega \lambda - 1| < 1$ — a strict spectral condition that most realistic
 matrices do not meet. The default-identity configuration is rarely useful on
 its own; treat it as the "you forgot to set an inner solver" sentinel rather
@@ -144,9 +152,10 @@ than a recommended path.
 
 ## Initial-guess mode
 
-IR's `default_initial_guess` defaults to `provided`, matching the rest of the
-Krylov family (CG, GMRES, BiCGSTAB, etc. all treat `x` as the initial guess).
-Multigrid is the outlier: it defaults to `zero`.
+IR's `default_initial_guess` defaults to `provided`, matching the other Krylov
+solvers (CG, GMRES, BiCGSTAB, etc. treat `x` as the initial guess). Multigrid
+defaults to `zero`. The three modes are `provided`, `zero` and `rhs`; in `rhs` mode
+IR copies `b` into `x` before the first residual is formed.
 
 The `zero` mode is worth knowing about:
 

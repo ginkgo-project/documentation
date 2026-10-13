@@ -8,17 +8,26 @@ new system matrix.
 
 ```cpp
 auto mg = gko::solver::Multigrid::build()
-              .with_mg_level(gko::multigrid::Pgm<double, gko::int32>::build()
-                                 .on(exec))
+              .with_mg_level(gko::multigrid::Pgm<double, gko::int32>::build())
               .with_max_levels(10u)
               .with_min_coarse_rows(64u)
+              .with_criteria(gko::stop::Iteration::build().with_max_iters(1u))
               .on(exec);
 
 auto cg = gko::solver::Cg<double>::build()
-              .with_preconditioner(mg)
-              .with_criteria(/* ... */)
+              .with_preconditioner(std::move(mg))
+              .with_criteria(
+                  gko::stop::Iteration::build().with_max_iters(100u),
+                  gko::stop::ResidualNorm<double>::build()
+                      .with_reduction_factor(1e-8))
               .on(exec);
 ```
+
+`Multigrid` needs at least one `mg_level` factory and a `criteria` entry, also as a
+preconditioner; the single `Iteration` criterion makes each application one
+multigrid cycle. The smoothers default to one step of iterative refinement with a
+scalar Jacobi preconditioner; the [Multigrid](../solvers/multigrid.md) page lists the
+default coarsest solver.
 
 The full architectural treatment — `MultigridLevel`, cycle types, the `mg_level`
 coarsening factory, smoothers, the coarsest solver, and the per-level selector
