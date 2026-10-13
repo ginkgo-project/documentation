@@ -26,7 +26,7 @@ prints the iteration count and true residual for each.
 
 ## The mental model: each `LinOp` owns its own precision
 
-There is no single "solve precision" in Ginkgo. Every object — the matrix,
+Precision is a property of each object, not of the solve as a whole. Every object — the matrix,
 the solver, and the preconditioner — is templated on its own `ValueType`,
 and each keeps its own value type for its whole lifetime:
 

@@ -20,7 +20,7 @@ modelled on `experimental::distributed::preconditioner::Schwarz`
 | Public header | `include/ginkgo/core/preconditioner/my_precond.hpp` | `include/ginkgo/core/distributed/preconditioner/my_precond.hpp` |
 | Implementation | `core/preconditioner/my_precond.cpp` | `core/distributed/preconditioner/my_precond.cpp` |
 | Kernel header | `core/preconditioner/my_precond_kernels.hpp` | Usually reuses local kernels — no MPI in kernels |
-| Backend kernels | `reference/preconditioner/`, `cuda/preconditioner/`, ... | Same |
+| Backend kernels | `reference/preconditioner/`, `common/cuda_hip/preconditioner/`, ... | Same |
 | `core/CMakeLists.txt` | Add `preconditioner/my_precond.cpp` | Add under the `if(GINKGO_BUILD_MPI)` block |
 | `core/config/config_helper.hpp` | Append to `LinOpFactoryType` | Append to `LinOpFactoryType` |
 | `core/config/registry.cpp` | Add to `generate_config_map()` | Same, but guarded `#if GINKGO_BUILD_MPI` |

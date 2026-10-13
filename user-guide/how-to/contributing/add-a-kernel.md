@@ -177,8 +177,9 @@ If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
 reductions, shared-memory tiling — put it in a backend-specific file
 instead. CUDA and HIP share one source under `common/cuda_hip/`
 (for `Csr`, `common/cuda_hip/matrix/csr_kernels.template.cpp`, with shared
-device code in `csr_common.hpp.inc`); it is registered in
-`common/cuda_hip/CMakeLists.txt`.
+device code in `csr_common.hpp.inc`); the existing CMake lists already compile it (`Csr` through
+`add_instantiation_files(... matrix/csr_kernels.instantiate.cpp ...)` in `cuda/CMakeLists.txt` and
+`hip/CMakeLists.txt`), so no list needs editing.
 
 ## Step 5: Register a stub in `device_hooks`
 

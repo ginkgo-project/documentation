@@ -73,7 +73,7 @@ as its `reordering` factory (see
 | `experimental::reorder::Amd` | Minimise fill | Default for small to medium unstructured matrices. |
 | `experimental::reorder::NestedDissection` | Minimise fill, structured | Large structured systems; requires METIS. |
 | `experimental::reorder::Rcm` | Minimise bandwidth | When the triangular solves are bandwidth-bound on CPU. Not a fill reducer. |
-| `experimental::reorder::Mc64` | Push heavy entries to the diagonal | Compose with one of the above before an `Lu` factorisation of an indefinite or strongly non-symmetric matrix; improves the stability of the factorisation without pivoting. |
+| `experimental::reorder::Mc64` | Push heavy entries to the diagonal | Compose with one of the above before an `Lu` factorisation of an indefinite or strongly non-symmetric matrix; can increase the numerical stability of the factorisation without pivoting. |
 
 For SPD matrices skip MC64: the diagonal is already heavy, and MC64's row
 permutation would break the symmetry that `Cholesky` relies on.

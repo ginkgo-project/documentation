@@ -9,14 +9,13 @@ straight into Caliper, so a single config flip moves your solver's
 internal phases between a wall-clock table, a Nsight Systems timeline,
 and a flame graph.
 
-The supported integration point is `ProfilerHook::create_custom`.
-Ginkgo does not ship a dedicated Caliper factory — see [Logging and
-observability](../../concepts/logging.md#caliper) for the rationale
-and the full list of preset back-ends.
+Caliper is reached through the generic custom hook, `ProfilerHook::create_custom`, rather than a
+dedicated factory. See [Logging and observability](../../concepts/logging.md#caliper) for the hook;
+the preset back-ends are listed in the ProfilerHook section just above it.
 
 ## Build-time setup
 
-Ginkgo itself does not depend on Caliper; the integration lives
+Ginkgo itself builds without Caliper; the integration lives
 entirely in your application.
 
 1. Install Caliper (Spack: `spack install caliper`; from source:
