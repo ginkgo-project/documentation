@@ -1,4 +1,5 @@
 """Sphinx configuration for the Ginkgo documentation site."""
+import json
 import os
 import re
 import zipfile
@@ -42,6 +43,24 @@ ginkgo_doc_version = _resolve_doc_version(
 # preferred entry in switcher.json, so it must equal the switcher version.
 version = release = ginkgo_doc_version
 html_baseurl = os.environ.get("GINKGO_DOC_BASEURL", "https://gko-project.org/")
+
+
+def _resolve_stable_url(env_value, switcher_file):
+    """Return the URL of the stable docs, the preferred switcher entry.
+
+    CI passes it from `main`'s version list in `GINKGO_DOC_STABLE_URL`;
+    local builds read this branch's copy of the list.
+    """
+    if env_value:
+        return env_value
+    entries = json.loads(switcher_file.read_text(encoding="utf-8"))
+    return next(e["url"] for e in entries if e.get("preferred"))
+
+
+ginkgo_stable_url = _resolve_stable_url(
+    os.environ.get("GINKGO_DOC_STABLE_URL"),
+    Path(__file__).resolve().parent / "_static" / "switcher.json",
+)
 
 extensions = [
     "myst_parser",
@@ -174,8 +193,23 @@ html_theme_options = {
         "version_match": ginkgo_doc_version,
     },
     "check_switcher": False,
-    "show_version_warning_banner": True,
+    # The develop docs show the permanent banner below instead.
+    "show_version_warning_banner": ginkgo_doc_version != "develop",
 }
+
+# The develop docs are served at the site root, so they carry a banner
+# that cannot be dismissed (the theme's announcement has no close button;
+# custom.css colours it orange) and links to the stable docs.
+if ginkgo_doc_version == "develop":
+    html_theme_options["announcement"] = (
+        '<span class="ginkgo-develop-banner">'
+        '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> '
+        "You are reading the documentation for Ginkgo's "
+        "<strong>unstable development branch</strong>; pages and APIs can "
+        "change at any time. For the latest release, see the "
+        f'<a href="{ginkgo_stable_url}">stable documentation</a>.'
+        "</span>"
+    )
 
 
 def _split_class_bases(app, doctree, fromdocname):
@@ -400,8 +434,11 @@ def _zip_code_samples(app):
     drift between the page snippets and the downloadable archive.
 
     Each sample's local `build/` directory is excluded so cmake artifacts
-    don't bloat the archive.
+    don't bloat the archive. The READMEs link to the published how-to
+    pages at the site root; in the archive those links point at this
+    build's version of the site, so a 1.11 bundle opens the 1.11 pages.
     """
+    site_root = "https://gko-project.org/"
     samples_dir = Path(app.srcdir) / "code-samples"
     if not samples_dir.is_dir():
         return
@@ -414,9 +451,18 @@ def _zip_code_samples(app):
                 # Skip cmake build artefacts (sample-local `build/` tree).
                 if "build" in path.relative_to(sample).parts:
                     continue
-                if path.is_file():
-                    arcname = Path(sample.name) / path.relative_to(sample)
-                    zf.write(path, arcname=str(arcname))
+                if not path.is_file():
+                    continue
+                arcname = str(Path(sample.name) / path.relative_to(sample))
+                if path.suffix == ".md" and app.config.html_baseurl != site_root:
+                    text = path.read_text(encoding="utf-8")
+                    zf.writestr(
+                        zipfile.ZipInfo.from_file(path, arcname),
+                        text.replace(site_root, app.config.html_baseurl),
+                        zipfile.ZIP_DEFLATED,
+                    )
+                else:
+                    zf.write(path, arcname=arcname)
 
 
 def setup(app):

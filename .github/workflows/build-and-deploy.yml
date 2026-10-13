@@ -5,8 +5,8 @@ name: Build and Deploy
 # branch's `.ginkgo-ref`, and deploys them together to GitHub Pages.
 # Only `main` deploys (the github-pages environment allows no other
 # branch): pushes to `develop` and `release/**` dispatch this workflow via
-# `trigger-deploy.yml`. The weekly run refreshes `/develop/`, whose API
-# reference follows Ginkgo's develop branch.
+# `trigger-deploy.yml`. The weekly run refreshes the develop docs at the
+# site root, whose API reference follows Ginkgo's develop branch.
 on:
   push:
     branches: [main]
@@ -103,6 +103,7 @@ jobs:
         env:
           GINKGO_DOC_VERSION: ${{ matrix.version }}
           GINKGO_DOC_BASEURL: ${{ matrix.url }}
+          GINKGO_DOC_STABLE_URL: ${{ matrix.stable_url }}
         run: sphinx-build -b html docs out
 
       - name: Check build
