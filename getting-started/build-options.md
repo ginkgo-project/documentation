@@ -82,7 +82,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - bfloat16 support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. The CUDA backend compiles its bfloat16 kernels for compute capability ≥ 8.0 (`__CUDA_ARCH__ >= 800`).
 * - `GINKGO_JACOBI_FULL_OPTIMIZATIONS`
   - `ON` / `OFF`
-  - All optimisations for the CUDA Jacobi algorithm. Defaults to `OFF`; enabling can push compile time of `jacobi_generate_kernels.cpp` (under `common/cuda_hip/preconditioner/`) above 20 minutes with high memory use.
+  - All optimisations for the Jacobi kernels on CUDA and HIP. Defaults to `OFF`; enabling compiles every block size (1 to 32 on CUDA, 1 to 64 on HIP) instead of the default subset. Each block size gets three generated files (`jacobi_generate_kernels.instantiate.<N>.cpp`, `jacobi_simple_apply_kernels.instantiate.<N>.cpp` and `jacobi_advanced_apply_kernels.instantiate.<N>.cpp`), configured into the build tree from templates in `common/cuda_hip/preconditioner/`, so the build compiles many more heavy template files, with long compile times and high memory use.
 ```
 
 ## Auxiliary components

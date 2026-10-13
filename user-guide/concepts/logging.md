@@ -122,8 +122,7 @@ it straightforward to identify which part of a solve is expensive.
 
 ### Caliper
 
-Ginkgo does not ship a dedicated Caliper factory; the supported integration path
-is `create_custom`. Pass two function objects that call Caliper's C API directly
+Caliper is reached through the generic custom hook, `create_custom`. Pass two function objects that call Caliper's C API directly
 (`cali_begin_region` / `cali_end_region`) as the begin/end callbacks, and Ginkgo
 will invoke them at every annotated region boundary.
 
