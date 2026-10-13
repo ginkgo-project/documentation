@@ -57,7 +57,7 @@ Two pipelines run on every push to the PR branch.
 |---|---|
 | `check-formatting.yml` | `pre-commit` (clang-format v14, end-of-file fixer, gersemi (CMake formatting), REUSE annotations). |
 | `osx.yml` | Build + test on macOS. |
-| `windows-msvc-cuda.yml`, `windows-msvc-mpi.yml` | Build + test on Windows / MSVC. |
+| `windows-msvc-cuda.yml`, `windows-msvc-mpi.yml` | Compile-only builds on Windows / MSVC, with CUDA and with MPI. |
 | `arm.yml` | Build + test on ARM. |
 | `intel.yml` | Build + test on Intel-toolchain (DPC++/SYCL). |
 | `spell-check.yml` | `typos`-based spell-check. |
@@ -68,7 +68,7 @@ build/test matrix. Stages are:
 
 | Stage | Jobs |
 |---|---|
-| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.0, ROCm 4.5–7.1, no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
+| `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.0, ROCm 4.5–7.1, oneAPI/SYCL GPU builds (`icpx` and `dpcpp`), no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
 | `test` | Runs the unit-test suite on each backend produced in `build`. |
 | `code_quality` | Static analysis (clang-tidy, IWYU on a subset). |
 | `deploy` | Documentation deployment from `main`, `develop` and release tags. |

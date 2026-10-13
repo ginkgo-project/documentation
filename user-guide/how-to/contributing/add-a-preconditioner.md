@@ -275,15 +275,24 @@ interleaving of kernel launches and MPI calls so MPI latency hides
 behind on-device work:
 
 1. Launch the kernel work that has no remote dependency.
-2. Issue the non-blocking MPI call (`i_all_to_all_v`, `Isend`/`Irecv`,
-   ...) from the host — returns immediately, kernel keeps running.
+2. Issue the MPI call (`i_all_to_all_v`, `Isend`/`Irecv`, ...) from the
+   host. With a non-blocking communicator it returns immediately and,
+   on a device executor, the kernel keeps running. The blocking default `DenseCommunicator`
+   completes the exchange before the call returns; a kernel already
+   queued on a device executor keeps running meanwhile, whereas on the
+   host executor the step-1 work has finished by then.
 3. Wait on the MPI request, or use a stream event (see [Stream-MPI
    ordering for GPU executors](../../concepts/distributed/communication-primitives.md#stream-mpi-ordering-for-gpu-executors)).
 4. Launch the kernel that consumes the received data.
 
-The distributed `Matrix::apply` is the canonical example: the local
-block's kernel runs concurrently with the halo `i_all_to_all_v`, then
-the non-local block's kernel fires once the receive completes (see
+The distributed `Matrix::apply` is the canonical example: on device
+executors the local block's kernel is queued before the halo exchange is
+issued, so it runs concurrently with the exchange; on the host executor
+the matrix issues the exchange first, then runs the local block's kernel, then
+waits, so the kernel overlaps only with a non-blocking communicator (with
+the default `DenseCommunicator` the exchange has already completed when the
+kernel starts). The non-local block's kernel fires once the receive
+completes (see
 [Communication
 primitives](../../concepts/distributed/communication-primitives.md)).
 Replicate that structure rather than putting an `MPI_Allreduce`

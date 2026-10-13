@@ -58,16 +58,16 @@ auto caliper_hook = gko::log::ProfilerHook::create_custom(
         cali_end_region(name);
     });
 
-// Attach the hook anywhere on the LinOp hierarchy. Attaching to the
-// solver instruments its inner phases (apply, generate, criterion
-// checks, ...). Attaching to the executor instruments allocations and
-// copies on top.
-solver->add_logger(caliper_hook);
+// Attach the hook to the executor. Solvers, factories and stopping
+// criteria on that executor forward their events to its propagating
+// loggers, so one attachment covers apply, generate, criterion checks,
+// kernels, allocations and copies. A second attachment to the solver
+// would deliver every solver event twice.
 exec->add_logger(caliper_hook);
 ```
 
 The `profile_event_category` enum argument is the kind of region
-(`solver`, `factorization`, `operation`, ...) Ginkgo is announcing.
+(`solver`, `factory`, `operation`, ...) Ginkgo is announcing.
 The snippet ignores it because Caliper region names already carry
 enough information; if you want richer attributes, route the category
 through a `cali_set_int` keyed attribute before `cali_begin_region`.
@@ -93,8 +93,8 @@ int main()
 
     auto exec = gko::ReferenceExecutor::create();
 
-    // Caliper hook — created once, attached wherever we want
-    // annotations.
+    // Caliper hook — created once and attached to the executor
+    // (see below).
     auto caliper_hook = gko::log::ProfilerHook::create_custom(
         [](const char* name, gko::log::profile_event_category) {
             cali_begin_region(name);
@@ -113,7 +113,7 @@ int main()
     x->fill(0.0);
     cali_end_region("assemble");
 
-    // ----- build solver (Ginkgo regions) -----
+    // ----- create the solver factory (no hook attached yet, so no regions) -----
     auto solver_factory = Cg::build()
         .with_criteria(
             gko::stop::Iteration::build()
@@ -122,10 +122,10 @@ int main()
                 .with_reduction_factor(1e-10).on(exec))
         .on(exec);
 
+    exec->add_logger(caliper_hook);     // one attachment records everything
+
     cali_begin_region("generate");
     auto solver = solver_factory->generate(A);
-    solver->add_logger(caliper_hook);   // record solver internals
-    exec->add_logger(caliper_hook);     // record allocations / copies
     cali_end_region("generate");
 
     // ----- solve (Ginkgo regions) -----
@@ -151,23 +151,33 @@ CALI_CONFIG=runtime-report \
     ./my_solver
 ```
 
-Sample output:
+Sample output (an excerpt; the timings are illustrative, and the argument lists of the matrix `apply` rows are abbreviated with `...`):
 
 ```text
-Path                                Time (E) Time (I) Time % (E) Time % (I)
-assemble                            0.018000 0.018000     8.91%      8.91%
-generate                            0.004500 0.004500     2.23%      2.23%
-solve                               0.176200 0.176200    87.18%     87.18%
-  cg::generate                      0.000800 0.000800     0.40%      0.40%
-  cg::apply                         0.175200 0.175200    86.69%     86.69%
-    iteration                       0.174800 0.174800    86.49%     86.49%
-      apply                         0.082400 0.082400    40.79%     40.79%
-      preconditioner::apply         0.000600 0.000600     0.30%      0.30%
-      compute_dot                   0.019200 0.019200     9.50%      9.50%
-      axpy                          0.024800 0.024800    12.27%     12.27%
-      check                         0.003200 0.003200     1.58%      1.58%
-allocation                          0.003500 0.003500     1.73%      1.73%
-copy                                0.000200 0.000200     0.10%      0.10%
+Path                                                                                        Time (E) Time (I) Time % (E) Time % (I)
+assemble                                                                                    0.018000 0.018000     12.08%     12.08%
+generate                                                                                    0.000100 0.000800      0.07%      0.54%
+  generate(gko::solver::Cg<double>::Factory)                                                0.000700 0.000700      0.47%      0.47%
+solve                                                                                       0.000100 0.130200      0.07%     87.38%
+  apply(gko::solver::Cg<double> * gko::matrix::Dense<double> = gko::matrix::Dense<double>)  0.000100 0.130100      0.07%     87.32%
+    iteration                                                                               0.005500 0.130000      3.69%     87.25%
+      allocate                                                                              0.003500 0.003500      2.35%      2.35%
+      cg::initialize                                                                        0.000600 0.000600      0.40%      0.40%
+      advanced_apply(... * gko::matrix::Csr<double, int> * ...)                             0.000300 0.004800      0.20%      3.22%
+        csr::advanced_spmv                                                                  0.004500 0.004500      3.02%      3.02%
+      apply(gko::matrix::Identity<double> * ...)                                            0.000100 0.000600      0.07%      0.40%
+        copy(gko::matrix::Dense<double>,gko::matrix::Dense<double>)                         0.000100 0.000500      0.07%      0.34%
+          dense::copy                                                                       0.000400 0.000400      0.27%      0.27%
+      dense::compute_conj_dot_dispatch                                                      0.019200 0.019200     12.89%     12.89%
+      check(gko::stop::Combined)                                                            0.000200 0.003500      0.13%      2.35%
+        check(gko::stop::Iteration)                                                         0.000300 0.000300      0.20%      0.20%
+        check(gko::stop::ResidualNorm<double>)                                              0.000200 0.003000      0.13%      2.01%
+          dense::compute_norm2_dispatch                                                     0.002500 0.002500      1.68%      1.68%
+          residual_norm::residual_norm                                                      0.000300 0.000300      0.20%      0.20%
+      cg::step_1                                                                            0.004800 0.004800      3.22%      3.22%
+      apply(gko::matrix::Csr<double, int> * ...)                                            0.000900 0.082400      0.60%     55.30%
+        csr::spmv                                                                           0.081500 0.081500     54.70%     54.70%
+      cg::step_2                                                                            0.005100 0.005100      3.42%      3.42%
 ```
 
 The same binary will dump a `.cali` file with
@@ -189,10 +199,9 @@ Three small rules keep the resulting profile readable:
   pre/post-processing get their own `cali_begin_region` /
   `cali_end_region` pairs around the relevant blocks.
 - **Attach the hook *after* the work that should not be measured.**
-  Anything Ginkgo does between construction and `add_logger` is
-  silent. If you want to include factory build time in the trace,
-  attach `caliper_hook` to the executor first and add it to the
-  solver after `generate`.
+  Anything Ginkgo does before `exec->add_logger` is silent. Attach
+  `caliper_hook` to the executor before `generate` to include the
+  solver generation time in the trace, or after it to leave that out.
 - **Use `user_range` for one-off annotations from inside a callback.**
   If you already hold a `ProfilerHook` and want to drop a region
   inside, say, a custom stopping criterion, call
