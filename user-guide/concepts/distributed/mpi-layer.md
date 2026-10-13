@@ -11,9 +11,10 @@ distributed `LinOp` operations or debugging communication-related stalls.
 
 The `mpi::` wrappers, the distributed `Matrix`, `Vector` and `RowGatherer`, the collective
 communicators, the distributed preconditioners, the partition helpers
-(`build_partition_from_local_size`) and the assembly helper (`assemble_rows_from_neighbors`),
-together with the corresponding sub-tree of the public API, are built only when Ginkgo is configured
-with `-DGINKGO_BUILD_MPI=ON`. `Partition` and `index_map` are part of every build.
+(`build_partition_from_local_range`, `build_partition_from_local_size`) and the assembly helper
+(`assemble_rows_from_neighbors`), together with the corresponding sub-tree of the public API, are
+built only when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. `Partition` and `index_map` are
+part of every build.
 
 ## The `mpi::environment` RAII guard
 
@@ -107,7 +108,7 @@ Ginkgo:
 | Broadcast | `broadcast`, `i_broadcast` | application code |
 | Allreduce | `all_reduce`, `i_all_reduce` | distributed `Vector::compute_norm`, `compute_dot`, etc., the `Gmres` reduction and the `RowGatherer` size setup use the blocking `all_reduce` |
 | Reduce / scan | `reduce`, `i_reduce`, `scan`, `i_scan` | application code |
-| Gather / Allgather | `gather`, `i_gather`, `gather_v`, `all_gather`, `i_all_gather` | `all_gather`: the partition helpers (`build_partition_from_local_size`) |
+| Gather / Allgather | `gather`, `i_gather`, `gather_v`, `all_gather`, `i_all_gather` | `all_gather`: the partition helpers (`build_partition_from_local_range`, `build_partition_from_local_size`) |
 | All-to-all | `all_to_all`, `i_all_to_all` | exchanging sizes when the dense and neighbourhood communicators and the assembly helper are set up |
 | **All-to-all-variable** | `all_to_all_v`, `i_all_to_all_v` | **the halo exchange in distributed SpMV** |
 | Send / Recv | `send`, `recv`, `i_send`, `i_recv` | low-level building blocks for application code; the SpMV path is collective |
