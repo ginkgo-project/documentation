@@ -2,13 +2,13 @@
   {
     "name": "develop",
     "version": "develop",
-    "url": "https://gko-project.org/develop/",
+    "url": "https://gko-project.org/",
     "branch": "develop"
   },
   {
     "name": "1.11 (stable)",
     "version": "1.11",
-    "url": "https://gko-project.org/",
+    "url": "https://gko-project.org/1.11/",
     "branch": "main",
     "preferred": true
   },
