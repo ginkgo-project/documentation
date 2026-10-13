@@ -23,7 +23,7 @@ entries entirely.
 
 ## Construction
 
-The expected pattern is to derive the communicator from an `IndexMap`, which already encodes which
+The expected pattern is to derive the communicator from an `index_map`, which already encodes which
 remote ranks own which indices this rank needs:
 
 ```cpp

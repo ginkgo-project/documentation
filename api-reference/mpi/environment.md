@@ -11,10 +11,11 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-The constructor requests a thread-support level (`serialized` by
-default). `is_initialized` and `is_finalized` are static helpers that
-let library code skip its own `MPI_Init` if the host application has
-already initialised MPI.
+The constructor calls `MPI_Init_thread` unconditionally and requests a
+thread-support level (`serialized` by default), so it is meant for
+applications that have not initialised MPI yet. `is_initialized` and
+`is_finalized` are static helpers that report whether `MPI_Init` and
+`MPI_Finalize` have run.
 
 ```{doxygenclass} gko::experimental::mpi::environment
 :members:

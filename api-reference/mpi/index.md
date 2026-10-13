@@ -8,17 +8,17 @@ collective-communicator hierarchy abstracts the actual data exchange
 patterns used by the distributed SpMV.
 
 Most application code only ever touches `environment` (RAII wrapper
-around `MPI_Init` / `MPI_Finalize`) and `communicator` (lifetime
-holder for `MPI_Comm`). The remaining types are the lower-level
+around `MPI_Init` / `MPI_Finalize`) and `communicator` (reference-counted
+wrapper for `MPI_Comm`). The remaining types are the lower-level
 building blocks that the distributed kernels use internally.
 
 ## Runtime
 
 - [`environment`](environment.md) — RAII wrapper around `MPI_Init` and
   `MPI_Finalize`; construct once at the top of `main`.
-- [`communicator`](communicator.md) — owning C++ wrapper around
-  `MPI_Comm`. Carries the rank and size, and is the value that every
-  distributed Ginkgo type holds onto.
+- [`communicator`](communicator.md) — reference-counted C++ wrapper
+  around `MPI_Comm`. Queries the rank and size, and is the value that
+  every distributed Ginkgo type holds onto.
 
 ## Asynchronous operations
 

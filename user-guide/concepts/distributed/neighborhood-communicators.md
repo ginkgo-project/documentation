@@ -10,7 +10,7 @@ ranks this process actually communicates with, so the all-to-all only involves t
 ## When to use it
 
 - **High rank count with sparse halo connectivity.** This is the typical pattern for
-  finite-element and finite-difference simulations: each rank's off-diagonal matrix only
+  finite-element and finite-difference simulations: each rank's non-local matrix only
   references values on a handful of neighbouring ranks, regardless of the total job size.
 - **The dense per-rank size vector is the bottleneck.** At thousands of ranks, just transmitting
   the full send-size vector to MPI starts to matter. The neighborhood communicator avoids that
@@ -22,7 +22,7 @@ build a graph topology object.
 
 ## Construction
 
-The neighborhood communicator is constructed from a base communicator and an `IndexMap`:
+The neighborhood communicator is constructed from a base communicator and an `index_map`:
 
 ```cpp
 namespace mpi = gko::experimental::mpi;
@@ -83,13 +83,13 @@ exchange for a lower **per-exchange** cost. For matrices that are reused across 
 
 `create_inverse()` returns a new `NeighborhoodCommunicator` that swaps the send-from and recv-to
 roles. This is what `RowGatherer` uses internally to derive the *send* index pattern from the
-*receive* indices stored in the matrix's `IndexMap`.
+*receive* indices stored in the matrix's `index_map`.
 
 :::{seealso}
 - [Collective communicators](collective-communicator.md) — the abstract interface and picker
   guidance.
 - [Dense communicator](dense-communicator.md) — the portable default.
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses the inverse
+- [RowGatherer](row-gather-scatter.md) — the helper that uses the inverse
   pattern derived above.
 - API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](../../../api-reference/mpi/neighborhood-communicator.md)
 :::

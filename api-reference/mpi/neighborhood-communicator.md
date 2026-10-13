@@ -3,7 +3,7 @@
 Implementation of
 [`CollectiveCommunicator`](collective-communicator.md) that uses
 MPI-3 graph-topology neighborhood collectives
-(`MPI_Neighbor_alltoallv`). Each rank registers only the neighbours
+(`MPI_Ineighbor_alltoallv`). Each rank registers only the neighbours
 it actually exchanges data with, and the MPI runtime is free to
 schedule the communication accordingly.
 
