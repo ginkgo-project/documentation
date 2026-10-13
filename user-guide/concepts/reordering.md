@@ -10,9 +10,12 @@ per-algorithm pages for detail.
 
 ## What a reordering produces
 
-Every Ginkgo reordering algorithm is a `LinOpFactory` whose `generate(matrix)` step
-returns a `gko::matrix::Permutation`. The permutation can then be applied to the
-matrix (`permuted = P * A * P^T`) and to the right-hand side / solution as needed:
+`Amd`, `Rcm` and `NestedDissection` are `LinOpFactory` classes whose
+`generate(matrix)` step returns a `gko::matrix::Permutation`. `Mc64` returns a
+`gko::Composition` of two `gko::matrix::ScaledPermutation` objects (see
+[MC64](reordering/mc64.md)). A `Permutation` can be applied to the matrix
+(`permuted = P * A * P^T`) and to the right-hand side / solution as needed; `Csr`
+and `Dense` provide `permute`:
 
 ```cpp
 auto reorder_factory = gko::experimental::reorder::Amd<int>::build().on(exec);
@@ -22,8 +25,8 @@ auto perm = reorder_factory->generate(system_matrix);
 auto permuted = system_matrix->permute(perm.get());
 ```
 
-For composing a reordering with a downstream solver in one shot, see `ScaledReordered`
-below.
+To wrap diagonal scalings and an RCM reordering around an inner solver, see
+`ScaledReordered` below.
 
 ## Permutation modes
 
@@ -58,8 +61,9 @@ combines two permutations so that applying the result is equivalent to applying
 reordering with a separate parallel-partitioning reordering, for instance.
 
 For non-symmetric problems where rows and columns should be permuted by **different**
-permutations (for example the row matching from MC64 plus a separate column
-fill-reducer from AMD), use the two-permutation overload of `permute`:
+permutations (for example two separate reorderings, one supplying the row
+permutation and one the column permutation), use the two-permutation overload of
+`permute`:
 
 ```cpp
 auto permuted = matrix->permute(row_perm.get(), col_perm.get());
@@ -71,24 +75,32 @@ auto permuted = matrix->permute(row_perm.get(), col_perm.get());
 |---|---|---|---|
 | RCM | `gko::experimental::reorder::Rcm` | Bandwidth / profile reduction | Preconditioning, banded triangular solves |
 | AMD | `gko::experimental::reorder::Amd` | Minimise fill-in (approximate minimum degree) | Sparse direct factorisation |
-| MC64 | `gko::experimental::reorder::Mc64` | Maximise diagonal product (matching) | Numerical stability for direct solvers |
+| MC64 | `gko::experimental::reorder::Mc64` | Maximise diagonal product (matching), with scaling | Numerical stability for direct solvers |
 | Nested dissection | `gko::experimental::reorder::NestedDissection` | Recursive bisection-based ordering | Large finite-element / FD systems on parallel hardware |
-| ScaledReordered | `gko::experimental::reorder::ScaledReordered` | Combine row/column scaling and a reordering as a single LinOp wrapper around an inner solver | Apply a fill-reducing reordering transparently inside a Direct or Krylov solver |
+| ScaledReordered | `gko::experimental::reorder::ScaledReordered` | Wrap fixed diagonal row/column scalings and an RCM reordering around an inner operator | Apply a bandwidth-reducing reordering transparently around a Krylov or Direct solver |
 
-All five live in `gko::experimental::reorder`. The non-experimental
-`gko::reorder::Rcm` still exists but is **deprecated** in favour of the experimental
-version, which integrates more cleanly with the rest of the reordering API.
+All five live in `gko::experimental::reorder`. The class template
+`gko::reorder::Rcm<ValueType, IndexType>` is **deprecated** in favour of
+`gko::experimental::reorder::Rcm<IndexType>`, which integrates more cleanly with the
+rest of the reordering API.
 
-:::{note}
-`Mc64` is technically a *scaling and matching*, not just a permutation — it produces
-both a permutation and a pair of diagonal scaling matrices that together push large
-elements onto the diagonal. It is most useful as a preprocessing step before a direct
-solver, where it improves pivoting stability.
+:::{attention}
+`ScaledReordered` takes its `reordering` factory from the older `gko::reorder`
+interface, whose only implementation is the deprecated `gko::reorder::Rcm`. See [ScaledReordered](reordering/scaled-reordered.md).
 :::
 
 :::{note}
-`NestedDissection` requires a METIS installation discoverable at build time
-(`-DGINKGO_BUILD_METIS=ON`).
+`Mc64` is a *scaling and matching*, not just a permutation. With the default
+`max_diagonal_product` strategy it returns a row permutation with row and column
+scaling coefficients that together push large elements onto the diagonal. It is
+most useful as a preprocessing step before Ginkgo's `Lu`, which factorises without
+pivoting: MC64 makes that factorisation stable.
+:::
+
+:::{note}
+`NestedDissection` is available when CMake finds METIS at configure time. Point CMake
+at an installation with `-DMETIS_DIR=<prefix>` or `CMAKE_PREFIX_PATH`; a found METIS
+is enabled automatically.
 :::
 
 ## Why reorder before a direct solver
@@ -101,13 +113,19 @@ dissection) typically keeps the factorisation tractable.
 
 The recommended pre-processing recipe for a sparse direct solver is:
 
-1. **Match (optional)** — apply MC64 to push large entries onto the diagonal.
-2. **Reorder** — apply AMD or nested dissection to reduce fill-in.
+1. **Match (optional)** — compute MC64 and apply its scaled permutations with
+   `Csr::scale_permute`.
+2. **Reorder** — apply the AMD or nested dissection permutation with `Csr::permute`.
 3. **Factorise** — pass the permuted matrix to the LU/Cholesky factorisation.
-4. **Solve** — `apply(b, x)` runs the factorised triangular solves.
+4. **Solve** — permute `b` in the same way as the rows of the matrix, call
+   `apply(b_permuted, y)` on the factorised solver, and map `y` back to the original
+   variable order with the inverse permutation to obtain `x`. When step 1 uses MC64's
+   `max_diagonal_product` strategy, `y` is also mapped back through MC64's column
+   `ScaledPermutation`, which applies the column scaling $D_c$.
 
-The `ScaledReordered` linear operator wraps steps 1–3 around any inner solver so the
-caller does not have to manage the permutations explicitly.
+The `ScaledReordered` linear operator manages this bookkeeping for fixed diagonal
+scalings and an RCM reordering around an inner solver; for MC64, AMD and nested
+dissection, apply the transforms with `Csr::scale_permute` and `Csr::permute` as above.
 
 ## When to reorder for iterative solvers
 

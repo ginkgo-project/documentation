@@ -13,10 +13,9 @@ ELL holds two 2-D arrays of shape `n_rows × max_nnz_per_row`, both stored
 
 - **`values`** — the non-zero entries.  Position `(row, slot)` is the
   `slot`-th non-zero of `row`.
-- **`col_idxs`** — the column index of every entry.  Padding slots store an
-  index of `invalid_index` (or a repeat of a valid column with a zero value);
-  the SpMV kernel skips them implicitly because the corresponding `values`
-  entry is 0.
+- **`col_idxs`** — the column index of every entry.  Padding slots hold
+  `invalid_index<IndexType>()` and a zero value; the kernels test for that
+  index and skip those slots.
 
 ```text
 Matrix:                ELL storage (max_nnz_per_row = 2, column-major):
@@ -48,26 +47,27 @@ transaction per slot.
 ```cpp
 // From matrix_data — the simplest path
 auto ell = gko::matrix::Ell<double, int>::create(exec);
-ell->read(matrix_data);   // picks max_nnz_per_row automatically
+ell->read(data);   // picks max_nnz_per_row automatically
 
 // Converted from CSR (the typical migration path)
-auto ell = gko::matrix::Ell<double, int>::create(exec);
-ell->copy_from(csr);
+auto ell_csr = gko::matrix::Ell<double, int>::create(exec);
+ell_csr->copy_from(csr);
 
 // From explicit arrays, when you already have ELL-shaped data
-auto ell = gko::matrix::Ell<double, int>::create(
+auto ell_arrays = gko::matrix::Ell<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
-               std::move(values_array),       // column-major, n_rows * k
-               std::move(col_idxs_array),     // column-major, n_rows * k
-               /*max_nnz_per_row=*/ k);
+               std::move(values_array),       // column-major, stride * k
+               std::move(col_idxs_array),     // column-major, stride * k
+               /*num_stored_elements_per_row=*/ k,
+               /*stride=*/ n_rows);
 ```
 
 ## Performance characteristics
 
 ELL's SpMV is memory-bound and dominated by reads of `values` and `col_idxs`.
-Bytes-per-output-element ≈ $2 \cdot \mathrm{sizeof}(\mathrm{ValueType}) \cdot
-k$ plus the once-per-row read of $x[j]$ for each non-zero column.
+Bytes-per-output-element ≈ $(\mathrm{sizeof}(\mathrm{ValueType}) +
+\mathrm{sizeof}(\mathrm{IndexType})) \cdot k$ plus the once-per-row read of $x[j]$ for each non-zero column.
 
 The padding overhead is $n_\text{rows} \times (k - \bar n)$ stored zeros,
 where $\bar n$ is the average non-zero count per row.  For tightly-uniform
@@ -78,7 +78,7 @@ heavy-tailed.
 
 ## Conversion behaviour
 
-ELL converts cheaply to and from CSR:
+ELL converts directly to and from CSR and Dense:
 
 ```cpp
 // ELL → CSR
@@ -91,8 +91,8 @@ ell2->copy_from(csr);
 ```
 
 The conversion drops the padding slots when going to CSR, and computes
-`max_nnz_per_row` from the input when going back to ELL.  Conversions to COO
-and Hybrid are also supported.
+`max_nnz_per_row` from the input when going back to ELL.  COO and Hybrid are
+reached through CSR (`coo->copy_from(csr)` after `csr->copy_from(ell)`).
 
 :::{seealso}
 - [Matrix formats — overview](../matrix-formats.md) — when to pick ELL vs alternatives.

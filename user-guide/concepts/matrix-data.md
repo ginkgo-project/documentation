@@ -28,14 +28,15 @@ Ginkgo matrix.
 Several utility operations help prepare the data before conversion:
 
 ```cpp
-data.sort_row_major();          // sort entries by (row, col)
+data.sum_duplicates();          // sort row-major and add up entries at the same (row, col)
 data.remove_zeros();            // drop entries with value == 0
 ```
 
 :::{note}
-Duplicate entries (same row and column) are allowed in `matrix_data`. The `read` method
-of each format handles merging them, but calling `sort_row_major()` first can speed up
-the conversion.
+Every `read(matrix_data)` method expects the entries sorted in row-major order, with
+each `(row, col)` pair appearing once. Call `sum_duplicates()` (which sorts and merges
+repeated positions) or, when the positions are already unique, `sort_row_major()` before
+handing hand-assembled data to a format.
 :::
 
 ## Reading from Matrix Market
@@ -50,9 +51,10 @@ std::ifstream stream("matrix.mtx");
 auto data = gko::read_raw<double, int>(stream);
 ```
 
-`read_raw` returns a `matrix_data` populated with whatever the file contains —
-dimensions, symmetry flag, and triples. The stream is consumed and should not be read
-again after this call.
+`read_raw` returns a `matrix_data` with the dimensions and the entries sorted in
+lexicographic `(row, col)` order. Files that store only one triangle (symmetric,
+skew-symmetric or Hermitian Matrix Market files) are expanded, so the returned data holds
+both triangles. The stream is consumed and should not be read again after this call.
 
 :::{tip}
 `gko::read` is a higher-level helper that combines `read_raw` with an immediate
@@ -73,8 +75,10 @@ std::ofstream stream("output.mtx");
 gko::write_raw(stream, data);
 ```
 
-`write_raw` writes the Matrix Market header (including dimensions and non-zero count)
-followed by all triples. The symmetric flag is inferred from the data if present.
+`write_raw` writes the Matrix Market header (including the dimensions and, for the coordinate layout, the non-zero count)
+followed by all triples. Its optional third argument selects the layout:
+`gko::layout_type::coordinate` (the default) writes the sparse triples, and
+`gko::layout_type::array` writes a dense column-major array.
 
 There is also a `gko::write` helper that accepts any Ginkgo matrix directly, without
 needing an intermediate `matrix_data`:
@@ -162,5 +166,5 @@ bottleneck.
 :::{seealso}
 - [Matrix formats — overview](matrix-formats.md) — which format to convert `matrix_data` into.
 - [Memory ownership and `gko::array`](memory-ownership.md) — the storage abstraction underneath.
-- API reference: [`gko::matrix_data`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/structgko_1_1matrix__data.html)
+- API reference: [`gko::matrix_data`](../../api-reference/base/matrix-data.md)
 :::

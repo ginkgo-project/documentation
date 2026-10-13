@@ -96,7 +96,7 @@ flowchart LR
     Dense <--> Fbcsr
     Dense <--> SparsityCsr
 
-    Fbcsr <--> SparsityCsr
+    Fbcsr --> SparsityCsr
 
     classDef hub fill:#3a6b4a,stroke:#3a6b4a,color:#fbfaf6
     classDef leaf fill:#fbfaf6,stroke:#c9a14a,color:#1f2a24
@@ -109,6 +109,9 @@ flowchart LR
 CSR ↔ COO is particularly cheap (both store one index per non-zero; the difference is
 compressed vs explicit row indices). Dense ↔ sparse is only sensible for matrices small
 enough to fit in dense memory.
+
+The one direct edge between two non-hub formats is Fbcsr → SparsityCsr, which runs in that
+direction only and yields the block-level pattern of the Fbcsr matrix.
 
 :::{attention}
 Conversions that do not appear as a direct edge in the graph above are not routed

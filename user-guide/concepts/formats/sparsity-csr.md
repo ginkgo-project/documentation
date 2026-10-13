@@ -53,10 +53,10 @@ Two factory overloads are typical:
 ```cpp
 // Empty SparsityCsr to be filled by `read(data)` from a matrix_data
 auto sp = gko::matrix::SparsityCsr<double, int>::create(exec);
-sp->read(matrix_data);
+sp->read(data);
 
 // From explicit arrays (when you already hold row_ptrs and col_idxs)
-auto sp = gko::matrix::SparsityCsr<double, int>::create(
+auto sp_arrays = gko::matrix::SparsityCsr<double, int>::create(
               exec,
               gko::dim<2>{n_rows, n_cols},
               std::move(col_idxs_array),
@@ -72,8 +72,9 @@ for the lifetime contract.
 ## Conversion to and from other formats
 
 SparsityCsr converts directly to and from CSR and Dense, and accepts `matrix_data`
-through the standard `read()` interface. It also has a direct edge to and from
-Fbcsr — useful for block-structured graph extraction:
+through the standard `read()` interface. An Fbcsr matrix converts into a SparsityCsr
+holding its block-level pattern (one entry per stored block) — useful for
+block-structured graph extraction:
 
 ```cpp
 // SparsityCsr → CSR (every non-zero gets the shared scalar)
@@ -81,8 +82,8 @@ auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->copy_from(sp);
 
 // CSR → SparsityCsr (drops the values, keeps the structure)
-auto sp = gko::matrix::SparsityCsr<double, int>::create(exec);
-sp->copy_from(csr);
+auto sp_csr = gko::matrix::SparsityCsr<double, int>::create(exec);
+sp_csr->copy_from(csr);
 ```
 
 The conversion is `O(nnz)`. CSR → SparsityCsr is essentially a structure-only

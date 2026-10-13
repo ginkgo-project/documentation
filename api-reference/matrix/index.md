@@ -12,14 +12,14 @@ page.
 - [`Csr`](csr.md) — compressed sparse row.
 - [`Coo`](coo.md) — coordinate format.
 - [`Ell`](ell.md) — equal-length rows.
-- [`Sellp`](sellp.md) — sliced ELL with permutation.
+- [`Sellp`](sellp.md) — sliced ELL.
 - [`Hybrid`](hybrid.md) — ELL + COO fall-back.
 - [`Fbcsr`](fbcsr.md) — fixed-size block CSR.
 - [`SparsityCsr`](sparsity-csr.md) — sparsity pattern only.
 
 ## Dense
 
-- [`Dense`](dense.md) — column-major dense matrix.
+- [`Dense`](dense.md) — row-major dense matrix.
 
 ## Utility operators
 

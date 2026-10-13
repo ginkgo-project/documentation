@@ -57,12 +57,12 @@ The executor compatibility rule also applies: `user_data` must be accessible by 
 | Destructor                  | Frees the memory                            | Does nothing to the memory                     |
 | Copy (`array b = a;`)       | Allocates new memory and copies             | Allocates new memory and copies                |
 | Move                        | Transfers ownership                         | Transfers the view (still non-owning)          |
-| `clone(exec, a)`            | Cross-executor copy (new allocation)        | Cross-executor copy (new allocation)           |
+| `gko::array<T>{exec, a}`    | Cross-executor copy (new allocation)        | Cross-executor copy (new allocation)           |
 | `resize_and_reset(n)`       | Reallocates to new size                     | **Not supported** — throws unless `n` matches the current size (a no-op) |
 | `fill(value)`               | Sets all elements                           | Sets all elements (writes through to buffer)   |
 
 :::{note}
-Resizing a view is not supported — Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with `gko::clone` or the cross-executor constructor.
+Resizing a view is not supported — Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with the cross-executor constructor `gko::array<T>{exec, a}`.
 :::
 
 ## Integration patterns
@@ -176,12 +176,12 @@ The same pattern works for `Coo`, `Ell`, `Dense`, and the other matrix formats: 
 Views eliminate allocation overhead, but they are not always the right choice:
 
 - **Short-lived operations** — if the view lives for a single `apply` call and the source buffer is known to be valid throughout, a view is safe and efficient.
-- **Cross-executor mismatch** — if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::clone(gpu_exec, host_array)`.
+- **Cross-executor mismatch** — if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::array<double>{gpu_exec, host_array}`, which allocates on `gpu_exec` and copies the data across.
 - **Uncertain buffer lifetime** — if you cannot guarantee that the source buffer outlives all uses of the view, copy into an owned array first.
 - **Need to resize** — views cannot be resized. If the algorithm needs a scratch buffer of unknown size, allocate an owned array.
 
 :::{seealso}
 - [Memory ownership and `gko::array`](memory-ownership.md) — owned-array semantics.
 - [The Executor model](executor-model.md) — memory space compatibility.
-- API reference: [`gko::make_array_view`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko.html)
+- API reference: [`gko::make_array_view`](../../api-reference/base/array.md)
 :::

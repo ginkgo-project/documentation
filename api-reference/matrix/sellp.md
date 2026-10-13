@@ -1,9 +1,9 @@
 # `gko::matrix::Sellp`
 
-Sliced ELL with permutation. Partitions rows into fixed-size slices,
-pads each slice independently to its own longest row, and optionally
-permutes rows within a slice to balance work. A middle ground between
-ELL's regular layout and CSR's storage efficiency.
+Sliced ELL. Partitions rows into fixed-size slices (`slice_size`,
+default 64) and pads each slice independently to its own longest row,
+with `stride_factor` controlling the padding granularity. A middle
+ground between ELL's regular layout and CSR's storage efficiency.
 
 ```{doxygenclass} gko::matrix::Sellp
 :members:
