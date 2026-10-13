@@ -96,8 +96,10 @@ devices.
   wrapper share the same `MPI_Comm`; freeing the handle while any
   copy survives is undefined behaviour. Stick with non-owning
   semantics unless you have a clear reason otherwise.
-- **Distributed Ginkgo requires `-DGINKGO_BUILD_MPI=ON`.** Without it
-  the `distributed::` namespace is not compiled. See
+- **Distributed Ginkgo requires `-DGINKGO_BUILD_MPI=ON`.** The `mpi::`
+  wrappers and the distributed `Matrix`, `Vector`,
+  `RowGatherer` and `Schwarz` are compiled only in MPI-enabled builds;
+  `Partition` and `index_map` are part of every build. See
   [Build options](../../../getting-started/build-options.md).
 
 :::{seealso}

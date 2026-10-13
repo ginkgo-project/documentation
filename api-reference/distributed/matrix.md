@@ -5,7 +5,9 @@ blocks: a diagonal block holding the columns the rank also owns, and
 an off-diagonal block holding the remote columns (compressed so only
 the columns actually referenced are stored). `apply` runs the
 diagonal SpMV locally while a `RowGatherer` exchanges the needed
-remote vector entries for the off-diagonal SpMV.
+remote vector entries for the off-diagonal SpMV (on host executors only
+when the exchange is non-blocking; see the Open MPI < 4.1 fallback of
+[`DenseCommunicator`](../mpi/dense-communicator.md)).
 
 The blocks are accessible through `get_diag_matrix()` and
 `get_off_diag_matrix()`; `get_row_partition()` returns the partition

@@ -9,10 +9,12 @@ distributed `LinOp` operations or debugging communication-related stalls.
 
 ## Build-time gate
 
-The MPI layer is built when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. Without that flag,
-the distributed `Matrix`, `Vector`, `RowGatherer`, the collective communicators and the distributed
-preconditioners (and the corresponding sub-tree of the public API) belong to MPI-enabled builds only;
-`Partition` and `index_map` are part of every build.
+The `mpi::` wrappers, the distributed `Matrix`, `Vector` and `RowGatherer`, the collective
+communicators, the distributed preconditioners, the partition helpers
+(`build_partition_from_local_range`, `build_partition_from_local_size`) and the assembly helper
+(`assemble_rows_from_neighbors`), together with the corresponding sub-tree of the public API, are
+built only when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. `Partition` and `index_map` are
+part of every build.
 
 ## The `mpi::environment` RAII guard
 
