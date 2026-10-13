@@ -21,8 +21,8 @@ The supported types are documented in the Resizing and filling section below.
 An array is constructed from an executor and the number of stored elements:
 
 ```cpp
-std::shared_ptr<const gko::Executor> exec = ...;
-gko::size_type size = ...;
+std::shared_ptr<const gko::Executor> exec = gko::OmpExecutor::create();
+gko::size_type size = 10;
 gko::array<double> a(exec, size);
 ```
 
@@ -98,7 +98,6 @@ A key rule: **copy and move assignment never change the executor of the destinat
 | `array<T> b = a;`                           | Copy. `b` shares `a`'s executor; data is copied.                 |
 | `array<T> b{other_exec, a};`                | Cross-executor copy — copies `a`'s data into `other_exec`.       |
 | `array<T> b = std::move(a);`                | Move. `a` becomes empty; no data is copied.                      |
-| `auto b = gko::clone(other_exec, a);`       | Generic helper that returns a deep copy on `other_exec`.         |
 
 The executor-conservation rule means that assigning across executors performs a cross-device copy automatically:
 
@@ -117,11 +116,7 @@ auto a_host = gko::array<double>(host_exec, {1.0, 2.0, 3.0});
 auto a_gpu  = gko::array<double>(gpu_exec, a_host);   // copy host → device
 ```
 
-For generic code that copies any Ginkgo object across executors, use `gko::clone`:
-
-```cpp
-auto a_gpu = gko::clone(gpu_exec, a_host);
-```
+The same constructor copies back to the host: `gko::array<double> a_back{host_exec, a_gpu};`.
 
 To change the executor associated with an existing array, use `set_executor`. If the new executor differs from the current one, the data is automatically migrated:
 

@@ -62,18 +62,18 @@ auto a_host = gko::array<double>{host, {1.0, 2.0, 3.0}};
 auto a_gpu  = gko::array<double>{gpu, a_host};   // copies host → device
 ```
 
-The cross-executor constructor is the standard idiom. Alternatively, `gko::clone(exec, object)` produces a deep copy of any Ginkgo object on a different executor.
+The cross-executor constructor is the standard idiom. For matrices, vectors and other `LinOp`s, `gko::clone(exec, ptr)` produces a deep copy on a different executor.
 
 A few situations introduce *implicit* transfers that are easy to miss:
 
 - **Reading a device-side scalar to host** — e.g., reading the residual norm from a `Convergence` logger triggers a device→host copy.
-- **Element accessors on a device-resident matrix or array** — `at()`, iterators, `get_const_value` for individual entries each perform a one-shot transfer. Avoid in inner loops.
+- **Element accessors on a device-resident matrix** — `Dense::at()` and other per-entry accessors need host-accessible memory, so copy the matrix to a host executor first, for example with `gko::clone(exec->get_master(), mtx)`.
 - **Reading `matrix_data` from a device-resident matrix** — copies the entries back to host before sorting or writing.
 
 Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.
 
 :::{tip}
-If you suspect unexpected host↔device traffic is slowing your code, attach a [`Performance` logger](logging.md) to the executor. It records every allocation, deallocation, and transfer with timestamps, so you can spot redundant transfers in inner loops.
+If you suspect unexpected host↔device traffic is slowing your code, attach a [`ProfilerHook`](logging.md) to the executor. It reports every allocation, copy, and kernel as a named range, so you can spot redundant transfers in inner loops; the [`PerformanceHint`](logging.md) logger reports unnecessary cross-executor copies and repeated allocation/free pairs of the same size.
 :::
 
 ## Allocators
@@ -91,16 +91,15 @@ To plug a custom allocator into a `CudaExecutor`:
 
 ```cpp
 auto host   = gko::OmpExecutor::create();
-cudaStream_t stream;
-cudaStreamCreate(&stream);
-auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream);
-auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream);
+gko::cuda_stream stream{0};   // RAII wrapper: creates a stream on device 0
+auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream.get());
+auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream.get());
 ```
 
-The `HipExecutor` follows the same pattern with `hipStream_t` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+The `HipExecutor` follows the same pattern with `gko::hip_stream` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
 
 :::{note}
-The stream parameter is a raw runtime-type pointer — `CUstream_st*` for CUDA (identical to the standard `cudaStream_t` typedef) and `GKO_HIP_STREAM_STRUCT*` for HIP (identical to `hipStream_t`). Ginkgo does not wrap streams in its own type; you pass whatever the CUDA / HIP runtime gave you from `cudaStreamCreate` / `hipStreamCreate`.
+The executors take the native stream handle — `CUstream_st*` for CUDA (identical to the standard `cudaStream_t` typedef) and `GKO_HIP_STREAM_STRUCT*` for HIP (identical to `hipStream_t`). The RAII wrappers `gko::cuda_stream` and `gko::hip_stream` (from `ginkgo/core/base/stream.hpp`) create a stream on a given device, destroy it on scope exit, and hand out the handle through `get()`. Handles from `cudaStreamCreate` / `hipStreamCreate` work as well; keep the stream alive for as long as the executor uses it.
 :::
 
 ## Memory accessibility between executors

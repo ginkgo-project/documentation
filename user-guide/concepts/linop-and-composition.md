@@ -7,9 +7,9 @@ In Ginkgo, every operator that maps an input vector to an output vector implemen
 A `LinOp` (linear operator) is any object with an `apply(b, x)` operation that maps an input `b` to an output `x`. The Ginkgo class hierarchy uses `LinOp` as a polymorphic base for:
 
 - **Matrices** — `gko::matrix::Csr`, `gko::matrix::Coo`, `gko::matrix::Dense`, `gko::matrix::Ell`, `gko::matrix::Sellp`, `gko::matrix::Hybrid`, `gko::matrix::Fbcsr`, `gko::matrix::Identity`, `gko::matrix::Diagonal`
-- **Solvers** — `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, `gko::solver::Idr`, and direct solvers
-- **Preconditioners** — `gko::preconditioner::Jacobi`, `gko::preconditioner::Ilu`, `gko::preconditioner::Ic`, `gko::preconditioner::Isai`, `gko::preconditioner::Multigrid`
-- **Composite operators** — `gko::Composition`, `gko::matrix::BlockOperator`, `gko::Combination`
+- **Solvers** — `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, `gko::solver::Idr`, `gko::solver::Multigrid`, and direct solvers
+- **Preconditioners** — `gko::preconditioner::Jacobi`, `gko::preconditioner::Ilu`, `gko::preconditioner::Ic`, `gko::preconditioner::Isai`
+- **Composite operators** — `gko::Composition`, `gko::BlockOperator`, `gko::Combination`
 
 Because they all share the same interface, you pass a `LinOp` wherever an operator is expected. That is how preconditioners plug into solvers and how multi-stage operators compose.
 
@@ -44,9 +44,13 @@ New operator implementations do not inherit `LinOp` directly. They inherit `gko:
 ```cpp
 class MyOp : public gko::EnableLinOp<MyOp> {
 public:
+    // Needed by EnableLinOp: creates an empty operator on the executor.
+    explicit MyOp(std::shared_ptr<const gko::Executor> exec)
+        : gko::EnableLinOp<MyOp>(std::move(exec)) {}
+
     // Constructor accepts an executor and a dimension.
     MyOp(std::shared_ptr<const gko::Executor> exec, gko::dim<2> size)
-        : gko::EnableLinOp<MyOp>(exec, size) {}
+        : gko::EnableLinOp<MyOp>(std::move(exec), size) {}
 
 protected:
     void apply_impl(const gko::LinOp* b, gko::LinOp* x) const override;
@@ -55,7 +59,7 @@ protected:
 };
 ```
 
-`EnableLinOp` also provides type-safe down-casting helpers (`as<Derived>()`) and ensures that every operator satisfies the `LinOp` contract — dimension consistency checks, executor checks — without requiring boilerplate in every derived class.
+Down-casting uses the free function `gko::as<Derived>(ptr)`, which throws `gko::NotSupported` for a mismatching type. `EnableLinOp` ensures that every operator satisfies the `LinOp` contract — dimension consistency checks, executor checks — without requiring boilerplate in every derived class.
 
 ## The factory pattern
 
@@ -84,8 +88,8 @@ solver->apply(b, x);
 ```
 
 - `build()` returns a parameter object with `with_*` setters. All setters return the parameter object by reference, enabling method chaining.
-- `.on(exec)` consumes the parameters and returns a `LinOpFactory` bound to `exec`.
-- `generate(matrix)` consumes the factory and returns a fully configured `LinOp`. The solver performs any necessary setup (for example, ILU factorization for an ILU preconditioner) during this call.
+- `.on(exec)` is a const member of the parameter object: it returns a `LinOpFactory` bound to `exec` and leaves the parameters intact, so one parameter object can create factories on several executors.
+- `generate(matrix)` is a const member of the factory: it returns a fully configured `LinOp` and leaves the factory reusable. The solver performs any necessary setup (for example, ILU factorization for an ILU preconditioner) during this call.
 
 The two-step design is intentional. The same factory can generate solvers for many different matrices without recreating the parameter object. It also makes it possible to serialize factory configurations to and from JSON or YAML — see [Configuration from JSON files](config-files.md).
 
@@ -114,11 +118,11 @@ LinOp
 │   └─ Identity, Diagonal
 ├─ solver
 │   ├─ Cg, Gmres, Bicgstab, Fcg, Ir, Gcr, Cgs, Idr
+│   ├─ Multigrid
 │   └─ Direct (LU / Cholesky)
 ├─ preconditioner
 │   ├─ Jacobi, Ilu, Ic, ParIlu, ParIc, ParIlut, ParIct
-│   ├─ Isai
-│   └─ Multigrid (also a solver)
+│   └─ Isai
 └─ composition
     ├─ Composition, BlockOperator
     └─ Combination (alpha*A + beta*B)

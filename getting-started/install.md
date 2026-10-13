@@ -3,9 +3,9 @@
 Ginkgo is a header- and library-based C++17 project. Most users build it from
 source with CMake; pre-built packages are also available via Spack.
 
-:::{important}
+:::{attention}
 The canonical, exhaustively-maintained install guide is the upstream
-[`INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md)
+[`INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/v1.11.0/INSTALL.md)
 in the Ginkgo repository. This page summarises the most common paths and
 links into the conceptual documentation, but it can lag the upstream guide
 when the build system changes — when in doubt, follow upstream `INSTALL.md`.
@@ -17,7 +17,7 @@ when the build system changes — when in doubt, follow upstream `INSTALL.md`.
 |---|---|
 | Reference / OpenMP (CPU) | C++17 compiler (GCC ≥ 7, Clang ≥ 5, Apple Clang ≥ 15, Intel ≥ 2019, MSVC 2019+, Cray ≥ 14.0.1, NVHPC ≥ 22.7), CMake ≥ 3.16 |
 | CUDA (NVIDIA GPUs) | CUDA ≥ 11.0 (or NVHPC ≥ 22.7), CMake ≥ 3.18 (≥ 3.22 if CUDA came from the NVIDIA HPC toolkit) |
-| HIP (AMD GPUs) | ROCm ≥ 6.2.0 with hipBLAS / hipSPARSE / hip- and rocRAND / rocThrust, CMake ≥ 3.21 |
+| HIP (AMD GPUs) | ROCm ≥ 4.5 with hipBLAS / hipSPARSE / hip- and rocRAND / rocThrust, CMake ≥ 3.21 |
 | SYCL (Intel GPUs) | oneAPI ≥ 2023.1 with oneMKL and oneDPL; `dpcpp` or `icpx` set as `CMAKE_CXX_COMPILER` |
 | MPI (distributed) | MPI 3.1+, GPU-aware build recommended for accelerator runs |
 
@@ -65,7 +65,7 @@ into MPI calls instead of staging through host buffers:
 cmake .. -DGINKGO_BUILD_MPI=ON -DGINKGO_FORCE_GPU_AWARE_MPI=ON
 ```
 
-:::{warning}
+:::{attention}
 `GINKGO_FORCE_GPU_AWARE_MPI` is an **assertion**, not a feature detection.
 Setting it `ON` against an MPI that is **not** GPU-aware will fail
 catastrophically at the first device-pointer send. Default is `OFF`; only
@@ -144,7 +144,7 @@ cmake .. -DGinkgo_DIR=/path/to/prefix/lib/cmake/Ginkgo
 **Windows.** Ginkgo builds with Visual Studio 2019+ and MinGW. In Debug
 configurations on Windows, `-DCMAKE_CXX_FLAGS=-O1` may be needed to work
 around the linker error `ld: error: export ordinal too large`. See the
-[upstream INSTALL.md](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md#building-ginkgo-in-windows)
+[upstream INSTALL.md](https://github.com/ginkgo-project/ginkgo/blob/v1.11.0/INSTALL.md#building-ginkgo-in-windows)
 for the full Windows checklist.
 
 **HIP path overrides.** When ROCm is not at `/opt/rocm`, set `ROCM_PATH` (or
@@ -155,5 +155,5 @@ through HIP, set `HIPCXX=nvcc`.
 :::{seealso}
 - [Build options](build-options.md) — every CMake flag, organised by purpose.
 - [Your first solver in 10 minutes](first-solver.md) — verify everything works end-to-end.
-- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md) — the source-of-truth install guide.
+- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/v1.11.0/INSTALL.md) — the source-of-truth install guide.
 :::

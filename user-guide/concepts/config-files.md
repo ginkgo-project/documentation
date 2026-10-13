@@ -17,7 +17,7 @@ If your application always uses one fixed solver setup, the inline [factory buil
 A `gko::config::pnode` is the in-memory representation of a parsed config tree. Its structure is analogous to `nlohmann::json::value_type`: a node holds either a scalar (string, number, or boolean), an ordered array of child nodes, or an object (key/value map of child nodes).
 
 ```cpp
-gko::config::pnode root = gko::config::parse_json(json_string);
+gko::config::pnode root = gko::ext::config::parse_json_string(json_string);
 ```
 
 You typically do not construct `pnode` objects by hand — they are produced by a parser. The node tree captures the full structure of the config file and is independent of any particular Ginkgo type, making it easy to inspect or serialize back out.
@@ -28,12 +28,12 @@ The registry maps "type name" strings (like `"solver::Cg"` or `"preconditioner::
 
 ```cpp
 gko::config::registry r;
-auto solver_factory = gko::config::parse(root, r,
-                          gko::config::type_descriptor::create<double, int>())
-                          .get_solver_factory();
+auto solver_factory =
+    gko::config::parse(root, r, gko::config::make_type_descriptor<double, int>())
+        .on(exec);
 ```
 
-The third argument, `type_descriptor`, carries the default `value_type` and `index_type` used to instantiate templated classes. Nodes that specify their own `"value_type"` or `"index_type"` in the JSON override the descriptor locally.
+`parse` returns a deferred factory parameter; `.on(exec)` turns it into a `std::shared_ptr<gko::LinOpFactory>`. The third argument, `type_descriptor` (created with `make_type_descriptor<ValueType, IndexType>()`), carries the default `value_type` and `index_type` used to instantiate templated classes. Nodes that specify their own `"value_type"` or `"index_type"` in the JSON override the descriptor locally.
 
 If you have a custom `LinOp` subclass you want to make configurable, you register it with the registry explicitly before calling `parse`. Without registration, a `"type"` string that names your class will produce an error at parse time rather than at compile time.
 
@@ -46,8 +46,8 @@ A solver setup with a preconditioner and stopping criteria follows this schema:
     "type": "solver::Cg",
     "value_type": "float64",
     "criteria": [
-        {"type": "stop::Iteration", "max_iters": 1000},
-        {"type": "stop::ResidualNorm",
+        {"type": "Iteration", "max_iters": 1000},
+        {"type": "ResidualNorm",
          "value_type": "float64",
          "reduction_factor": 1e-8}
     ],
@@ -75,17 +75,15 @@ auto exec = gko::CudaExecutor::create(0, gko::OmpExecutor::create());
 
 gko::config::registry registry{};
 auto root = gko::ext::config::parse_json_file("solver.json");
-auto td   = gko::config::type_descriptor::create<double, gko::int32>();
+auto td   = gko::config::make_type_descriptor<double, gko::int32>();
 
-auto solver_factory_lin = gko::config::parse(root, registry, td)
-                              .get_solver_factory();
+auto solver_factory = gko::config::parse(root, registry, td).on(exec);
 
-auto solver = std::dynamic_pointer_cast<gko::LinOpFactory>(solver_factory_lin)
-                  ->generate(matrix);
+auto solver = solver_factory->generate(matrix);
 solver->apply(b, x);
 ```
 
-`parse_json_file` reads the file and returns a `pnode` tree. `gko::config::parse` walks that tree, looks up each `"type"` key in the registry, and recursively constructs the full factory hierarchy. The result's `get_solver_factory()` accessor returns a `std::shared_ptr` to the outermost factory — cast it to `gko::LinOpFactory` (or the specific type if you know it) to call `generate`.
+`parse_json_file` reads the file and returns a `pnode` tree. `gko::config::parse` walks that tree, looks up each `"type"` key in the registry, and recursively builds the full factory hierarchy. Calling `.on(exec)` on the result yields the outermost `gko::LinOpFactory`, whose `generate(matrix)` produces the configured solver.
 
 :::{tip}
 The solver factory produced this way is reusable. Call `generate(matrix)` multiple times with different matrices without re-parsing the JSON.
@@ -96,11 +94,11 @@ The solver factory produced this way is reusable. Call `generate(matrix)` multip
 - **Only registered types.** Custom `LinOp` subclasses are not constructible from config unless you register them with the registry first. The registration API is template-heavy and requires that the class expose a factory type.
 - **Static type signatures.** The `"value_type"` and `"index_type"` strings must match types Ginkgo was compiled with. Requesting `"float128"` on a build that doesn't include it will fail at parse time.
 - **No control flow.** Config is data — there are no conditionals, loops, or expressions. For dynamic solver selection, load different files from application code.
-- **Extension header required.** File I/O and JSON parsing live in `ginkgo/extensions/config/json_config.hpp`, which is separate from the core `ginkgo/ginkgo.hpp`. Make sure your build links against the extensions target.
+- **Reader headers are header-only.** JSON parsing lives in `ginkgo/extensions/config/json_config.hpp` and YAML parsing in `ginkgo/extensions/config/yaml_config.hpp`; both are separate from `ginkgo/ginkgo.hpp` and are installed with Ginkgo. In your own CMake project, link `nlohmann_json::nlohmann_json` for JSON or `yaml-cpp::yaml-cpp` for YAML in addition to `Ginkgo::ginkgo`.
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what you typically configure from a file.
 - [Preconditioners — taxonomy](preconditioners.md) — what plugs into a solver.
 - [LinOp and composition](linop-and-composition.md) — the same composition model in C++.
-- API reference: [`gko::config`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1config.html)
+- API reference: [`gko::config`](../../api-reference/config/index.md)
 :::

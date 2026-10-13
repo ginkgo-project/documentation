@@ -1,7 +1,7 @@
 # Extensions — taxonomy
 
 Ginkgo's `extensions/` tree holds optional integrations with third-party libraries. Each
-extension is opt-in at build time via a CMake flag, and lives in its own namespace
+extension is a set of headers that you include where needed, and lives in its own namespace
 under `gko::ext`. None of them are required by the core library; they exist so that
 Ginkgo can plug into ecosystems where users already have data, executors, or solvers.
 This page surveys the available extensions and points to their dedicated pages.
@@ -17,18 +17,20 @@ Kokkos interop has its own page below. The config extension is documented in
 its own concept page because configuration is a first-class user-facing topic, not
 just a build-time integration.
 
-## Build-time enablement
+## Using an extension in your project
 
-Each extension is opt-in at build time, but the activation mechanism is not the same
-across them:
+The extensions are header-only and installed with Ginkgo's other headers. Ginkgo's own
+build does not need the third-party library; your application links it next to
+`Ginkgo::ginkgo`:
 
-| Extension | How to enable |
+| Extension | Link in your CMake project |
 |---|---|
-| Kokkos interop | Configure with `-DGINKGO_EXTENSION_KOKKOS=ON` and have a Kokkos installation discoverable by CMake. |
-| JSON / YAML config | Configure with `-DGINKGO_EXTENSION_CONFIG_BUILD_JSON=ON` / `-DGINKGO_EXTENSION_CONFIG_BUILD_YAML=ON`. |
+| Kokkos interop | `Ginkgo::ginkgo` and `Kokkos::kokkos` (after `find_package(Kokkos)`). |
+| JSON config | `Ginkgo::ginkgo` and `nlohmann_json::nlohmann_json`. |
+| YAML config | `Ginkgo::ginkgo` and `yaml-cpp::yaml-cpp`. |
 
-If the dependency cannot be found or the flag is off, the corresponding header is
-not installed and the extension's namespace is not available.
+The Ginkgo CMake option `GINKGO_EXTENSION_KOKKOS_CHECK_TYPE_ALIGNMENT` (default `ON`)
+makes the Kokkos type mapping check the alignment of the source and target types.
 
 ## Per-extension pages
 
@@ -41,5 +43,5 @@ extensions/kokkos
 
 :::{seealso}
 - [Configuration from JSON files](config-files.md) — the user-facing wrapper around the config extension.
-- API reference: [`gko::ext`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1ext.html)
+- API reference: [`gko::ext`](../../api-reference/extensions/index.md)
 :::

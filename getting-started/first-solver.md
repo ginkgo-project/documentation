@@ -56,11 +56,12 @@ int main()
     // Build the 1D Poisson matrix A as a CSR matrix via matrix_data.
     constexpr int N = 16;
     gko::matrix_data<ValueType, IndexType> data(gko::dim<2>{N, N});
+    // Entries are listed in row-major order: (i, i-1), (i, i), (i, i+1).
     for (int i = 0; i < N; ++i) {
-        data.nonzeros.emplace_back(i, i, ValueType{2});
         if (i > 0) {
             data.nonzeros.emplace_back(i, i - 1, ValueType{-1});
         }
+        data.nonzeros.emplace_back(i, i, ValueType{2});
         if (i < N - 1) {
             data.nonzeros.emplace_back(i, i + 1, ValueType{-1});
         }

@@ -1,9 +1,8 @@
 # `gko::log::PerformanceHint`
 
-Heuristic diagnostic logger that flags potentially-wasteful runtime
-patterns: cross-executor copies that look unintentional, repeated
-allocations of similarly-sized buffers, mismatched precisions in
-linked operations. Designed to be attached during development and
+Heuristic diagnostic logger that flags two wasteful runtime patterns:
+repeated cross-executor copies from or to the same pointer, and repeated
+allocation/free pairs of the same size. Designed to be attached during development and
 removed for production runs.
 
 ```{doxygenclass} gko::log::PerformanceHint

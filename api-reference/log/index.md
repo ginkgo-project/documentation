@@ -24,15 +24,15 @@ to use see the
   human-readable form; useful for diagnostics during development.
 - [`Record`](record.md) — captures all events into in-memory `Data`
   structs for later inspection or assertions in tests.
-- [`SolverProgress`](solver-progress.md) — emits per-iteration
-  residual / solution snapshots to disk so you can plot a solve's
-  trajectory offline.
+- [`SolverProgress`](solver-progress.md) — records the
+  solver's per-iteration scalars (as a table or CSV stream) and optionally
+  its vectors (as files).
 - [`ProfilerHook`](profiler-hook.md) — emits scoped ranges to NVTX /
   ROCTX / VTune / TAU, so external profilers can attribute time to
   Ginkgo operations.
 - [`PerformanceHint`](performance-hint.md) — heuristic checks that flag
-  potentially wasteful patterns (unexpected cross-device copies,
-  reallocations, etc.) at runtime.
+  repeated cross-executor copies from or to the same pointer and repeated
+  allocation/free pairs of the same size at runtime.
 
 ```{toctree}
 :hidden:

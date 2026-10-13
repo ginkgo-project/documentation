@@ -82,7 +82,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - bfloat16 support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. With CUDA before 12.2, requires compute capability ≥ 8.0.
 * - `GINKGO_JACOBI_FULL_OPTIMIZATIONS`
   - `ON` / `OFF`
-  - All optimisations for the CUDA Jacobi algorithm. Defaults to `OFF`; enabling can push compile time of `jacobi_generate_kernels.cu` above 20 minutes with high memory use.
+  - All optimisations for the CUDA Jacobi algorithm. Defaults to `OFF`; enabling can push compile time of `jacobi_generate_kernels.cpp` (under `common/cuda_hip/preconditioner/`) above 20 minutes with high memory use.
 ```
 
 ## Auxiliary components
@@ -229,5 +229,5 @@ cmake --build . -j
 :::{seealso}
 - [Install](install.md) — prerequisites and the standard install path.
 - [Your first solver in 10 minutes](first-solver.md) — verify the build.
-- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md) — the canonical, exhaustive build documentation.
+- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/v1.11.0/INSTALL.md) — the canonical, exhaustive build documentation.
 :::
