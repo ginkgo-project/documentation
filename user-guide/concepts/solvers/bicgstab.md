@@ -43,8 +43,8 @@ solver->apply(b, x);
 
 ## Factory parameters
 
-`Bicgstab` has no algorithm-specific tuning knobs. Its parameter surface is the
-same as CG's — only the inherited `EnablePreconditionedIterativeSolver` settings:
+`Bicgstab` has the same parameter surface as CG; the inherited
+`EnablePreconditionedIterativeSolver` settings below are the complete tuning surface:
 
 | Parameter | Type | Purpose |
 |---|---|---|

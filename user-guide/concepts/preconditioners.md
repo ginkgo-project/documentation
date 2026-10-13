@@ -112,7 +112,7 @@ Incomplete LU factorisation computes approximate triangular factors `L` and `U` 
 - **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
 
 :::{note}
-`gko::factorization::Ilu` computes ILU(0): the factors keep the sparsity pattern of `A`. For more fill, `ParIlut` builds a threshold-based pattern, the closest control to ILU(k):
+`gko::factorization::Ilu` computes ILU(0): the factors keep the sparsity pattern of `A`. For more fill, `ParIlut` builds a threshold-based pattern, the closest control to ILU(k). In detail:
 
 - `gko::factorization::Ilu` is configured by `l_strategy`, `u_strategy`,
   `skip_sorting`, and `algorithm`.
@@ -120,8 +120,8 @@ Incomplete LU factorisation computes approximate triangular factors `L` and `U` 
   for `L` and `U`. That is *threshold*-based fill control; the
   level-based fill control of classical ILU(k) yields different sparsity
   patterns and different cost/quality trade-offs.
-- For level-based fill (ILU(k), $k > 0$), factorise externally (e.g., SuperLU in
-  `level_of_fill` mode) and feed the resulting `L`/`U` into Ginkgo as
+- For level-based fill (ILU(k), $k > 0$), compute the ILU(k) factors with an
+  external library that offers level-based fill and feed the resulting `L`/`U` into Ginkgo as
   plain CSR matrices.
 :::
 
@@ -139,7 +139,7 @@ auto ilu = gko::preconditioner::Ilu<gko::solver::LowerTrs<double, int>,
 The inner triangular solvers (`LowerTrs`, `UpperTrs`) are themselves `LinOp` factories, so you can swap in different implementations without touching the outer ILU interface.
 
 :::{attention}
-`ParILU` computes ILU(0) by fixed-point sweeps that asymptotically converge to the exact ILU(0) of `gko::factorization::Ilu` (the sparsity pattern of the matrix); with the default number of sweeps its factors may differ slightly from it. `ParILUT` builds its own threshold-based sparsity pattern, improved iteratively, so its factors approximate a threshold ILU rather than ILU(0). This is expected behaviour, not a bug.
+`ParILU` computes ILU(0), on the sparsity pattern of the matrix, by fixed-point sweeps that asymptotically converge to the exact ILU(0) of `gko::factorization::Ilu`; with the default number of sweeps its factors may differ slightly from it. `ParILUT` builds its own threshold-based sparsity pattern, improved iteratively, so its factors approximate a threshold ILU rather than ILU(0). This is expected behaviour, not a bug.
 :::
 
 ## IC (Incomplete Cholesky)

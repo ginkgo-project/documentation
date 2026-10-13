@@ -210,9 +210,8 @@ Three small rules keep the resulting profile readable:
 
 :::{seealso}
 - [Logging and observability](../../concepts/logging.md) — the
-  conceptual reference for the `ProfilerHook` API, the available
-  preset back-ends, and the reasons Caliper specifically needs
-  `create_custom` rather than `create_tau`.
+  conceptual reference for the `ProfilerHook` API and the available
+  preset back-ends.
 - [Caliper documentation](https://software.llnl.gov/Caliper/) — the
   authoritative guide to `CALI_CONFIG` strings and `cali-query`.
 :::

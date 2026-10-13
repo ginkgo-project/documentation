@@ -7,9 +7,9 @@ that defines the pattern) and exposes a single nonblocking variable
 all-to-all primitive that ships locally-owned values to the ranks that
 need them as ghost entries.
 
-The distributed `Matrix` holds a `CollectiveCommunicator` internally
-and invokes `i_all_to_all_v` to gather the halo values that the non-local SpMV consumes, and the
-exchange completes before the non-local SpMV starts. The default `DenseCommunicator` is blocking, so
+The distributed `Matrix` gathers, through its `RowGatherer`, the halo values that the non-local
+SpMV consumes; the `RowGatherer` holds a `CollectiveCommunicator` and invokes `i_all_to_all_v`.
+The exchange completes before the non-local SpMV starts. The default `DenseCommunicator` is blocking, so
 on the host executor the exchange has already completed when the local SpMV starts; on device
 executors the local kernel is queued ahead of the exchange and the two overlap. Two
 concrete implementations ship with Ginkgo —
