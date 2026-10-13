@@ -101,19 +101,24 @@ the host requires `gko::clone(host, ...)` first.
 
 ## How distributed `Matrix::apply` uses it
 
-The matrix holds one `RowGatherer` together with its `index_map`. On device executors the
-6-step apply trace ([Communication primitives](communication-primitives.md)) calls into it as
-follows; on the host executor the matrix issues `apply_async` first and then runs the local-matrix
-kernel (with the default `DenseCommunicator` the exchange is blocking and has already completed by
-then; a non-blocking communicator overlaps it with the kernel):
+The matrix holds one `RowGatherer` together with its `index_map`. On device executors
+`Matrix::apply` calls into it in the order below (the trace steps are those of
+[Communication primitives](communication-primitives.md)):
 
-1. `rg->apply_prepare(b)` packs the values that need to be sent into the workspace buffer.
-2. The local-matrix kernel runs in parallel.
-3. `rg->apply_finalize(b, x_halo, prepare_event)` issues the all-to-all and returns the
-   `mpi::request`.
-4. `req.wait()` — `x_halo` is now populated.
-5. The non-local-matrix kernel applies to `x_halo`.
-6. The local-matrix result and the non-local-matrix result are summed into `y_local`.
+1. `rg->apply_prepare(b)` packs the values that need to be sent into the workspace buffer and
+   returns an event (trace step 1, Gather).
+2. The local-matrix kernel is queued on the executor (trace step 3, Local), so its launch does not
+   wait for the gather event.
+3. `rg->apply_finalize(b, x_halo, prepare_event)` waits on the gather event, issues the all-to-all
+   and returns the `mpi::request` (trace step 2, Exchange).
+4. `req.wait()` — `x_halo` is now populated (trace step 4, Wait).
+5. The non-local-matrix kernel applies to `x_halo` (trace step 5, Non-local).
+6. The local-matrix result and the non-local-matrix result are summed into `y_local` (trace
+   step 6, Sum).
+
+On the host executor the matrix issues `apply_async` first and then runs the local-matrix kernel;
+with the default `DenseCommunicator` the exchange is blocking and has already completed by then,
+while a non-blocking communicator overlaps it with the kernel.
 
 These two protected entry points (`apply_prepare` / `apply_finalize`) are exposed via the
 `detail` friend interface for testing and for advanced users who want fine-grained control over

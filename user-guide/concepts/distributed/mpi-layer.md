@@ -9,9 +9,11 @@ distributed `LinOp` operations or debugging communication-related stalls.
 
 ## Build-time gate
 
-The MPI layer is built when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. Without that flag,
-the `gko::experimental::distributed::*` types and the corresponding sub-tree of the public API
-belong to MPI-enabled builds only.
+The MPI layer is built when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. Parts such as the
+distributed `Matrix`, `Vector` and `RowGatherer`, the collective communicators, the distributed
+preconditioners, the partition helpers (`build_partition_from_local_size`) and the assembly helper
+(`assemble_rows_from_neighbors`), together with the corresponding sub-tree of the public API, belong
+to MPI-enabled builds only. `Partition` and `index_map` are part of every build.
 
 ## The `mpi::environment` RAII guard
 
@@ -33,8 +35,8 @@ thread-support level as its third argument (default `thread_type::serialized`).
 
 ## The central `mpi::communicator`
 
-`gko::experimental::mpi::communicator` is the central handle that every distributed Ginkgo object
-carries. It wraps an `MPI_Comm` with shared ownership and exposes a method-style interface for the
+`gko::experimental::mpi::communicator` is the central handle that the distributed `Matrix`, `Vector`
+and `RowGatherer` carry. It wraps an `MPI_Comm` with shared ownership and exposes a method-style interface for the
 collective operations Ginkgo needs:
 
 ```cpp
@@ -139,7 +141,9 @@ two implementations.
 
 ## How distributed `Matrix::apply` uses the layer
 
-Putting it together, a single distributed `apply` invokes the layer roughly as follows:
+Putting it together, a single distributed `apply` invokes the layer roughly as follows (host
+executors; on device executors the local-matrix kernel is queued before step 2, as described in
+[Row gather and scatter](row-gather-scatter.md)):
 
 ```text
 1. RowGatherer packs the values to send into a contiguous buffer (host or device).

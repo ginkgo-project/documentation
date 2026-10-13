@@ -8,7 +8,10 @@ all-to-all primitive that ships locally-owned values to the ranks that
 need them as ghost entries.
 
 The distributed `Matrix` holds a `CollectiveCommunicator` internally
-and invokes `i_all_to_all_v` during the non-local SpMV. Two
+and invokes `i_all_to_all_v` to gather the halo values that the non-local SpMV consumes, and the
+exchange completes before the non-local SpMV starts. The default `DenseCommunicator` is blocking, so
+on the host executor the exchange has already completed when the local SpMV starts; on device
+executors the local kernel is queued ahead of the exchange and the two overlap. Two
 concrete implementations ship with Ginkgo —
 [`DenseCommunicator`](dense-communicator.md) and
 [`NeighborhoodCommunicator`](neighborhood-communicator.md) — and

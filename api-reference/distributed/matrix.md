@@ -4,9 +4,10 @@ Distributed sparse matrix. Stores the rank's owned rows as two CSR
 blocks: a local block (`get_local_matrix()`) holding the columns the
 rank also owns, and a non-local block (`get_non_local_matrix()`)
 holding the remote columns (compressed so only the columns actually
-referenced are stored). `apply` runs the local SpMV while a
-`RowGatherer` exchanges the needed remote vector entries for the
-non-local SpMV.
+referenced are stored). `apply` gathers the remote vector entries
+that the non-local SpMV needs through a `RowGatherer`. On device executors the local SpMV is queued
+before the exchange is issued and runs while it is in flight; on the host executor the default, blocking `DenseCommunicator`
+completes the exchange before the local SpMV starts.
 
 ```{doxygenclass} gko::experimental::distributed::Matrix
 :members:
