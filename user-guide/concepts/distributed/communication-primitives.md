@@ -30,20 +30,27 @@ time and is fixed for the lifetime of the matrix. It is not recomputed on every 
 
 The communication protocol for a single distributed apply proceeds as follows:
 
+The numbering gives the logical data flow; the per-executor launch order is described in
+[Where MPI happens](#where-mpi-happens).
+
 ```text
 1. Gather     — each rank packs the x values that its neighbours need into a send buffer.
-2. Exchange   — a non-blocking all-to-all-variable (MPI_Alltoallv via i_all_to_all_v) transfers the packed values.
+2. Exchange   — an all-to-all-variable (MPI_Ialltoallv via i_all_to_all_v) transfers the packed values.
 3. Diagonal   — the diagonal matrix apply runs in parallel with the exchange.
 4. Wait       — complete the MPI operation, ensuring x_halo is populated.
 5. Off-diag   — apply the off-diagonal matrix using the received x_halo values.
 6. Sum        — y_local = diagonal-matrix result + off-diagonal-matrix result.
 ```
 
-The exchange is a single non-blocking variable-sized all-to-all
+The exchange is a single variable-sized all-to-all
 (`mpi::request i_all_to_all_v(...)` from the collective communicator), not a sequence of
 point-to-point `MPI_Isend` / `MPI_Irecv` pairs. This lets MPI implementations pick the optimal
 underlying transport — including direct neighbour-to-neighbour sends when the communicator topology
 makes that natural — without Ginkgo having to enumerate the send/receive list manually.
+The default `DenseCommunicator` issues it non-blocking, except when Ginkgo is configured against
+Open MPI older than 4.1 (see [Dense communicator](dense-communicator.md)); in that case the host
+executors lose the overlap with the diagonal SpMV, while device executors keep it because the
+diagonal kernel is already queued.
 
 In Ginkgo, the gather step is implemented by a `RowGatherer`, set up by `read_distributed` and
 reused across all subsequent `apply` calls, so the bookkeeping cost is amortised. The received halo
@@ -55,13 +62,18 @@ number of right-hand-side columns of each `apply`.
 MPI calls live in `core/`: the distributed layer (`core/distributed/...`) plus the distributed code
 paths of Gmres, Nullspace, Pgm and UniformCoarsening. Backend-specific kernel files (`cuda/`,
 `hip/`, `dpcpp/`, `omp/`, `common/`) never include `mpi.h`. This separation is a deliberate
-maintainability constraint. In a distributed `Matrix::apply` the steps run in this order:
+maintainability constraint. In a distributed `Matrix::apply` on a device executor the steps run in
+this order:
 
 1. The `RowGatherer` packs the send values into a contiguous buffer (host buffer for standard MPI;
-   a device buffer with GPU-aware MPI) and, on device executors, records an event.
+   a device buffer with GPU-aware MPI) and records an event.
 2. The diagonal-matrix kernel is launched on the executor.
 3. The collective communicator issues an `i_all_to_all_v` to exchange the packed values.
 4. Once the receive completes, the off-diagonal-matrix kernel accumulates into the result.
+
+On the host executors (Reference and OMP) the matrix instead issues the exchange first
+(`RowGatherer::apply_async`) and then runs the diagonal-matrix kernel while the exchange is in
+flight; the receive completes before the off-diagonal-matrix kernel starts, as on devices.
 
 GPU kernels never depend on MPI, so adding a new GPU backend does not require touching the
 distributed communication layer at all.
@@ -107,7 +119,7 @@ Rank 0                              Rank 1
 ──────────────────────────          ──────────────────────────
 A_diag * x_local (kernel)            A_diag * x_local (kernel)
          |                                   |
-         |  halo exchange (MPI_Alltoallv)    |
+         |  halo exchange (MPI_Ialltoallv)   |
          |  send boundary x values ────────> |
          | <──────────────────────  send boundary x values
          |                                   |
@@ -117,9 +129,11 @@ A_off_diag * x_halo (kernel)         A_off_diag * x_halo (kernel)
       y_local                             y_local
 ```
 
-The diagonal-matrix and off-diagonal-matrix kernels can overlap with the MPI exchange in
-time — the diagonal-matrix result does not depend on halo data, so both sides start immediately
-while the exchange is in flight.
+The diagonal-matrix kernel overlaps the MPI exchange in time — its result does not depend on halo
+data, so it starts immediately while the exchange is in flight. With the blocking Open MPI < 4.1
+fallback (see [Dense communicator](dense-communicator.md)) the host-executor diagonal SpMV runs
+after the exchange, whereas on device executors the queued diagonal kernel still overlaps it. The
+off-diagonal-matrix kernel runs after the receive completes, because it consumes the halo values.
 
 :::{seealso}
 - [The MPI layer](mpi-layer.md) — the communicator, request handle, and collective surface backing

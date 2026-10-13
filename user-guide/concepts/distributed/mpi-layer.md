@@ -10,8 +10,9 @@ distributed `LinOp` operations or debugging communication-related stalls.
 ## Build-time gate
 
 The MPI layer is built when Ginkgo is configured with `-DGINKGO_BUILD_MPI=ON`. Without that flag,
-the `gko::experimental::distributed::*` types are not available and the corresponding sub-tree of
-the public API is not installed.
+the distributed `Matrix`, `Vector`, `RowGatherer`, the collective communicators and the distributed
+preconditioners (and the corresponding sub-tree of the public API) belong to MPI-enabled builds only;
+`Partition` and `index_map` are part of every build.
 
 ## The `mpi::environment` RAII guard
 
@@ -33,8 +34,8 @@ optional `mpi::thread_type` (default `thread_type::serialized`, i.e. `MPI_THREAD
 
 ## The central `mpi::communicator`
 
-`gko::experimental::mpi::communicator` is the central handle that every distributed Ginkgo object
-carries. It wraps an `MPI_Comm` with shared ownership and exposes a method-style interface for the
+`gko::experimental::mpi::communicator` is the central handle that the distributed `Matrix`, `Vector`
+and `RowGatherer` carry. It wraps an `MPI_Comm` with shared ownership and exposes a method-style interface for the
 collective operations Ginkgo needs:
 
 ```cpp
@@ -123,7 +124,8 @@ Two implementations ship with Ginkgo:
 
 - **`DenseCommunicator`** — non-blocking variable-size all-to-all (`MPI_Ialltoallv`) over the
   full rank set, with the per-rank size vector dictating who sends what to whom. The default,
-  works on every MPI implementation.
+  works on every MPI implementation; it is non-blocking except when Ginkgo is configured against
+  Open MPI older than 4.1 (see [Dense communicator](dense-communicator.md)).
 - **`NeighborhoodCommunicator`** — `MPI_Ineighbor_alltoallv` over a graph topology that reflects
   only the ranks this process actually communicates with. Asymptotically cheaper on
   sparse-communication patterns.
@@ -134,12 +136,15 @@ two implementations.
 
 ## How distributed `Matrix::apply` uses the layer
 
-Putting it together, a single distributed `apply` invokes the layer roughly as follows:
+Putting it together, a single distributed `apply` invokes the layer roughly as follows on the host
+executors (on device executors the diagonal-matrix kernel is launched before the exchange is issued;
+see [Communication primitives](communication-primitives.md)):
 
 ```text
 1. RowGatherer packs the values to send into a contiguous buffer (host or device).
 2. coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr) returns an mpi::request.
-3. The diagonal-matrix kernel runs in parallel with the in-flight collective.
+3. The diagonal-matrix kernel runs in parallel with the in-flight collective (with the blocking
+   Open MPI < 4.1 fallback of DenseCommunicator the collective has already completed).
 4. request.wait() — the recv buffer now holds x_halo.
 5. The off-diagonal-matrix kernel applies to x_halo and accumulates into y_local.
 ```

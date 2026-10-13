@@ -1,7 +1,8 @@
 # Collective communicators
 
-Distributed `Matrix`, `Vector`, and helper objects do not invoke MPI collective routines directly.
-Instead they go through `gko::experimental::mpi::CollectiveCommunicator`, an abstract interface
+The distributed `Matrix` and its helper objects route their halo exchange through
+`gko::experimental::mpi::CollectiveCommunicator`, while `Vector` reductions call
+`communicator::all_reduce`. `CollectiveCommunicator` is an abstract interface
 that exposes a single non-blocking variable-size all-to-all and the bookkeeping (per-rank send and
 receive sizes) needed to drive it. Two concrete implementations ship with Ginkgo, and Ginkgo's
 default is selected without the caller having to know which one runs.

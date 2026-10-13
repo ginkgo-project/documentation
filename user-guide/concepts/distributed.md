@@ -82,7 +82,7 @@ auto vec = vec_host->clone(exec);
 
 ### The communicator
 
-Every distributed object holds a `gko::experimental::mpi::communicator`:
+The distributed `Matrix`, `Vector` and `RowGatherer` each hold a `gko::experimental::mpi::communicator`:
 
 ```cpp
 auto comm = mat->get_communicator();

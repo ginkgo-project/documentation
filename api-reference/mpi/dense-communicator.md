@@ -3,7 +3,8 @@
 Default implementation of
 [`CollectiveCommunicator`](collective-communicator.md). Uses
 the dense collective `MPI_Ialltoallv` over the standard MPI
-communicator (no graph topology required), which makes it portable
+communicator (no graph topology required; when Ginkgo is configured against Open MPI older
+than 4.1 it uses the blocking `MPI_Alltoallv` instead), which makes it portable
 but means every rank participates in the exchange even if it has no
 data to send.
 

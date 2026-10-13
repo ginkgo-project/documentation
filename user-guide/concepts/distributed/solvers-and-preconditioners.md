@@ -21,7 +21,7 @@ The following solvers dispatch distributed inputs through
 | Krylov, general   | `Bicgstab`, `Cgs`, `Gcr`            | Same reduction story as CG.                                                    |
 | Krylov, general   | `Gmres`                             | Has a specialised `finish_reduce` for the CGS / CGS2 orthogonalisation path.   |
 | Stationary / meta | `Ir`                                | Delegates to its inner solver.                                                 |
-| Polynomial        | `Chebyshev`                         | Uses local SpMV plus rank-local AXPYs.                                         |
+| Polynomial        | `Chebyshev`                         | Applies the distributed matrix; its updates are rank-local.                    |
 | Multilevel        | `Multigrid`                         | Coarsening through distributed `Pgm` or `UniformCoarsening` (see below).       |
 
 The solver itself is unchanged in most cases — it does not know whether the matrix it operates
@@ -148,8 +148,9 @@ auto schwarz_two_level = gko::share(
 
 The Schwarz apply combines the local solve and the coarse correction additively. By default the
 two contributions are summed; if the coarse solution tends to over-correct, pass a weighting
-through `with_coarse_weight(w)` (a value in $[0, 1]$ that scales the coarse correction; values
-outside this range fall back to plain summation).
+through `with_coarse_weight(w)`. A value $w \in [0, 1]$ yields $(1 - w)$ times the local
+contribution plus $w$ times the coarse correction; values outside this range fall back to plain
+summation.
 
 ### L1 smoother variant
 

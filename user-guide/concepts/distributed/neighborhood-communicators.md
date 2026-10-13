@@ -59,9 +59,10 @@ auto req = coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr);
 req.wait();
 ```
 
-The primitive is `MPI_Ineighbor_alltoallv`. On Open MPI builds older than 4.1 this primitive is
-not safely available with all type combinations and the implementation reports `GKO_NOT_IMPLEMENTED`
-— if you hit that, fall back to `DenseCommunicator` or upgrade your MPI.
+The primitive is `MPI_Ineighbor_alltoallv`. When Ginkgo is configured against Open MPI older than
+4.1 (whose 4.0.x releases have several bugs), CMake prints a warning and Ginkgo disables this
+exchange: the implementation reports `GKO_NOT_IMPLEMENTED`; use `DenseCommunicator` (the default)
+instead. Upgrade Open MPI to use the neighbourhood exchange.
 
 ## Cost model
 

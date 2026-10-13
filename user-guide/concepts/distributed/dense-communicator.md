@@ -68,11 +68,11 @@ auto req = coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr);
 req.wait();
 ```
 
-On modern MPI (≥ 4.1) the underlying primitive is `MPI_Ialltoallv` — a non-blocking variable-size
-all-to-all. On Open MPI builds older than 4.1 the implementation falls back to the blocking
-`MPI_Alltoallv` (since older Open MPI did not implement the non-blocking form correctly for all
-type combinations); the returned `mpi::request` is a default-constructed handle that completes
-immediately. From the caller's perspective, `wait()` is always the right thing to call.
+The underlying primitive is `MPI_Ialltoallv` — a non-blocking variable-size all-to-all. When Ginkgo
+is configured against Open MPI older than 4.1 (whose 4.0.x releases have several bugs), CMake prints
+a warning and the implementation falls back to the blocking `MPI_Alltoallv`; other MPI
+implementations always use `MPI_Ialltoallv`. In the fallback the returned `mpi::request` is a
+default-constructed handle that completes immediately. From the caller's perspective, `wait()` is always the right thing to call.
 
 ## Cost model
 

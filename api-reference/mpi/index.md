@@ -22,7 +22,7 @@ building blocks that the distributed kernels use internally.
 - [`environment`](environment.md) — RAII wrapper around `MPI_Init` and
   `MPI_Finalize`; construct once at the top of `main`.
 - [`communicator`](communicator.md) — reference-counted C++ wrapper
-  around `MPI_Comm` that every distributed Ginkgo type holds onto.
+  around `MPI_Comm` that the distributed `Matrix`, `Vector` and `RowGatherer` hold onto.
 
 ## Asynchronous operations
 

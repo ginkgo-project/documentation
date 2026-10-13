@@ -1,8 +1,7 @@
 # `gko::experimental::mpi::communicator`
 
-Reference-counted C++ wrapper around `MPI_Comm`. Every distributed
-Ginkgo type (`distributed::Matrix`, `distributed::Vector`,
-`distributed::RowGatherer`, …) carries one of these, and copies are
+Reference-counted C++ wrapper around `MPI_Comm`. The distributed
+`Matrix`, `Vector` and `RowGatherer` each carry one of these, and copies are
 cheap. Wrapping an existing `MPI_Comm` leaves its ownership with the
 application; communicators created by splitting
 (`communicator(comm, color, key)`) own their `MPI_Comm` and free it when
