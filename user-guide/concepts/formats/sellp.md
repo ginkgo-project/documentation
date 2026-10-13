@@ -4,13 +4,13 @@ Sliced ELLPACK is ELL's answer to non-uniform row lengths. Instead of padding
 every row to the **globally** longest one, Sellp partitions the matrix into
 fixed-size **slices** of contiguous rows and pads each slice to its own longest
 row. A single outlier no longer inflates the storage of every other row in the
-matrix — only the slice it lives in. The default slice size matches a GPU warp,
-which keeps memory access coalesced within a slice while shrinking padding
+matrix — only the slice it lives in. The default slice size is 64, which
+keeps memory access coalesced within a slice while shrinking padding
 overall.
 
 ## Storage layout
 
-The rows are grouped into slices of size $S$ (default 32). For slice $s$
+The rows are grouped into slices of size $S$ (default 64). For slice $s$
 spanning rows $[sS,\, (s+1)S)$, let $k_s$ be the longest non-zero count in
 that slice. Sellp stores, per slice, two column-major arrays of size
 $S \times k_s$ — the values and column indices of every entry, padded so all
@@ -46,19 +46,19 @@ slice 1 spans 2..4 — multiplied by $S=2$ this gives flat extents 0..4 and
 - **As a fall-back from ELL** when row-length variance becomes too costly,
   before reaching for the heavier [Hybrid](hybrid.md) split.
 
-The slice size $S$ is configurable; matching the GPU warp width (32 on NVIDIA,
-64 on AMD) is the standard choice, but smaller slices reduce padding at the
+The slice size $S$ is configurable; the default of 64 is a multiple of the GPU warp
+width (32 on NVIDIA, 64 on AMD), and smaller slices reduce padding at the
 cost of slightly worse coalescing.
 
 ## Construction
 
 ```cpp
-// From matrix_data — slice_size defaults to 32
+// From matrix_data — slice_size defaults to 64
 auto sellp = gko::matrix::Sellp<double, int>::create(exec);
-sellp->read(matrix_data);
+sellp->read(data);
 
 // With an explicit slice size (and slice-stride factor for alignment)
-auto sellp = gko::matrix::Sellp<double, int>::create(
+auto sellp_sized = gko::matrix::Sellp<double, int>::create(
                  exec,
                  gko::dim<2>{n_rows, n_cols},
                  /*slice_size=*/ 32,
@@ -66,8 +66,8 @@ auto sellp = gko::matrix::Sellp<double, int>::create(
                  /*total_cols=*/ 0);   // 0 = auto
 
 // Converted from CSR
-auto sellp = gko::matrix::Sellp<double, int>::create(exec);
-sellp->copy_from(csr);
+auto sellp_csr = gko::matrix::Sellp<double, int>::create(exec);
+sellp_csr->copy_from(csr);
 ```
 
 A re-ordering step (e.g. RCM) before conversion can dramatically reduce the
@@ -89,7 +89,7 @@ still amplify; reach for [Hybrid](hybrid.md) instead.
 
 ## Conversion behaviour
 
-Sellp converts to and from CSR, ELL, and COO:
+Sellp converts to and from CSR and Dense; ELL and COO are reached through CSR:
 
 ```cpp
 // Sellp → CSR
@@ -97,8 +97,8 @@ auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->copy_from(sellp);
 
 // CSR → Sellp
-auto sellp = gko::matrix::Sellp<double, int>::create(exec);
-sellp->copy_from(csr);
+auto sellp2 = gko::matrix::Sellp<double, int>::create(exec);
+sellp2->copy_from(csr);
 ```
 
 `copy_from(csr)` re-slices the matrix using the current slice size and stride

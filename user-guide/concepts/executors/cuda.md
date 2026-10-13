@@ -14,10 +14,9 @@ auto gpu  = gko::CudaExecutor::create(0, host);   // device id 0
 For more control, supply a custom allocator and a CUDA stream:
 
 ```cpp
-cudaStream_t stream;
-cudaStreamCreate(&stream);
-auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream);
-auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream);
+gko::cuda_stream stream{0};   // creates a stream on device 0
+auto alloc = std::make_shared<gko::CudaAsyncAllocator>(stream.get());
+auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream.get());
 ```
 
 ## Allocators
@@ -33,7 +32,7 @@ If you don't pass an allocator argument, `CudaExecutor::create(id, host)` constr
 
 ## Streams
 
-By default `CudaExecutor` uses the legacy default stream. The stream parameter type is `CUstream_st*` — this is the same type CUDA defines as `cudaStream_t` (a typedef). Ginkgo does not wrap streams in its own type; pass whatever you got from `cudaStreamCreate()`. Use an explicit stream to overlap kernel execution with host work or with other streams — the foundation for multi-stream pipelines and CUDA-graph integration.
+By default `CudaExecutor` uses the legacy default stream. The stream parameter type is `CUstream_st*` — this is the same type CUDA defines as `cudaStream_t` (a typedef). The RAII wrapper `gko::cuda_stream{device_id}` creates a stream on the given device, destroys it on scope exit, and returns the handle through `get()`; a handle from `cudaStreamCreate()` works as well. Use an explicit stream to overlap kernel execution with host work or with other streams — the foundation for multi-stream pipelines and CUDA-graph integration.
 
 ## Memory model
 

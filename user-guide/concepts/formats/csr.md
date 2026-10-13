@@ -34,10 +34,10 @@ Three patterns cover the typical use cases:
 ```cpp
 // From matrix_data (assembled on the host or device)
 auto csr = gko::matrix::Csr<double, int>::create(exec);
-csr->read(matrix_data);
+csr->read(data);
 
 // From explicit arrays (when you already hold the three CSR arrays)
-auto csr = gko::matrix::Csr<double, int>::create(
+auto csr_arrays = gko::matrix::Csr<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
                std::move(values_array),
@@ -45,8 +45,8 @@ auto csr = gko::matrix::Csr<double, int>::create(
                std::move(row_ptrs_array));
 
 // Converted from another format
-auto csr = gko::matrix::Csr<double, int>::create(exec);
-csr->copy_from(some_coo);   // COO → CSR
+auto csr_coo = gko::matrix::Csr<double, int>::create(exec);
+csr_coo->copy_from(some_coo);   // COO → CSR
 ```
 
 Pattern 3 is the most common migration path: assemble in COO (easy to build
@@ -96,8 +96,9 @@ releases — treat them as a rough guide, not a contract.
 ## Performance characteristics
 
 SpMV in CSR is memory-bound for typical sparse matrices. The minimum traffic per SpMV is
-approximately `2 * nnz` bytes (one read of `values`, one read of `col_idxs`), plus
-`n_rows` reads of `row_ptrs`. The output vector `y` is written once.
+approximately `nnz * (sizeof(ValueType) + sizeof(IndexType))` bytes (one read of `values`
+and one read of `col_idxs` per non-zero), plus `n_rows + 1` reads of `row_ptrs`. The output
+vector `y` is written once.
 
 On GPU, coalesced memory access is the key factor. `classical` accesses `col_idxs` and
 `values` sequentially within each row's subwarp, which is coalesced when rows fit in
@@ -120,8 +121,9 @@ bool sorted = csr->is_sorted_by_column_index();
 csr->sort_by_column_index();
 ```
 
-`read(matrix_data)` produces a row-major-sorted CSR when the input was sorted (which
-`matrix_data::sort_row_major()` guarantees). Conversions from other formats also
+`read(matrix_data)` expects the input sorted in row-major order with unique positions
+(`matrix_data::sum_duplicates()` guarantees both), and then produces CSR with sorted
+column indices in each row. Conversions from other formats also
 generally preserve sortedness. The risk is in the explicit-array constructor (pattern 2
 above): if you build a CSR from raw arrays, you are responsible for ensuring the per-row
 column indices are sorted before handing it to a preconditioner factory.

@@ -5,8 +5,9 @@ explicit copies. It is intended for codes that already use Kokkos for their main
 parallel kernels and want Ginkgo as a solver backend on the same data, on the same
 device.
 
-The extension lives in the `gko::ext::kokkos` namespace and requires
-`-DGINKGO_EXTENSION_KOKKOS=ON` plus a Kokkos installation discoverable by CMake.
+The extension lives in the `gko::ext::kokkos` namespace. It is header-only and installed
+with Ginkgo; in your own CMake project, call `find_package(Kokkos)` and link both
+`Ginkgo::ginkgo` and `Kokkos::kokkos`.
 
 ## What the extension provides
 
@@ -38,7 +39,7 @@ Kokkos::finalize();
 
 The returned executor maps to whichever Ginkgo backend matches the Kokkos
 execution space — `CudaExecutor` for `Kokkos::Cuda`, `HipExecutor` for `Kokkos::HIP`,
-`DpcppExecutor` for `Kokkos::SYCL`, `OmpExecutor` for `Kokkos::OpenMP`,
+`DpcppExecutor` for `Kokkos::Experimental::SYCL`, `OmpExecutor` for `Kokkos::OpenMP`,
 `ReferenceExecutor` for `Kokkos::Serial`.
 
 ## Mapping data zero-copy
@@ -72,5 +73,5 @@ outlive the Ginkgo container.
 :::{seealso}
 - [Views and zero-copy wrapping](../views-zero-copy.md) — the same mechanic, but going from external memory *into* Ginkgo. Together with `map_data` this gives both directions of the bridge.
 - [The Executor model](../executor-model.md) — how a Ginkgo executor relates to its memory space.
-- API reference: [`gko::ext::kokkos`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1ext_1_1kokkos.html)
+- API reference: [`gko::ext::kokkos`](../../../api-reference/extensions/kokkos.md)
 :::

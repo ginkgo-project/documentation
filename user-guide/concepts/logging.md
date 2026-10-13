@@ -36,18 +36,18 @@ Logging is currently not MPI-aware. Each rank logs its own events independently.
 | ------------------ | -------------------------------------------------- | -------------------------------------- |
 | `Convergence`      | Iteration count and final residual norm            | After solve: did it converge well?     |
 | `Stream`           | Logs every event to a stream (`cout`, `ofstream`)  | Tracing and debugging                  |
-| `Performance`      | Operation timings and allocation totals            | Lightweight profiling                  |
-| `ProfilerHook`     | NVTX / ROCTX / VTune named regions                | GPU profiler integration               |
+| `PerformanceHint`  | Repeated cross-executor copies and allocations     | Finding avoidable transfers            |
+| `ProfilerHook`     | NVTX / ROCTX / VTune / TAU named regions, or a timing summary | Profiler integration and quick timings |
 | `BatchConvergence` | Per-batch-item iteration count and residual        | Batched solvers                        |
 
-All built-in loggers live in the `gko::log` namespace.
+All built-in loggers live in the `gko::log` namespace; `BatchConvergence` lives in `gko::batch::log`.
 
 ## Convergence — the most common use case
 
 `Convergence` captures the final state of an iterative solve: the total iteration count and the residual norm at termination. It is the right first logger to add when you want to know whether a solve succeeded.
 
 ```cpp
-auto convergence = std::make_shared<gko::log::Convergence<double>>();
+auto convergence = gko::share(gko::log::Convergence<double>::create());
 solver->add_logger(convergence);
 solver->apply(b, x);
 
@@ -55,7 +55,7 @@ std::cout << "Converged in " << convergence->get_num_iterations() << " iteration
 auto resnorm = convergence->get_residual_norm();   // Dense<double> on `exec`, shape 1×nrhs
 ```
 
-`Convergence` is templated on the value type. The residual norm is a 1×nrhs `Dense` living on the solver's executor.
+`Convergence` is templated on the value type and is created with its static `create()` function, which returns a `std::unique_ptr`; `gko::share` turns it into the `shared_ptr` that `add_logger` takes. The residual norm is a 1×nrhs `Dense` living on the solver's executor.
 
 :::{attention}
 `get_residual_norm()` returns a `LinOp*` to a `Dense` that lives on the **solver's
@@ -84,12 +84,13 @@ The logger reads the outcome from the [stopping criteria](stopping-criteria.md) 
 `Stream` logs every observable event to an `std::ostream`. It is the easiest way to see exactly what a solver is doing:
 
 ```cpp
-auto stream_logger = std::make_shared<gko::log::Stream<>>(std::cout, true);
+auto stream_logger = gko::share(
+    gko::log::Stream<double>::create(gko::log::Logger::all_events_mask, std::cout, true));
 solver->add_logger(stream_logger);
 solver->apply(b, x);
 ```
 
-The second constructor argument controls verbosity — set it to `true` to include matrix and vector values in the output, or `false` for event names only. Stream logging is most useful during the first integration of a new solver or when tracking down an unexpected convergence failure.
+The third argument of `create(mask, os, verbose)` controls verbosity — set it to `true` to include matrix and vector values in the output, or `false` for event names only. Stream logging is most useful during the first integration of a new solver or when tracking down an unexpected convergence failure.
 
 :::{attention}
 Stream logging is synchronous and can be noisy. Disable it in production paths — every event incurs a format-and-write call.
@@ -105,9 +106,10 @@ executor:
 |---|---|---|
 | `create_nvtx(color_argb = …)` | NVTX | NSight Systems on CUDA |
 | `create_roctx()` | ROCTX | rocprof on HIP |
-| `create_vtune()` | Intel VTune ITT | VTune on CPU |
+| `create_vtune()` | Intel VTune ITT | VTune on CPU and DPC++ |
 | `create_tau(initialize = true)` | TAU via PerfStubs | TAU and other PerfStubs targets |
-| `create_for_executor(exec)` | Picks the right one of the above for the executor's backend (NVTX for CUDA, ROCTX for HIP, TAU otherwise) | General-purpose default |
+| `create_for_executor(exec)` | Picks the right one of the above for the executor's backend (NVTX for CUDA, ROCTX for HIP on AMD, VTune for DPC++, TAU otherwise) | General-purpose default |
+| `create_summary()` | Accumulates wall-clock time per named range and prints a table when the logger is destroyed | Quick timing without an external tool |
 | `create_custom(begin, end, …)` | User-supplied callbacks | Any profiler with a C entry point — including **Caliper** |
 
 ```cpp
@@ -125,28 +127,39 @@ is `create_custom`. Pass two function objects that call Caliper's C API directly
 (`cali_begin_region` / `cali_end_region`) as the begin/end callbacks, and Ginkgo
 will invoke them at every annotated region boundary.
 
-A worked example of Caliper integration in an application is planned — see
+A worked example of Caliper integration in an application is in
 [How-To: ProfilerHook with Caliper](../how-to/using/profiler-hook-caliper.md).
 
 ## Performance logger
 
-`Performance` is more light-weight than `ProfilerHook`. It accumulates wall-clock durations per operation type and per executor, without emitting external profiling markers:
+Two loggers report on performance without an external profiler: a timing summary and a hint logger.
+
+`ProfilerHook::create_summary()` accumulates wall-clock durations per named range, without emitting external profiling markers, and prints a table when the logger is destroyed. The default timer measures on the CPU; passing `gko::Timer::create_for_executor(exec)` (or calling `set_synchronization(true)` on the logger) makes the GPU timings reliable:
 
 ```cpp
-auto perf = std::make_shared<gko::log::Performance>();
-exec->add_logger(perf);
+auto summary = gko::log::ProfilerHook::create_summary(
+    gko::Timer::create_for_executor(exec));
+exec->add_logger(summary);
 // ... run workload ...
-auto stats = perf->get_total_time(/* operation */);
 ```
 
-Because it attaches to an executor rather than a solver, it captures all operations on that device, not just the ones inside a single `apply` call. This is useful for characterising the total GPU time a benchmark spends in Ginkgo.
+`PerformanceHint` analyses allocations and copies on an executor and reports unnecessary ones. It checks for repeated cross-executor copies from or to the same pointer and for repeated allocation/free pairs of the same size:
+
+```cpp
+auto hint = gko::share(gko::log::PerformanceHint::create(std::cerr));
+exec->add_logger(hint);
+// ... run workload ...
+hint->print_status();   // writes the hints collected so far
+```
+
+Both attach to an executor rather than a solver, so they capture all operations on that device, not just the ones inside a single `apply` call. This is useful for characterising the total time a benchmark spends in Ginkgo.
 
 ## Batched: BatchConvergence
 
-[Batched solvers](batched.md) solve many independent systems simultaneously. Each batch item has its own iteration count and residual, so the scalar `Convergence` logger does not apply. Use `BatchConvergence` instead:
+[Batched solvers](batched.md) solve many independent systems simultaneously. Each batch item has its own iteration count and residual, so the scalar `Convergence` logger does not apply. Use `gko::batch::log::BatchConvergence` instead:
 
 ```cpp
-auto bcv = std::make_shared<gko::log::BatchConvergence<double>>();
+auto bcv = gko::share(gko::batch::log::BatchConvergence<double>::create());
 batched_solver->add_logger(bcv);
 batched_solver->apply(rhs, sol);
 

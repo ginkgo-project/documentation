@@ -24,18 +24,22 @@ Matrix:                COO storage:
 
 Unlike CSR, COO does not compress row information into a prefix-sum array. Each non-zero
 explicitly stores its row index. This makes random insertion cheap (append a triple) but
-SpMV more expensive (the hardware must handle arbitrary row scatter via atomic
-operations).
+SpMV more expensive (partial sums of a row are combined and then added to the output
+with atomic operations).
 
-COO does not require entries to be sorted. `read(matrix_data)` produces row-major order,
-but explicit-array construction does not enforce any ordering.
+COO keeps its entries grouped by row; the columns within a row need not be sorted.
+`read(matrix_data)` expects the data in row-major order with each `(row, col)` pair
+once, so call `data.sum_duplicates()` (or `data.sort_row_major()` when the positions are
+already unique) first. Explicit-array
+construction does not check the ordering: pass arrays whose entries are already
+grouped by row.
 
 ## When to use COO
 
 **Assembly.** Building a matrix from many small contributions — finite-element element
 matrices, stencil contributions, entries accumulated from distributed subdomains — is
-natural in COO. Appending triples is `O(1)` per entry. No reordering or compaction is
-needed during assembly.
+natural in COO. Appending a triple to a `matrix_data` is `O(1)` per entry; a single
+`sum_duplicates()` before `read` sorts the entries and merges repeated positions.
 
 **File IO.** Matrix Market (`.mtx`) is structurally a COO format. `gko::read_raw`
 returns a `matrix_data` whose entries correspond one-to-one to COO triples. If you read
@@ -53,7 +57,7 @@ auto coo = gko::matrix::Coo<double, int>::create(exec);
 coo->read(data);
 
 // Direct construction from three explicit arrays
-auto coo = gko::matrix::Coo<double, int>::create(
+auto coo_arrays = gko::matrix::Coo<double, int>::create(
                exec,
                gko::dim<2>{n_rows, n_cols},
                std::move(values_array),
@@ -72,22 +76,27 @@ If you are loading from a Matrix Market file and want COO, use
 
 ## SpMV in COO
 
-COO's SpMV implementation assigns one thread per non-zero and uses atomic accumulation
-into the output vector:
+COO's SpMV distributes the non-zeros evenly across threads and accumulates into the
+output vector with atomic additions. On GPUs, each warp first combines the partial
+products that belong to the same row with a segmented scan, so only one atomic add per
+row segment reaches `y`:
 
 ```text
-for each non-zero k (in parallel):
-    atomic_add(y[row_idxs[k]], values[k] * x[col_idxs[k]])
+for each chunk of non-zeros (in parallel, one per thread group):
+    partial sums of entries with equal row_idxs[k]  -> segmented scan
+    atomic_add(y[row], segment_sum)                 -> once per row segment
 ```
 
-This is correct on every backend but carries two performance costs:
+This is correct on every backend and keeps the work balanced across threads whatever the row-length
+distribution, but carries two performance costs:
 
-1. **Atomic overhead.** Multiple threads writing to the same `y[i]` (rows with many
-   non-zeros) serialise through the atomic, reducing parallelism.
-2. **Irregular memory access.** `row_idxs[k]` addresses `y` non-sequentially, reducing
-   cache effectiveness compared to CSR's row-sequential access.
+1. **Atomic overhead.** Segments of the same row that fall into different warps or
+   blocks still meet in an atomic add on `y[i]`.
+2. **Irregular memory access.** Each row segment is combined and then written to
+   `y[row_idxs[k]]` by an atomic add, which is less cache-friendly than CSR's plain
+   row-sequential write of `y`.
 
-On modern GPUs, atomics to distinct addresses are fast, so COO SpMV is not catastrophically
+Because the scan removes most of the atomic traffic, COO SpMV is not catastrophically
 slow — but it is consistently slower than CSR on the same matrix.
 
 ## `apply2` — accumulating SpMV
@@ -132,8 +141,9 @@ prefix-sum over row counts to build `row_ptrs`, then copies `col_idxs` and `valu
 ## Limitations
 
 - **No row-access semantics.** CSR's `row_ptrs` array lets algorithms skip directly to
-  row `i` in `O(1)`. COO has no such shortcut — scanning for row `i` is `O(nnz)` unless
-  the data is pre-sorted.
+  row `i` in `O(1)`. COO has no such shortcut — finding row `i` means searching the
+  `row_idxs` array, which is `O(nnz)` for an unindexed scan and `O(log nnz)` by binary
+  search on the row-grouped data.
 - **Larger index storage.** COO stores `nnz` row indices; CSR stores only `n_rows + 1`
   row pointers. For matrices where `n_rows << nnz`, CSR uses noticeably less memory.
 - **Preconditioners and factorisation require CSR.** Passing a COO matrix to a

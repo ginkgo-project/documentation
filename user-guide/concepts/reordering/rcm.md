@@ -26,20 +26,33 @@ factorisation prefer [AMD](amd.md) or [nested dissection](nested-dissection.md).
 
 ```cpp
 auto reorder_factory =
-    gko::experimental::reorder::Rcm<double, int>::build().on(exec);
+    gko::experimental::reorder::Rcm<int>::build().on(exec);
 auto perm = reorder_factory->generate(system_matrix);
 
 auto permuted = system_matrix->permute(perm.get());
 ```
 
-RCM produces a symmetric permutation; for non-symmetric matrices it operates on the
-symmetrised adjacency pattern $A + A^T$.
+RCM produces a symmetric permutation; by default it operates on the symmetrised
+adjacency pattern $A + A^T$.
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `skip_symmetrize` | `bool` | When `true`, the matrix is assumed to be symmetric and used directly instead of forming $A + A^T$. Defaults to `false`. |
+| `strategy` | `rcm_starting_strategy` | How the starting vertex of each connected component is chosen: `pseudo_peripheral` (default, tighter bandwidth, more expensive) or `minimum_degree`. |
+
+:::{attention}
+The class template `gko::reorder::Rcm<ValueType, IndexType>` is deprecated in favour of
+`gko::experimental::reorder::Rcm<IndexType>`. The `reordering` parameter of
+[`ScaledReordered`](scaled-reordered.md) takes the factory of the deprecated class.
+:::
 
 ## Implementation notes
 
-The algorithm runs on host. The starting vertex is chosen by an inner BFS to
-approximate a pseudoperipheral vertex (high eccentricity), which empirically
-produces tighter profiles than starting from an arbitrary low-degree node.
+The algorithm runs on the executor of the factory (Reference, OpenMP, CUDA or HIP);
+on a DPC++ executor the permutation is computed on the host. The default starting
+vertex is chosen by an inner BFS to approximate a pseudoperipheral vertex (high
+eccentricity), which empirically produces tighter profiles than starting from an
+arbitrary low-degree node.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::Rcm`](../../../api-reference/reorder/rcm.md).

@@ -10,17 +10,17 @@ The class differs from `std::vector` in two ways that matter for HPC
 workloads. First, **each instance carries a `shared_ptr<const Executor>`**:
 allocation happens on that executor, and copies between instances
 transparently dispatch through the executors involved (host-to-device,
-device-to-device, etc.). Second, **`gko::array` is move-only at the value
-level** — copy construction is forbidden, with explicit `clone()` /
-`as_view()` / `as_const_view()` helpers covering the cases where a copy
-or a non-owning view is genuinely wanted. The combination keeps the
-ownership story explicit and prevents accidental device-side copies
-when an executor moves through the call chain.
+device-to-device, etc.). Second, **copies are deep and
+executor-aware**: copy construction and copy assignment duplicate the data
+(copy assignment keeps the target's executor and transfers the data to it),
+and moves transfer ownership without copying when both arrays use the same
+executor; a move to an array on another executor copies the data.
 
-A separate `gko::array_view<T>` (and its `const_array_view<T>`
-counterpart) wraps a borrowed pointer for the case when an Ginkgo data
-structure should treat application-owned memory as if it were its own,
-without ever taking ownership.
+For non-owning access, `array<T>::view(exec, size, ptr)` (or
+`gko::make_array_view`) returns an `array` that wraps application-owned memory
+without ever freeing it, and `array<T>::const_view(...)` (or
+`gko::make_const_array_view`) is the read-only counterpart. `as_view()` and
+`as_const_view()` produce such views of an existing array.
 
 ```{doxygenclass} gko::array
 :members:

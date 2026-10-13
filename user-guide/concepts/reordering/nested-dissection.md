@@ -4,8 +4,7 @@ Nested dissection (ND) is a recursive, divide-and-conquer fill-reducing reorderi
 A balanced **vertex separator** of the matrix's adjacency graph is chosen, the two
 disconnected sub-graphs are ordered (recursively, by the same procedure), and the
 separator vertices are placed **last**. The recursion bottoms out on small
-sub-graphs, where a local heuristic — typically [AMD](amd.md) — finishes the
-ordering.
+sub-graphs, which METIS orders itself.
 
 The separator-last property bounds the fill-in to the union of fills inside each
 sub-graph plus a contribution from the separator. For meshes with a regular
@@ -34,22 +33,19 @@ auto perm = reorder_factory->generate(system_matrix);
 auto permuted = system_matrix->permute(perm.get());
 ```
 
-To combine ND with an MC64 matching/scaling step and a downstream direct solver in
-one shot, see [`ScaledReordered`](scaled-reordered.md).
+METIS options are passed through the `options` parameter: `with_options` takes a
+`std::unordered_map<int, int>` keyed by the METIS option index (for example
+`METIS_OPTION_SEED`), and options that are not set keep METIS's defaults. Ginkgo
+supports 0-based numbering only.
 
 ## Implementation notes
 
-The partitioning is delegated to [METIS](https://github.com/KarypisLab/METIS); the
-quality of the resulting ordering is dominated by METIS's separator quality.
-Ginkgo's `NestedDissection` is therefore only available when Ginkgo is built with
-`-DGINKGO_BUILD_METIS=ON`. Trying to instantiate it without METIS available raises a
-build-time error.
-
-:::{note}
-The recursive base case uses an internal AMD-like local ordering rather than
-calling [AMD](amd.md) directly. If you need a different bottom-level strategy, you
-have to modify METIS itself.
-:::
+The partitioning is delegated to [METIS](https://github.com/KarypisLab/METIS)
+(`METIS_NodeND`); the quality of the resulting ordering is dominated by METIS's
+separator quality. `NestedDissection` is declared when CMake finds METIS at
+configure time, so METIS needs to be discoverable when Ginkgo is built: pass
+`-DMETIS_DIR=<prefix>` or add the prefix to `CMAKE_PREFIX_PATH`. A found METIS is
+enabled automatically.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::NestedDissection`](../../../api-reference/reorder/nested-dissection.md).

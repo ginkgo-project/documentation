@@ -36,16 +36,20 @@ solver->apply(batched_rhs, batched_x);
 
 ## Factory parameters
 
-| Parameter                          | Default                          | Effect                                                                 |
-| ---------------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `with_max_iterations(n)`           | (required)                       | Per-item iteration cap.                                                |
-| `with_tolerance(tol)`              | (required)                       | Stopping threshold on the per-item residual.                           |
-| `with_tolerance_type(t)`           | `tolerance_type::absolute`       | `absolute` or `relative` (see CG page for details).                    |
-| `with_preconditioner(factory)`     | `BatchIdentity` (no preconditioning) | Any `BatchLinOpFactory`. Generated per-item from the system matrix.    |
-| `with_generated_preconditioner(p)` | `nullptr`                        | Use a pre-built `BatchLinOp` instead of generating a new one.          |
+| Parameter | Type | Purpose |
+|---|---|---|
+| `with_max_iterations(n)` | `int` | Per-item iteration cap. Defaults to 100. |
+| `with_tolerance(tol)` | `double` | Stopping threshold on the per-item residual. Defaults to `1e-11`. |
+| `with_tolerance_type(t)` | `gko::batch::stop::tolerance_type` | `absolute` (default) checks $\lVert r_k \rVert$; `relative` checks $\lVert r_k \rVert / \lVert b \rVert$. |
+| `with_preconditioner(factory)` | `std::shared_ptr<const BatchLinOpFactory>` | Preconditioner generated per item from the system matrix. Defaults to no preconditioner (a batched identity). |
+| `with_generated_preconditioner(p)` | `std::shared_ptr<const BatchLinOp>` | A pre-built preconditioner. When it is set, `with_preconditioner` is ignored. Defaults to `nullptr`. |
 
-The same parameter names and defaults apply as for [Batched CG](cg.md#factory-parameters); only
-the algorithm differs.
+All parameters are optional: a solver built with `.on(exec)` alone uses the defaults.
+
+The `tolerance_type` enum lives in `<ginkgo/core/stop/batch_stop_enum.hpp>` and accepts only
+`absolute` or `relative`.
+
+The parameters match [Batched CG](cg.md#factory-parameters); only the algorithm differs.
 
 ## Stopping rule and breakdown
 
@@ -71,8 +75,9 @@ preconditioner apply happens *before* the SpMV that builds the next Krylov direc
 
 ## Runtime setters
 
-`BatchSolver` exposes `reset_tolerance(tol)`, `reset_max_iterations(n)`,
-`reset_tolerance_type(t)`, and `set_preconditioner_base(p)` — same surface as Batched CG.
+`BatchSolver` exposes `reset_tolerance(tol)`, `reset_max_iterations(n)` and
+`reset_tolerance_type(t)` — same surface as Batched CG. To use a different preconditioner,
+generate a new solver with `with_generated_preconditioner(p)` or `with_preconditioner(factory)`.
 
 ## Inspecting per-item convergence
 

@@ -20,9 +20,8 @@ divide both `n_rows` and `n_cols`):
 - **`col_idxs`** — length equal to the number of stored blocks. The
   block-column index of each block, ordered block-row by block-row.
 - **`values`** — length `num_blocks * bs * bs`. The dense data of each
-  stored block, **column-major** within each block (`block_col_major`
-  accessor — `fbcsr_kernels.cpp:53`), with blocks concatenated in the same
-  order as `col_idxs`.
+  stored block, **column-major** within each block, with blocks concatenated in
+  the same order as `col_idxs`.
 
 ```text
 Matrix (4 × 4, bs = 2):       Block layout (2 × 2 block grid):
@@ -63,21 +62,13 @@ fill ratio. Use plain [CSR](csr.md) instead.
 ## Construction
 
 ```cpp
-// From matrix_data — block size must be specified
-auto fbcsr = gko::matrix::Fbcsr<double, int>::create(
-                 exec,
-                 gko::dim<2>{n_rows, n_cols},
-                 /*num_stored_blocks=*/ 0,
-                 /*block_size=*/ 2);
-fbcsr->read(matrix_data);
+// From matrix_data — the block size is given at creation
+auto fbcsr = gko::matrix::Fbcsr<double, int>::create(exec, /*block_size=*/ 2);
+fbcsr->read(data);
 
 // From CSR — converts when the block size divides both dimensions
-auto fbcsr = gko::matrix::Fbcsr<double, int>::create(
-                 exec,
-                 gko::dim<2>{n_rows, n_cols},
-                 /*num_stored_blocks=*/ 0,
-                 /*block_size=*/ 2);
-fbcsr->copy_from(csr);
+auto fbcsr_csr = gko::matrix::Fbcsr<double, int>::create(exec, /*block_size=*/ 2);
+fbcsr_csr->copy_from(csr);
 ```
 
 `read` and conversion both **require** the block size to be set on the target
@@ -97,9 +88,10 @@ instead of `num_blocks * bs * bs` — is often the larger gain.
 
 ## Conversion behaviour
 
-Fbcsr converts cleanly to and from CSR, Dense, and SparsityCsr; the
-conversion preserves all stored entries (including the in-block zeros that
-scalar formats would not have materialised):
+Fbcsr converts to and from CSR and Dense, and converts to SparsityCsr, which holds the
+block-level pattern (one entry per stored block, on the block grid). The CSR and Dense
+conversions preserve all stored entries, including the in-block zeros that scalar
+formats would not have materialised:
 
 ```cpp
 // Fbcsr → CSR — every stored block entry becomes a CSR non-zero
@@ -107,10 +99,8 @@ auto csr = gko::matrix::Csr<double, int>::create(exec);
 csr->copy_from(fbcsr);
 
 // CSR → Fbcsr — requires the target's block size to be set first
-auto fbcsr = gko::matrix::Fbcsr<double, int>::create(
-                 exec, gko::dim<2>{n_rows, n_cols},
-                 /*num_stored_blocks=*/ 0, /*block_size=*/ 2);
-fbcsr->copy_from(csr);
+auto fbcsr2 = gko::matrix::Fbcsr<double, int>::create(exec, /*block_size=*/ 2);
+fbcsr2->copy_from(csr);
 ```
 
 `CSR → Fbcsr` walks the CSR pattern, accumulates non-zeros into the

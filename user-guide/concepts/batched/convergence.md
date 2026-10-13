@@ -2,7 +2,8 @@
 
 `gko::batch::log::BatchConvergence<ValueType>` is the per-item observability hook for batched
 solvers. It captures the **iteration count** and **final residual norm** for every item in the
-batch and exposes them as host-readable arrays after the solve. Without this logger attached,
+batch and exposes them as arrays on the solver's executor after the solve; copy them to the
+host to read individual entries. Without this logger attached,
 per-item convergence information is computed during the solve but discarded — the only
 observable signal is the global success of `solver->apply`.
 
@@ -36,7 +37,7 @@ auto solver = b::solver::Cg<double>::build()
                   .on(exec)
                   ->generate(batched_matrix);
 
-auto logger = b::log::BatchConvergence<double>::create();
+auto logger = gko::share(b::log::BatchConvergence<double>::create());
 solver->add_logger(logger);
 
 solver->apply(batched_rhs, batched_x);
@@ -45,7 +46,7 @@ solver->apply(batched_rhs, batched_x);
 const auto& iters = logger->get_num_iterations();        // gko::array<int>
 const auto& norms = logger->get_residual_norm();         // gko::array<double>
 
-// Both arrays live on the executor the logger was created on.
+// Both arrays live on the executor of the solver that was logged.
 auto host_iters = gko::array<int>{exec->get_master(), iters};
 for (gko::size_type k = 0; k < host_iters.get_size(); ++k) {
     std::cout << "item " << k
@@ -59,19 +60,19 @@ the internal arrays. If you want to compare runs, copy the arrays out before the
 ## Where the logger fires
 
 `BatchConvergence` listens for the `batch_solver_completed` event — that is the only event in
-its default mask. The mask is configurable through the `create(mask)` overload, but no
-additional batch-side events are wired up today, so the default is the only useful setting.
+its default mask. `create(mask)` accepts an event mask; the default mask enables this event.
 
 The event itself is emitted from inside the fused solver kernel's host-side completion path.
 The arrays are populated **after** every item has converged or hit `max_iterations`; there is
 no per-iteration logging on the batched path because that would force a host round-trip every
 iteration (and defeat the kernel-fusion design).
 
-## Pre-allocation
+## Storage
 
-The logger's arrays are allocated lazily on the first `on_batch_solver_completed` call; the
-buffer is sized to match the batch and reused on subsequent solves of the same size. Resizing
-across batch sizes is automatic but allocates fresh memory.
+`create` takes only the event mask; the logger is not tied to an executor. Its arrays are
+allocated on the first `on_batch_solver_completed` call, on the executor of the solver's
+result arrays, and are refreshed on every later completed solve. When the batch size changes,
+the arrays are resized to match.
 
 :::{seealso}
 - [Batched CG](cg.md) and [Batched BiCGSTAB](bicgstab.md) — the solvers this logger observes.

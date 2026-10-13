@@ -1,6 +1,6 @@
 # Mixed-precision design
 
-Mixed-precision techniques use lower precision (e.g., `float`) for expensive inner work while preserving higher precision (`double`) for the final result. Ginkgo supports this in two main ways: per-component precision inside a preconditioner (`AdaptivePrecisionJacobi`) and outer/inner precision splitting via iterative refinement around a low-precision inner solver. This page covers when and how to use mixed precision in Ginkgo.
+Mixed-precision techniques use lower precision (e.g., `float`) for expensive inner work while preserving higher precision (`double`) for the final result. Ginkgo supports this in two main ways: per-block storage precision inside a preconditioner (block Jacobi with `storage_optimization`) and outer/inner precision splitting via iterative refinement around a low-precision inner solver. This page covers when and how to use mixed precision in Ginkgo.
 
 ## Why mixed precision
 
@@ -12,7 +12,7 @@ Sparse iterative solvers are memory-bandwidth bound: the dominant cost is moving
 
 The two patterns below exploit this in different ways.
 
-## AdaptivePrecisionJacobi
+## Adaptive-precision block Jacobi
 
 The block Jacobi preconditioner (`gko::preconditioner::Jacobi`) supports per-block storage precision via `with_storage_optimization`. Ginkgo analyses each diagonal block's condition number at setup time and stores it at the lowest precision that preserves the required accuracy:
 
@@ -20,13 +20,14 @@ The block Jacobi preconditioner (`gko::preconditioner::Jacobi`) supports per-blo
 - Ill-conditioned blocks remain at FP64.
 
 ```cpp
-auto apjac = gko::preconditioner::Jacobi<double, int>::build()
-                 .with_max_block_size(8u)
-                 .with_storage_optimization(gko::precision_reduction::autodetect())
-                 .on(exec);
+auto apjac = gko::share(
+    gko::preconditioner::Jacobi<double, int>::build()
+        .with_max_block_size(8u)
+        .with_storage_optimization(gko::precision_reduction::autodetect())
+        .on(exec));
 ```
 
-This is sometimes called `AdaptivePrecisionJacobi` in the literature, though in the Ginkgo API it is simply the `Jacobi` type with the `storage_optimization` parameter set. The outer iteration runs in `double`; only the stored blocks are compressed. The apply step decompresses on the fly, so the preconditioner's arithmetic precision is still controlled by the outer value type template argument.
+The literature calls this adaptive-precision block Jacobi; in the Ginkgo API it is the `Jacobi` type with the `storage_optimization` parameter set. The outer iteration runs in `double`; only the stored blocks are compressed. The apply step decompresses on the fly, so the preconditioner's arithmetic precision is still controlled by the outer value type template argument.
 
 Plugging it into a CG or GMRES solve requires no changes beyond passing the factory via `with_preconditioner`:
 
@@ -45,21 +46,21 @@ See [Preconditioners — taxonomy](preconditioners.md) for block Jacobi configur
 
 ```cpp
 // Build a low-precision matrix view (or a separately stored float copy).
-auto matrix_float = gko::matrix::Csr<float, int>::create(exec);
+auto matrix_float = gko::share(gko::matrix::Csr<float, int>::create(exec));
 // ... populate matrix_float ...
 
 // Inner: low-precision CG, loose tolerance.
-auto inner_cg = gko::solver::Cg<float>::build()
+auto inner_cg = gko::share(gko::solver::Cg<float>::build()
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(100u).on(exec),
                         gko::stop::ResidualNorm<float>::build()
                             .with_reduction_factor(1e-4f).on(exec))
                     .on(exec)
-                    ->generate(matrix_float);
+                    ->generate(matrix_float));
 
 // Outer: iterative refinement in double.
 auto solver = gko::solver::Ir<double>::build()
-                  .with_solver(inner_cg)
+                  .with_generated_solver(inner_cg)
                   .with_criteria(
                       gko::stop::Iteration::build().with_max_iters(50u).on(exec),
                       gko::stop::ResidualNorm<double>::build()
@@ -81,12 +82,13 @@ IR requires the user to manage two representations of the matrix: one in `double
 Ginkgo's `LinOp::apply` is designed to tolerate mismatched value types between the operator and its arguments. When the value types differ, Ginkgo inserts implicit conversion before and after the apply. This means you can mix precisions at the composition level without writing explicit cast code:
 
 ```cpp
-// A double CSR matrix applied to a float vector — Ginkgo handles the conversion.
-gko::matrix::Csr<double, int>* A = /* ... */;
-gko::matrix::Dense<float>* x_float = /* ... */;
-gko::matrix::Dense<float>* b_float = /* ... */;
-
-A->apply(b_float, x_float);  // b_float and x_float are converted internally.
+// A double CSR matrix applied to float vectors — Ginkgo handles the conversion.
+void apply_mixed(const gko::matrix::Csr<double, int>* A,
+                 const gko::matrix::Dense<float>* b_float,
+                 gko::matrix::Dense<float>* x_float)
+{
+    A->apply(b_float, x_float);  // b_float and x_float are converted internally.
+}
 ```
 
 ### Supported value types
@@ -100,23 +102,30 @@ Ginkgo's templated types (matrices, vectors, solvers, preconditioners) accept th
 | `gko::float16` | FP16, half | Yes by default, gated by `-DGINKGO_ENABLE_HALF=ON`. |
 | `gko::bfloat16` | BF16, bfloat | Yes by default, gated by `-DGINKGO_ENABLE_BFLOAT16=ON`. |
 
-The same four real types are also supported in their `std::complex<…>` form. Index types are `gko::int32` and `gko::int64`. The full list of allowed types is enforced at compile time via the `GKO_ASSERT_SUPPORTED_VALUE_TYPE` static-assert in `include/ginkgo/core/base/types.hpp`; using any other type fails at compile time.
+The same four real types are also supported in their `std::complex<…>` form. Index types are `gko::int32` and `gko::int64`. The library is compiled for exactly these types: the `GKO_INSTANTIATE_FOR_EACH_VALUE_TYPE` and `GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE` macros in `include/ginkgo/core/base/types.hpp` explicitly instantiate most classes for them. `CbGmres` and `NestedDissection` use the `_BASE` variants of these macros and are instantiated for `double`, `float` and their complex forms only. Code that names a class template with another type finds no compiled definitions to use: it fails at link time with undefined references, and for some classes already at compile time inside Ginkgo's headers.
 
 #### Build-time gating per backend
 
-Half precision (`float16`, `bfloat16`) is opt-in at build time and additionally gated per backend depending on hardware capabilities:
+Half precision (`float16`, `bfloat16`) is controlled by build options (both default to `ON`) and additionally gated per backend depending on hardware capabilities:
 
 | Backend | Gate for `float16` | Gate for `bfloat16` |
 |---|---|---|
 | Reference, OMP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
-| CUDA | `-DGINKGO_ENABLE_HALF=ON` **and** `__CUDA_ARCH__ >= 530` (Maxwell GM200 / GeForce 9xx and newer) | `-DGINKGO_ENABLE_BFLOAT16=ON` **and** `__CUDA_ARCH__ >= 800` (Ampere A100 and newer) |
+| CUDA | `-DGINKGO_ENABLE_HALF=ON` **and** `__CUDA_ARCH__ >= 530` (compute capability 5.3 and newer: Jetson TX1, Pascal and later) | `-DGINKGO_ENABLE_BFLOAT16=ON` **and** `__CUDA_ARCH__ >= 800` (compute capability 8.0 and newer: Ampere A100 and later) |
 | HIP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | DPC++ (Intel SYCL) | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | MSVC / MINGW (Windows) | **Forced OFF** regardless of the flag | **Forced OFF** regardless of the flag |
 
 Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros in `include/ginkgo/core/base/types.hpp` skip those template instantiations rather than emitting code that would fail to compile.
 
-The practical implication: if you build for an older NVIDIA card (pre-Ampere) and want bfloat16, the option will accept the flag but the relevant kernels will not be available at runtime — calls into them produce a `gko::NotImplemented` error.
+The practical implication on GPUs: a few kernels accumulate their results with 16-bit atomic additions, and Ginkgo runs those only for 32- and 64-bit value types. The kernels that carry this guard behave as follows with `float16` or `bfloat16` values on CUDA or HIP:
+
+- COO SpMV, and with it the COO part of `Hybrid`, throws `gko::NotSupported`.
+- ELL SpMV throws `gko::KernelNotFound` when the stored row length (columns per row) is at least 2 and exceeds 1 % of the number of rows, because the kernel then assigns several threads to each row.
+- IDR with several right-hand sides or complex values throws `gko::NotSupported`.
+- CSR's `load_balance` strategy falls back to the `classical` kernel for these types.
+
+On HIP, the `ParIlu`, `ParIlut`, `ParIc` and `ParIct` factorizations also throw `gko::NotSupported` for 16-bit values, since HIP has no 16-bit atomic operation.
 
 ### Native vs conversion-based dispatch
 
@@ -163,6 +172,6 @@ When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-prec
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — IR is one of the Krylov solvers.
-- [Preconditioners — taxonomy](preconditioners.md) — `AdaptivePrecisionJacobi` and block Jacobi storage options.
+- [Preconditioners — taxonomy](preconditioners.md) — block Jacobi and its `storage_optimization` parameter, described on the [Jacobi](preconditioners/jacobi.md) page.
 - API reference: [`gko::solver::Ir`](../../api-reference/solver/ir.md)
 :::
