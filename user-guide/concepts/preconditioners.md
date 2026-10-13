@@ -14,9 +14,8 @@ preconditioner must be cheap to apply relative to the cost it saves in iteration
 count.
 
 Krylov solvers (CG, GMRES, BiCGSTAB, ...) are the most common consumers, but the
-same preconditioner plugs into iterative refinement (`gko::solver::Ir`) and
-accelerates fixed-point-style iterations as well — all through the same
-`with_preconditioner(...)` factory hook. In `gko::solver::Multigrid` a preconditioner
+same preconditioner plugs into iterative refinement (`gko::solver::Ir`, through its
+`with_solver(...)` slot) and accelerates fixed-point-style iterations as well. In `gko::solver::Multigrid` a preconditioner
 serves as a smoother once `gko::solver::build_smoother` wraps it, and the result goes
 to `with_pre_smoother`, `with_mid_smoother` or `with_post_smoother`.
 
@@ -39,7 +38,7 @@ Mathematically, a preconditioner $M$ can be applied in three ways:
   Standard for SPD systems where $M_L = M_R^T$ keeps the preconditioned operator
   symmetric.
 
-In Ginkgo's user-facing API, `.with_preconditioner(M)` is the single entry point,
+For the Krylov solvers, `.with_preconditioner(M)` is the single entry point,
 and each Krylov family places the preconditioner according to its standard
 preconditioned formulation:
 
@@ -113,12 +112,12 @@ Incomplete LU factorisation computes approximate triangular factors `L` and `U` 
 - **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
 
 :::{note}
-Ginkgo's fill control is threshold-based, and its ILU(0) is level-zero:
+`gko::factorization::Ilu` computes ILU(0): the factors keep the sparsity pattern of `A`. For more fill, `ParIlut` builds a threshold-based pattern, the closest control to ILU(k):
 
 - `gko::factorization::Ilu` is configured by `l_strategy`, `u_strategy`,
   `skip_sorting`, and `algorithm`.
-- `ParIlut::with_fill_in_limit(ratio)` caps `nnz(L + U)` at
-  `ratio × nnz(A)`. That is *threshold*-based fill control; the
+- `ParIlut::with_fill_in_limit(ratio)` keeps at most `ratio` times the non-zeros of the ILU(0) factors, separately
+  for `L` and `U`. That is *threshold*-based fill control; the
   level-based fill control of classical ILU(k) yields different sparsity
   patterns and different cost/quality trade-offs.
 - For level-based fill (ILU(k), $k > 0$), factorise externally (e.g., SuperLU in
@@ -140,7 +139,7 @@ auto ilu = gko::preconditioner::Ilu<gko::solver::LowerTrs<double, int>,
 The inner triangular solvers (`LowerTrs`, `UpperTrs`) are themselves `LinOp` factories, so you can swap in different implementations without touching the outer ILU interface.
 
 :::{attention}
-`ParILU` and `ParILUT` produce a factorisation that converges to the true ILU in the limit of many sweeps. With the default number of sweeps the result is a good approximation, but it may differ slightly from the exact ILU(0) of `gko::factorization::Ilu` on the same matrix. This is expected behaviour, not a bug.
+`ParILU` computes ILU(0) by fixed-point sweeps that asymptotically converge to the exact ILU(0) of `gko::factorization::Ilu` (the sparsity pattern of the matrix); with the default number of sweeps its factors may differ slightly from it. `ParILUT` builds its own threshold-based sparsity pattern, improved iteratively, so its factors approximate a threshold ILU rather than ILU(0). This is expected behaviour, not a bug.
 :::
 
 ## IC (Incomplete Cholesky)
