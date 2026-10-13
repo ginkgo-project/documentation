@@ -32,15 +32,16 @@ The communication protocol for a single distributed apply proceeds as follows:
 
 ```text
 1. Gather     — each rank packs the x values that its neighbours need into a send buffer.
-2. Exchange   — a non-blocking all-to-all-variable (MPI_Alltoallv via i_all_to_all_v) transfers the packed values.
-3. Local      — the local matrix apply runs in parallel with the exchange.
+2. Exchange   — a variable-size all-to-all (i_all_to_all_v on the collective communicator; a blocking MPI_Alltoallv with the default DenseCommunicator) transfers the packed values.
+3. Local      — the local matrix apply can run in parallel with the exchange. On the host executor the default DenseCommunicator exchange has already completed when the local matrix apply starts.
 4. Wait       — complete the MPI operation, ensuring x_halo is populated.
 5. Non-local  — apply the non-local matrix using the received x_halo values.
 6. Sum        — y_local = local-matrix result + non-local-matrix result.
 ```
 
-The exchange is a single non-blocking variable-sized all-to-all
-(`mpi::request i_all_to_all_v(...)` from the collective communicator), not a sequence of
+The exchange is a single variable-sized all-to-all
+(`mpi::request i_all_to_all_v(...)` from the collective communicator; blocking with the default
+`DenseCommunicator`), not a sequence of
 point-to-point `MPI_Isend` / `MPI_Irecv` pairs. This lets MPI implementations pick the optimal
 underlying transport — including direct neighbour-to-neighbour sends when the communicator topology
 makes that natural — without Ginkgo having to enumerate the send/receive list manually.
@@ -62,7 +63,8 @@ constraint. Within a distributed `Matrix::apply`:
 2. The collective communicator issues an `i_all_to_all_v` to exchange the packed values; on
    device executors the local-matrix kernel is submitted before the exchange is issued, so it
    does not wait for the gather.
-3. The local-matrix kernel runs while the exchange is in flight.
+3. The local-matrix kernel can run while the exchange is in flight. On the host executor with the
+   default `DenseCommunicator`, the exchange has already completed when this kernel starts.
 4. Once the receive completes, the non-local-matrix kernel fires on the executor.
 
 GPU kernels never depend on MPI, and host-side MPI code never touches CUDA or HIP headers. The
@@ -121,7 +123,8 @@ A_non_local * x_halo (kernel)        A_non_local * x_halo (kernel)
 ```
 
 The local-matrix kernel can overlap with the MPI exchange in time — its result does not depend
-on halo data, so both sides start immediately while the exchange is in flight.
+on halo data, so both sides can start immediately while the exchange is in flight. On the host executor with the
+default `DenseCommunicator`, the exchange has completed before the local kernel starts.
 
 :::{seealso}
 - [The MPI layer](mpi-layer.md) — the communicator, request handle, and collective surface backing

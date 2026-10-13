@@ -2,7 +2,7 @@
 
 The distributed `Matrix` and its helper objects route their halo exchange through
 `gko::experimental::mpi::CollectiveCommunicator`, an abstract interface
-that exposes a single non-blocking variable-size all-to-all and the bookkeeping (per-rank send and
+that exposes a single variable-size all-to-all returning a request, and the bookkeeping (per-rank send and
 receive sizes) needed to drive it. Two concrete implementations ship with Ginkgo, and Ginkgo's
 default is selected without the caller having to know which one runs.
 
@@ -35,7 +35,7 @@ public:
     virtual comm_index_type get_recv_size() const = 0;
     virtual comm_index_type get_send_size() const = 0;
 
-    // The non-blocking variable-size all-to-all (typed and untyped overloads).
+    // The variable-size all-to-all (typed and untyped overloads).
     template <typename SendType, typename RecvType>
     request i_all_to_all_v(std::shared_ptr<const Executor> exec,
                            const SendType* send_buffer,
@@ -68,7 +68,7 @@ The two concrete implementations differ in how MPI sees the communication patter
 
 | Implementation | Underlying MPI primitive | Topology view | Best for |
 |---|---|---|---|
-| `DenseCommunicator` *(default)* | `MPI_Ialltoallv` (with a blocking `MPI_Alltoallv` fallback on Open MPI < 4.1) | Full rank set | Small or moderately-sized rank counts; portable; the pattern Ginkgo defaults to. |
+| `DenseCommunicator` *(default)* | `MPI_Alltoallv` (blocking; the returned request is already complete) | Full rank set | Small or moderately-sized rank counts; portable; the pattern Ginkgo defaults to. |
 | `NeighborhoodCommunicator` | `MPI_Ineighbor_alltoallv` over a distributed graph topology | Only the actual neighbours | Large rank counts with sparse halo connectivity (typical for FE / FD meshes). |
 
 Both satisfy the same interface, so the choice is transparent to the rest of Ginkgo. The default

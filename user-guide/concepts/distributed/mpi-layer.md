@@ -125,8 +125,9 @@ auto req = coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr);
 
 Two implementations ship with Ginkgo:
 
-- **`DenseCommunicator`** — non-blocking variable-size all-to-all (`MPI_Ialltoallv`) over the
-  full rank set, with the per-rank size vector dictating who sends what to whom. The default,
+- **`DenseCommunicator`** — blocking variable-size all-to-all (`MPI_Alltoallv`) over the
+  full rank set, with the per-rank size vector dictating who sends what to whom; the returned
+  request is already complete. The default,
   works on every MPI implementation.
 - **`NeighborhoodCommunicator`** — `MPI_Ineighbor_alltoallv` over a graph topology that reflects
   only the ranks this process actually communicates with. Asymptotically cheaper on
@@ -143,7 +144,9 @@ Putting it together, a single distributed `apply` invokes the layer roughly as f
 ```text
 1. RowGatherer packs the values to send into a contiguous buffer (host or device).
 2. coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr) returns an mpi::request.
-3. The local-matrix kernel runs in parallel with the in-flight collective.
+3. The local-matrix kernel runs in parallel with the in-flight collective. (On the host executor
+   with the default DenseCommunicator, the collective has already completed, so the two do not
+   overlap.)
 4. request.wait() — the recv buffer now holds x_halo.
 5. The non-local-matrix kernel applies to x_halo and accumulates into y_local.
 ```

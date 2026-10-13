@@ -2,15 +2,16 @@
 
 `gko::experimental::mpi::DenseCommunicator` is the default
 [CollectiveCommunicator](collective-communicator.md) implementation. It performs the halo
-exchange with `MPI_Ialltoallv` over the full rank set: every rank passes the entire per-rank send
-size and offset vector to MPI, and ranks that exchange zero bytes simply have a zero entry. This
+exchange with a blocking `MPI_Alltoallv` over the full rank set: every rank passes the entire per-rank send
+size and offset vector to MPI, and ranks that exchange zero bytes simply have a zero entry. The
+returned `mpi::request` is already complete. This
 is the safe, portable default — it works on every MPI 3.x and 4.x implementation and does not
 require the platform's MPI to expose distributed-graph topology support.
 
 ## When to use it
 
 - **You are not running at extreme rank counts.** Up to a few thousand ranks, the constant-factor
-  overhead of `MPI_Ialltoallv` over the full rank set is negligible compared to the actual data
+  overhead of `MPI_Alltoallv` over the full rank set is negligible compared to the actual data
   transfer.
 - **You want maximum portability.** Some MPI builds disable or under-implement
   `MPI_Ineighbor_alltoallv` (the alternative); the dense path is always available.
@@ -59,15 +60,14 @@ matrix's `RowGatherer` reads these to size the contiguous send / receive buffers
 
 ```cpp
 auto req = coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr);
-// ... overlap work that does not touch recv_ptr ...
 req.wait();
 ```
 
-On modern MPI (≥ 4.1) the underlying primitive is `MPI_Ialltoallv` — a non-blocking variable-size
-all-to-all. On Open MPI builds older than 4.1 the implementation falls back to the blocking
-`MPI_Alltoallv` (since older Open MPI did not implement the non-blocking form correctly for all
-type combinations); the returned `mpi::request` is a default-constructed handle that completes
-immediately. From the caller's perspective, `wait()` is always the right thing to call.
+`i_all_to_all_v` calls the blocking `MPI_Alltoallv` with the cached size and offset vectors and
+returns an `mpi::request` that is already complete, so the exchange finishes before the call
+returns and work issued after the call does not overlap with it (on device executors the
+distributed `Matrix::apply` queues the local kernel before issuing the exchange, so that kernel
+does overlap). Calling `wait()` on the returned request is still the right pattern.
 
 ## Cost model
 
@@ -77,7 +77,7 @@ For $P$ ranks, the per-call work is:
 - $\Theta(N_\text{send})$ to actually transfer the values, where $N_\text{send}$ is the total
   number of values this rank sends.
 
-The `MPI_Ialltoallv` collective itself is internally implemented by most MPI runtimes as either a
+The `MPI_Alltoallv` collective itself is internally implemented by most MPI runtimes as either a
 direct exchange between active senders and receivers (fast for sparse patterns) or a reduction
 tree (better for dense patterns). The Ginkgo side does not control the choice — it just supplies
 the per-rank size vector and lets MPI pick.

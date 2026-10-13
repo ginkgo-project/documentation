@@ -76,8 +76,8 @@ communicator's pattern said this rank needs.
 :::{attention}
 The two-argument `apply_async` uses the gatherer's internal send buffer, so only one `mpi::request`
 per `RowGatherer` instance can be active at a time. Calling it again before `wait()`-ing on the
-previous request is undefined behaviour. To overlap multiple exchanges on the same gatherer, use
-the three-argument overload and pass a separate `array<char>` workspace per in-flight call.
+previous request is undefined behaviour. With a non-blocking collective communicator, overlap multiple exchanges on the same gatherer by using
+the three-argument overload and passing a separate `array<char>` workspace per in-flight call.
 :::
 
 The output executor must be compatible with the MPI implementation. If the MPI is not
@@ -103,8 +103,9 @@ the host requires `gko::clone(host, ...)` first.
 
 The matrix holds one `RowGatherer` together with its `index_map`. On device executors the
 6-step apply trace ([Communication primitives](communication-primitives.md)) calls into it as
-follows; on the host executor the matrix issues `apply_async` first and runs the local-matrix
-kernel while the exchange is in flight:
+follows; on the host executor the matrix issues `apply_async` first and then runs the local-matrix
+kernel (with the default `DenseCommunicator` the exchange is blocking and has already completed by
+then; a non-blocking communicator overlaps it with the kernel):
 
 1. `rg->apply_prepare(b)` packs the values that need to be sent into the workspace buffer.
 2. The local-matrix kernel runs in parallel.
