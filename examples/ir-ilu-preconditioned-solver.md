@@ -149,7 +149,7 @@ triangular solver - in this case the previously defined iterative
 refinement method.
 
 ```cpp
-    auto ilu_pre_factory = gko::preconditioner::Ilu<ValueType>::build()
+    auto ilu_pre_factory = gko::preconditioner::Ilu<ir, ir>::build()
                                .with_l_solver(gko::clone(trisolve_factory))
                                .with_u_solver(gko::clone(trisolve_factory))
                                .on(exec);

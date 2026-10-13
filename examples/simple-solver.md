@@ -26,8 +26,9 @@ to multigrid, distributed, batched, and everything else in the library.
 
 ### Includes and type aliases
 
-The main Ginkgo header pulls in the entire public API. The other headers
-are only used for command-line parsing and I/O.
+The main Ginkgo header `ginkgo/ginkgo.hpp` pulls in the core library headers:
+executors, matrices, solvers, preconditioners and stopping criteria. The
+other headers are only used for command-line parsing and I/O.
 
 ```cpp
 #include <ginkgo/ginkgo.hpp>
@@ -122,7 +123,7 @@ factory; the criteria don't change. See
 
 ### Solve and verify
 
-`generate(A)` returns a `unique_ptr<LinOp>` (the bound solver); `apply(b, x)`
+`generate(A)` returns a `unique_ptr<cg>` (the bound solver); `apply(b, x)`
 runs the iteration and writes the result into `x`. The residual check uses
 Ginkgo's own SpMV via `A->apply(one, x, neg_one, b)`, which computes
 $b \leftarrow A x - b$ in place — then `compute_norm2` gives us
@@ -197,9 +198,9 @@ residual below ~$10^{-13}$ on this problem means CG converged to round-off.
 
 ## Variations to try
 
-- **Different solver.** Replace `gko::solver::Cg` with `Bicgstab`,
-  `Gmres`, `Fcg`, or `Cgs` — the SPD-only assumption goes away with
-  Krylov methods that work on indefinite systems.
+- **Different solver.** Replace `gko::solver::Cg` with `Fcg`, another
+  method for SPD systems, or with `Bicgstab`, `Gmres`, or `Cgs`, which also
+  handle non-symmetric and indefinite systems.
 - **Different matrix format.** Change `using mtx = gko::matrix::Csr<...>;`
   to `Coo`, `Ell`, `Sellp`, `Hybrid`, or `Fbcsr`; everything else stays
   the same.
