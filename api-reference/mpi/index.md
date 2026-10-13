@@ -8,17 +8,17 @@ collective-communicator hierarchy abstracts the actual data exchange
 patterns used by the distributed SpMV.
 
 Most application code only ever touches `environment` (RAII wrapper
-around `MPI_Init` / `MPI_Finalize`) and `communicator` (lifetime
-holder for `MPI_Comm`). The remaining types are the lower-level
+around `MPI_Init` / `MPI_Finalize`) and `communicator` (reference-counted
+wrapper for `MPI_Comm`). The remaining types are the lower-level
 building blocks that the distributed kernels use internally.
 
 ## Runtime
 
 - [`environment`](environment.md) — RAII wrapper around `MPI_Init` and
   `MPI_Finalize`; construct once at the top of `main`.
-- [`communicator`](communicator.md) — owning C++ wrapper around
-  `MPI_Comm`. Carries the rank and size, and is the value that every
-  distributed Ginkgo type holds onto.
+- [`communicator`](communicator.md) — reference-counted C++ wrapper
+  around `MPI_Comm`. Queries the rank and size, and is the value that
+  every distributed Ginkgo type holds onto.
 
 ## Asynchronous operations
 
@@ -42,12 +42,14 @@ applications can plug in their own.
 - [`CollectiveCommunicator`](collective-communicator.md) — abstract
   base: gather/scatter on a `RowGatherer`-style index pattern.
 - [`DenseCommunicator`](dense-communicator.md) — implementation using
-  `MPI_Alltoallv`-style dense collectives. Default everywhere; works
-  on any communicator topology.
+  `MPI_Alltoallv`-style dense collectives. Works on any communicator
+  topology; the default when Ginkgo is configured against Open MPI older
+  than 4.1.
 - [`NeighborhoodCommunicator`](neighborhood-communicator.md) —
   implementation using MPI-3 neighborhood collectives over a
-  graph-topology communicator. Faster on large rank counts where each
-  rank only talks to a small set of neighbours.
+  graph-topology communicator. The default for the distributed `Matrix`;
+  faster on large rank counts where each rank only talks to a small set
+  of neighbours.
 
 ```{toctree}
 :hidden:

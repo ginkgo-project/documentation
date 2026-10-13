@@ -1,7 +1,8 @@
 # Neighborhood communicator
 
-`gko::experimental::mpi::NeighborhoodCommunicator` is a
-[CollectiveCommunicator](collective-communicator.md) implementation that performs the halo
+`gko::experimental::mpi::NeighborhoodCommunicator` is the
+[CollectiveCommunicator](collective-communicator.md) implementation the distributed `Matrix` uses
+by default (Open MPI builds older than 4.1 default to `DenseCommunicator`). It performs the halo
 exchange with `MPI_Ineighbor_alltoallv` over a distributed-graph topology. Where the
 [`DenseCommunicator`](dense-communicator.md) issues a full `P`-way all-to-all and relies on the
 MPI runtime to skip zero-size entries, the neighborhood communicator tells MPI up front which
@@ -10,7 +11,7 @@ ranks this process actually communicates with, so the all-to-all only involves t
 ## When to use it
 
 - **High rank count with sparse halo connectivity.** This is the typical pattern for
-  finite-element and finite-difference simulations: each rank's off-diagonal matrix only
+  finite-element and finite-difference simulations: each rank's non-local matrix only
   references values on a handful of neighbouring ranks, regardless of the total job size.
 - **The dense per-rank size vector is the bottleneck.** At thousands of ranks, just transmitting
   the full send-size vector to MPI starts to matter. The neighborhood communicator avoids that
@@ -22,7 +23,7 @@ build a graph topology object.
 
 ## Construction
 
-The neighborhood communicator is constructed from a base communicator and an `IndexMap`:
+The neighborhood communicator is constructed from a base communicator and an `index_map`:
 
 ```cpp
 namespace mpi = gko::experimental::mpi;
@@ -59,9 +60,10 @@ auto req = coll_comm->i_all_to_all_v(exec, send_ptr, recv_ptr);
 req.wait();
 ```
 
-The primitive is `MPI_Ineighbor_alltoallv`. On Open MPI builds older than 4.1 this primitive is
-not safely available with all type combinations and the implementation reports `GKO_NOT_IMPLEMENTED`
-— if you hit that, fall back to `DenseCommunicator` or upgrade your MPI.
+The primitive is `MPI_Ineighbor_alltoallv`. When Ginkgo is configured against Open MPI older than
+4.1 (whose 4.0.x releases have several bugs), CMake prints a warning and Ginkgo disables this
+exchange: the implementation reports `GKO_NOT_IMPLEMENTED` and `DenseCommunicator` becomes the
+default. Upgrade Open MPI to use the neighbourhood exchange.
 
 ## Cost model
 
@@ -83,13 +85,13 @@ exchange for a lower **per-exchange** cost. For matrices that are reused across 
 
 `create_inverse()` returns a new `NeighborhoodCommunicator` that swaps the send-from and recv-to
 roles. This is what `RowGatherer` uses internally to derive the *send* index pattern from the
-*receive* indices stored in the matrix's `IndexMap`.
+*receive* indices stored in the matrix's `index_map`.
 
 :::{seealso}
 - [Collective communicators](collective-communicator.md) — the abstract interface and picker
   guidance.
-- [Dense communicator](dense-communicator.md) — the portable default.
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses the inverse
+- [Dense communicator](dense-communicator.md) — the portable alternative, and the default on Open MPI older than 4.1.
+- [RowGatherer](row-gather-scatter.md) — the helper that uses the inverse
   pattern derived above.
 - API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](../../../api-reference/mpi/neighborhood-communicator.md)
 :::

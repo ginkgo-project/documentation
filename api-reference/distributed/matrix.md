@@ -1,11 +1,12 @@
 # `gko::experimental::distributed::Matrix`
 
 Distributed sparse matrix. Stores the rank's owned rows as two CSR
-blocks: a diagonal block holding the columns the rank also owns, and
-an off-diagonal block holding the remote columns (compressed so only
-the columns actually referenced are stored). `apply` runs the
-diagonal SpMV locally while a `RowGatherer` exchanges the needed
-remote vector entries for the off-diagonal SpMV.
+blocks: a local block (`get_local_matrix()`) holding the columns the
+rank also owns, and a non-local block (`get_non_local_matrix()`)
+holding the remote columns (compressed so only the columns actually
+referenced are stored). `apply` runs the local SpMV while a
+`RowGatherer` exchanges the needed remote vector entries for the
+non-local SpMV.
 
 ```{doxygenclass} gko::experimental::distributed::Matrix
 :members:
@@ -16,14 +17,14 @@ remote vector entries for the off-diagonal SpMV.
 Helper for selecting the local-block storage type used by a
 `distributed::Matrix` without having to commit to the value and index
 types up front. `Matrix::create` accepts one or two of these
-selectors to override the default `Csr` storage of the diagonal and
-off-diagonal blocks:
+selectors to override the default `Csr` storage of the local and
+non-local blocks:
 
 ```cpp
 auto mat = Matrix<ValueType, LocalIndexType>::create(
     exec, comm,
-    gko::with_matrix_type<gko::matrix::Ell>(),   // local diagonal block
-    gko::with_matrix_type<gko::matrix::Coo>());  // off-diagonal block
+    gko::with_matrix_type<gko::matrix::Ell>(),   // local block
+    gko::with_matrix_type<gko::matrix::Coo>());  // non-local block
 ```
 
 `with_matrix_type<MatrixType>(args...)` returns a deferred-creation

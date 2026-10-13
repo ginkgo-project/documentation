@@ -1,6 +1,6 @@
 # Partitions and index maps
 
-`Partition` describes which global rows of a distributed matrix live on which MPI rank. `IndexMap`
+`Partition` describes which global rows of a distributed matrix live on which MPI rank. `index_map`
 resolves between local and global indexing. Together they are the bookkeeping layer that lets every
 other distributed primitive work correctly. This page covers their construction patterns and the
 data they expose.
@@ -53,9 +53,9 @@ exists.
 Once constructed, the partition exposes the range and size information for all ranks:
 
 ```cpp
-auto bounds   = partition->get_range_bounds();   // array<G>: global start of each range
-auto part_ids = partition->get_part_ids();        // array<comm_index_type>: owner of each range
-auto sizes    = partition->get_part_sizes();      // array<L>: local row count per rank
+auto bounds   = partition->get_range_bounds();   // const G*: global start of each range (n_ranges + 1 entries)
+auto part_ids = partition->get_part_ids();        // const comm_index_type*: owner of each range
+auto sizes    = partition->get_part_sizes();      // const L*: local row count per part
 auto n_parts  = partition->get_num_parts();       // number of MPI parts (== comm.size() typically)
 auto n_ranges = partition->get_num_ranges();      // number of contiguous ranges (>= n_parts)
 ```
@@ -64,41 +64,38 @@ In the common case, `n_parts == comm.size()` and `n_ranges == n_parts` (one cont
 rank). A mapping-based partition may produce more ranges than parts if the assignment is
 non-contiguous.
 
-## IndexMap
+## index_map
 
-`IndexMap<L, G>` is the per-rank mapping between local indices and global indices. It lives
-alongside a `Partition` and a communicator. The distributed `Matrix` and `Vector` use it to
-translate between indexing schemes for the halo exchange — determining which remote global indices
-this rank's off-diagonal matrix references, and which remote ranks need values from this rank.
+`index_map<L, G>` is the per-rank mapping between local indices and global indices. It lives
+alongside a `Partition` and a communicator. The distributed `Matrix`, and the communicators and `RowGatherer` built from its index map, use it
+to translate between indexing schemes for the halo exchange — determining which remote global indices
+this rank's non-local matrix references, and which remote ranks need values from this rank.
 
-For most user code, `IndexMap` is an implementation detail accessed indirectly:
-
-```cpp
-auto index_map = mat->get_index_map();   // shared_ptr<const IndexMap<L, G>>
-```
-
-Direct construction of an `IndexMap` is rarely needed. `read_distributed` derives the index map
-automatically from the matrix's sparsity pattern, so you get a correctly-built map for free.
+For most user code, `index_map` is an implementation detail: `read_distributed` derives the map
+from the matrix's sparsity pattern and the matrix keeps it internally, so you get a
+correctly-built map for free. Constructing an `index_map` directly is needed only when building
+a `RowGatherer` or a communicator by hand (see
+[RowGatherer](row-gather-scatter.md)).
 
 ## Choosing a partition
 
-A good partition minimises the off-diagonal-matrix size, which directly controls communication
+A good partition minimises the non-local-matrix size, which directly controls communication
 volume. Practical guidelines:
 
 - **Match your application's decomposition.** For FE codes, partition by element groups mapped to
   DOF groups, not by raw row indices. A uniform-row partition usually cuts across element
-  boundaries, creating unnecessary off-diagonal entries.
+  boundaries, creating unnecessary non-local entries.
 - **Balance non-zero count, not just row count.** Skewed sparsity (some rows much denser than
   others) makes uniform-row partitions load-imbalanced for SpMV. If your matrix has strongly
   non-uniform row lengths, a graph-partitioner-based mapping handles this better.
-- **Minimise off-diagonal entries.** Communication volume is proportional to the number of
-  off-diagonal non-zeros summed across all ranks. Mesh-aware partitioners minimise the cut,
+- **Minimise non-local entries.** Communication volume is proportional to the number of
+  non-local non-zeros summed across all ranks. Mesh-aware partitioners minimise the cut,
   which minimises the halo size.
 
 :::{tip}
 For a quick start or a test, `build_from_global_size_uniform` is the least code. For production
 runs on unstructured meshes, invest in a graph-partitioner-based mapping — the convergence benefit
-from a smaller off-diagonal matrix typically outweighs the setup cost.
+from a smaller non-local matrix typically outweighs the setup cost.
 :::
 
 :::{seealso}

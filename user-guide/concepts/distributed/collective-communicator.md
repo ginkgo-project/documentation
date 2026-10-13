@@ -1,16 +1,16 @@
 # Collective communicators
 
-Distributed `Matrix`, `Vector`, and helper objects do not invoke MPI collective routines directly.
-Instead they go through `gko::experimental::mpi::CollectiveCommunicator`, an abstract interface
+The distributed `Matrix` and its helper objects route their halo exchange through
+`gko::experimental::mpi::CollectiveCommunicator`, an abstract interface
 that exposes a single non-blocking variable-size all-to-all and the bookkeeping (per-rank send and
-receive sizes) needed to drive it. Two concrete implementations ship with Ginkgo, and Ginkgo's
-default is selected without the caller having to know which one runs.
+receive sizes) needed to drive it. Two concrete implementations ship with Ginkgo, and the distributed `Matrix` selects its default
+without the caller having to know which one runs.
 
 ## Why a separate abstraction
 
 A halo exchange is a deterministic, repeated communication pattern: rank $r$ always sends the same
 local indices to the same set of neighbours, and always receives the same remote indices from the
-same neighbours. Once that pattern is computed (from the matrix's `IndexMap`), every subsequent
+same neighbours. Once that pattern is computed (from the matrix's `index_map`), every subsequent
 `apply` reuses it. The `CollectiveCommunicator` is the object that owns the pattern — the per-rank
 send sizes, send offsets, recv sizes, recv offsets — so that the data path of `apply` is just:
 
@@ -59,8 +59,8 @@ buffer. Implementations override `i_all_to_all_v_impl` (the typed `void*` form) 
 actual MPI call.
 
 `create_inverse()` is what `RowGatherer` uses to derive the *send* index pattern from the *receive*
-index pattern stored in the matrix's `IndexMap` — see
-[RowGatherer and RowScatterer](row-gather-scatter.md).
+index pattern stored in the matrix's `index_map` — see
+[RowGatherer](row-gather-scatter.md).
 
 ## Picking an implementation
 
@@ -68,19 +68,32 @@ The two concrete implementations differ in how MPI sees the communication patter
 
 | Implementation | Underlying MPI primitive | Topology view | Best for |
 |---|---|---|---|
-| `DenseCommunicator` *(default)* | `MPI_Ialltoallv` (with a blocking `MPI_Alltoallv` fallback on Open MPI < 4.1) | Full rank set | Small or moderately-sized rank counts; portable; the pattern Ginkgo defaults to. |
-| `NeighborhoodCommunicator` | `MPI_Ineighbor_alltoallv` over a distributed graph topology | Only the actual neighbours | Large rank counts with sparse halo connectivity (typical for FE / FD meshes). |
+| `DenseCommunicator` | `MPI_Alltoallv` (blocking; the returned request is already complete) | Full rank set | Small or moderately-sized rank counts; portable; the default on Open MPI < 4.1. |
+| `NeighborhoodCommunicator` *(default)* | `MPI_Ineighbor_alltoallv` over a distributed graph topology | Only the actual neighbours | Large rank counts with sparse halo connectivity (typical for FE / FD meshes); the pattern Ginkgo defaults to. |
 
-Both satisfy the same interface, so the choice is transparent to the rest of Ginkgo. The default
-selected by `mpi::detail::create_default_collective_communicator(comm)` is the
-`DenseCommunicator`. If you want the neighbourhood variant, construct it explicitly and pass it to
-`RowGatherer::create(exec, coll_comm, imap)` — the matrix-level wiring picks it up from there.
+Both satisfy the same interface, so the choice is transparent to the rest of Ginkgo. The
+distributed `Matrix` and `RowGatherer::create(exec, comm)` use `NeighborhoodCommunicator` by
+default. When Ginkgo is configured against Open MPI older than 4.1, CMake prints a warning and
+the default becomes `DenseCommunicator`, since Ginkgo's neighbourhood exchange is
+disabled for those versions.
+
+`read_distributed` rebuilds the matrix's gatherer with `create_with_same_type`, so a distributed
+`Matrix` keeps the build's default communicator type. To drive a halo exchange with a specific
+implementation, construct it from an `index_map` and pass it to a `RowGatherer` directly:
+
+```cpp
+namespace dist = gko::experimental::distributed;
+namespace mpi = gko::experimental::mpi;
+// imap: dist::index_map<gko::int32, gko::int64> of the rows to gather
+auto coll_comm = std::make_shared<mpi::DenseCommunicator>(comm, imap);
+auto rg = dist::RowGatherer<gko::int32>::create(exec, coll_comm, imap);
+```
 
 :::{tip}
-The transport choice usually does not change correctness, only performance. Switch to
-`NeighborhoodCommunicator` when scaling up: at high rank counts the dense per-rank size vector
-becomes the bottleneck, and `MPI_Ineighbor_alltoallv` lets the MPI implementation skip ranks this
-process never talks to.
+The transport choice usually does not change correctness, only performance. `NeighborhoodCommunicator`
+pays off when scaling up: at high rank counts the dense per-rank size vector becomes the
+bottleneck, and `MPI_Ineighbor_alltoallv` lets the MPI implementation skip ranks this process never
+talks to. A hand-built `DenseCommunicator` suits small or moderately-sized rank counts.
 :::
 
 ## Implementations
@@ -98,7 +111,7 @@ neighborhood-communicators
   surface this object sits on top of.
 - [Communication primitives](communication-primitives.md) — how `i_all_to_all_v` is consumed by
   distributed SpMV.
-- [RowGatherer and RowScatterer](row-gather-scatter.md) — the helper that uses a collective
+- [RowGatherer](row-gather-scatter.md) — the helper that uses a collective
   communicator to perform the halo exchange.
 - API reference: [`gko::experimental::mpi::CollectiveCommunicator`](../../../api-reference/mpi/collective-communicator.md)
 :::

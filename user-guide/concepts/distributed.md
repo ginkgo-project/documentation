@@ -32,9 +32,10 @@ distributed — it just calls `apply`.
 
 ## The host-first assembly pattern
 
-Construction is always host-first, then transferred to the device executor. The `read_distributed`
-step must run on a host executor because partition reasoning is host-side. Cloning to device after
-assembly is the standard pattern:
+Construction is host-first by convention: assemble on a host executor, then transfer to the device
+executor. `read_distributed` runs on the executor the matrix was created on (it clones the
+partition there first), so assembling on the host and cloning to the device afterwards is the
+portable pattern:
 
 ```cpp
 namespace dist = gko::experimental::distributed;
@@ -43,23 +44,27 @@ auto host = gko::ReferenceExecutor::create();
 auto exec = gko::CudaExecutor::create(0, host);
 auto comm = gko::experimental::mpi::communicator(MPI_COMM_WORLD);
 
-// Each rank builds its local contribution to the global matrix.
-gko::matrix_data<double, gko::int64> data{...};
+// Each rank collects entries of the global 4 x 4 matrix; rows owned by
+// other ranks are discarded by read_distributed.
+gko::matrix_data<double, gko::int64> data{gko::dim<2>{4, 4}};
+data.nonzeros.emplace_back(0, 0, 2.0);  // (global row, global column, value)
 
-// Build a Partition: which global rows live on which rank.
-auto partition = dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
-    host, ranges_array);
+// Partition: ranges {0, 2, 4} give rows 0-1 to rank 0 and rows 2-3 to rank 1.
+auto partition = gko::share(
+    dist::Partition<gko::int32, gko::int64>::build_from_contiguous(
+        host, gko::array<gko::int64>(host, {0, 2, 4})));
 
 // Assemble the distributed matrix on the host.
 auto mat_host = dist::Matrix<double, gko::int32, gko::int64>::create(host, comm);
-mat_host->read_distributed(data, partition.get());
+mat_host->read_distributed(data, partition);
 
 // Clone to the device for computation.
 auto mat = mat_host->clone(exec);
 ```
 
-`read_distributed` inspects the global sparsity pattern across all ranks — it needs host-side MPI
-to coordinate. Once assembled, `clone(exec)` copies the local blocks to the device in one step.
+`read_distributed` takes the partition as a `std::shared_ptr` (hence `gko::share`) and keeps the
+entries of the rows this rank owns. Once assembled, `clone(exec)` copies the local blocks to the
+device in one step.
 
 Distributed `Vector` assembly follows the same pattern:
 
@@ -71,7 +76,7 @@ auto vec = vec_host->clone(exec);
 
 ## The communicator
 
-Every distributed object holds a `gko::experimental::mpi::communicator`:
+The distributed `Matrix`, `Vector` and `RowGatherer` hold a `gko::experimental::mpi::communicator`:
 
 ```cpp
 auto comm = mat->get_communicator();
@@ -91,12 +96,12 @@ rank form a contiguous block. Within that block-row, the columns split by owners
 column partition — by default the same as the row partition). This gives every rank two pieces
 of the matrix:
 
-- **Diagonal matrix** — entries whose row is owned by this rank **and** whose column is also
+- **Local matrix** (the diagonal block) — entries whose row is owned by this rank **and** whose column is also
   owned by this rank. Across all ranks, these pieces sit on the block-diagonal of the permuted
   global matrix; hence the name. Both row and column indices are local (0..*n_local* − 1) and
   the dimensions are $n_\text{local rows} \times n_\text{local cols}$. This is the bulk of the
   work for well-partitioned matrices.
-- **Off-diagonal matrix** — entries whose row is owned by this rank but whose column is *not*
+- **Non-local matrix** (the off-diagonal blocks) — entries whose row is owned by this rank but whose column is *not*
   owned by this rank. These sit on the off-diagonal blocks of the permuted global matrix and
   drive the halo exchange during `apply`. The storage is **compressed**: only the remote
   columns that this rank's local rows actually reference are kept, and those columns are
@@ -108,10 +113,10 @@ of the matrix:
 
 :::{note}
 "Diagonal" here refers to the **block structure** of the partitioned global matrix, not to the
-diagonal of the matrix in the linear-algebra sense. The diagonal matrix on each rank is an
-arbitrary sparse sub-block of $A$ that this rank owns end-to-end. The off-diagonal matrix is
-similarly a sparse block; the "off-diagonal" name describes its position in the partitioned
-global matrix, not anything about its values.
+diagonal of the matrix in the linear-algebra sense. Ginkgo's API calls this piece the local
+matrix: an arbitrary sparse sub-block of $A$ that this rank owns end-to-end. The non-local matrix
+is similarly a sparse block; "off-diagonal" describes its position in the partitioned global
+matrix, not anything about its values.
 :::
 
 ### A worked example
@@ -173,18 +178,18 @@ matches:
 Where each block is **stored** is determined by the *row* owner alone: every rank holds the
 two blocks of the global matrix that lie in its own row range. So:
 
-- **Rank 0** stores its top-left quadrant (its diagonal matrix) and its top-right quadrant
-  (its off-diagonal matrix). The cols 2, 3 block lives on rank 0 because rows 0, 1 live on
+- **Rank 0** stores its top-left quadrant (its local matrix) and its top-right quadrant
+  (its non-local matrix). The cols 2, 3 block lives on rank 0 because rows 0, 1 live on
   rank 0 — even though rank 1 is the one that *owns* those columns.
-- **Rank 1** stores the bottom-left quadrant (its off-diagonal matrix) and the bottom-right
-  quadrant (its diagonal matrix). Symmetric story.
+- **Rank 1** stores the bottom-left quadrant (its non-local matrix) and the bottom-right
+  quadrant (its local matrix). Symmetric story.
 
 Plugging in the concrete sparsity pattern above, the per-rank storage is:
 
 ```text
 Rank 0 (holds rows 0, 1):
-                                          index_map for the off-diagonal cols:
-  diagonal matrix      off-diagonal         local col 0  ↔  global col 2
+                                          index_map for the non-local cols:
+  local matrix         non-local            local col 0  ↔  global col 2
   (2 × 2)              matrix (2 × K)       (col 3 is not touched — dropped)
   ┌────────────┐       ┌─────┐
   │  *    *    │       │  *  │              K = 1: only one of the two remote
@@ -192,8 +197,8 @@ Rank 0 (holds rows 0, 1):
   └────────────┘       └─────┘
 
 Rank 1 (holds rows 2, 3):
-                                          index_map for the off-diagonal cols:
-  diagonal matrix      off-diagonal         local col 0  ↔  global col 0
+                                          index_map for the non-local cols:
+  local matrix         non-local            local col 0  ↔  global col 0
   (2 × 2)              matrix (2 × K)       (col 1 is not touched — dropped)
   ┌────────────┐       ┌─────┐
   │  *    *    │       │  .  │              K = 1: again, only one of the two
@@ -201,7 +206,7 @@ Rank 1 (holds rows 2, 3):
   └────────────┘       └─────┘
 ```
 
-Note that `get_off_diag_matrix()` on rank 0 returns a 2 × 1 sparse block, not a 2 × 2 block:
+Note that `get_non_local_matrix()` on rank 0 returns a 2 × 1 sparse block, not a 2 × 2 block:
 the remote column the rank doesn't touch (global col 3) is simply not stored. The mapping
 from the compressed local column to its global index lives in
 `index_map::get_remote_global_idxs()` and is used during the halo exchange to know which
@@ -210,18 +215,29 @@ entries of $x$ this rank should expect from which other rank.
 Access the parts directly if needed:
 
 ```cpp
-auto diag_mat     = mat->get_diag_matrix();       // shared_ptr<const LinOp>: the diagonal matrix
-auto off_diag_mat = mat->get_off_diag_matrix();   // the off-diagonal matrix (compressed columns)
+auto local_mat     = mat->get_local_matrix();      // shared_ptr<const LinOp>: columns owned by this rank
+auto non_local_mat = mat->get_non_local_matrix();  // columns owned by other ranks (compressed columns)
 
 // Vectors expose the rank-local Dense:
 auto local_x = x->get_local_vector();             // matrix::Dense<V> with rank-owned rows only
 ```
 
-For generic code that works for both distributed and non-distributed vectors, use the helper:
+Generic code that accepts both distributed and plain vectors takes the local block with a
+`dynamic_cast`:
 
 ```cpp
-gko::detail::get_local(ptr)   // returns Dense<V> whether ptr is dist::Vector or matrix::Dense
+const gko::LinOp* b = nullptr;  // a dist::Vector<double> or a matrix::Dense<double>
+const gko::matrix::Dense<double>* local_b = nullptr;
+if (auto dist_b = dynamic_cast<const dist::Vector<double>*>(b)) {
+    local_b = dist_b->get_local_vector();
+} else {
+    local_b = gko::as<gko::matrix::Dense<double>>(b);
+}
 ```
+
+Solver implementations apply the same idea through
+`gko::experimental::precision_dispatch_real_complex_distributed`, which dispatches on distributed
+and non-distributed inputs alike.
 
 ## Forward links
 
@@ -230,12 +246,12 @@ The sub-pages cover the distributed machinery in depth:
 - [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
   ranks and how local/global indexing is reconciled.
 - [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
-  ordering, and the diagonal / off-diagonal decomposition of SpMV.
+  ordering, and the local / non-local decomposition of SpMV.
 - [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
   collective communicator that backs the all-to-all exchange.
 - [Collective communicators](distributed/collective-communicator.md) — the
   `CollectiveCommunicator` interface and its dense / neighborhood implementations.
-- [RowGatherer and RowScatterer](distributed/row-gather-scatter.md) — the helper that drives the
+- [RowGatherer](distributed/row-gather-scatter.md) — the helper that drives the
   halo exchange on top of a collective communicator.
 - [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
   solvers work automatically and how to configure the Schwarz preconditioner.
