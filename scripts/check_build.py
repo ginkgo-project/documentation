@@ -6,6 +6,7 @@ problem, so CI fails before publishing a broken version:
 
 - the version switcher is wired to the production `switcher.json` and knows
   which version this build is;
+- the develop build, and only it, shows the permanent development banner;
 - every example page's "The plain program" section contains code (it is
   empty when the Ginkgo checkout is missing from `../upstream`);
 - the `_static/switcher.json` shipped with the build is well formed.
@@ -26,6 +27,8 @@ SWITCHER_URL = SITE + "_static/switcher.json"
 PLAIN_PROGRAM = re.compile(r'<section id="the-plain-program">(.*?)</section>', re.S)
 VERSION_MATCH = re.compile(r"theme_switcher_version_match = '([^']*)'")
 SPHINX_VERSION = re.compile(r"VERSION: '([^']*)'")
+DEVELOP_BANNER = 'class="ginkgo-develop-banner"'
+THEME_WARNING = re.compile(r"show_version_warning_banner\s*=\s*(true|false)")
 
 
 def check_switcher_wiring(html_dir, version):
@@ -61,6 +64,25 @@ def check_switcher_wiring(html_dir, version):
                 )
     if "ginkgo-version-switcher" in index:
         errors.append("index.html: legacy hand-written version switcher present")
+    return errors
+
+
+def check_develop_banner(html_dir, version):
+    # The develop build, and only it, carries the permanent development
+    # banner; its theme version warning is off so the two never stack.
+    index_path = html_dir / "index.html"
+    if version is None or not index_path.is_file():
+        return []
+    index = index_path.read_text(encoding="utf-8")
+    errors = []
+    has_banner = DEVELOP_BANNER in index
+    if version == "develop" and not has_banner:
+        errors.append("index.html: the develop build has no development banner")
+    if version != "develop" and has_banner:
+        errors.append(f"index.html: version {version!r} shows the development banner")
+    warning = THEME_WARNING.search(index)
+    if version == "develop" and (not warning or warning.group(1) != "false"):
+        errors.append("index.html: the develop build keeps the theme's version warning")
     return errors
 
 
@@ -101,17 +123,20 @@ def check_switcher_json(path, name):
         values = [e.get(key) for e in entries]
         if len(set(values)) != len(values):
             errors.append(f"{name}: duplicate {plural} in {values}")
-    # The root serves `main`'s build, and the deploy publishes `main`'s
-    # copy of this list; a release edit that leaves the root to another
-    # branch (or to nobody) would publish a stale list or no homepage.
+    # The root serves `develop`'s build (with its development banner) and
+    # the stable release is `main`, the preferred entry the banners link
+    # to; a release edit that leaves the root to nobody would publish no
+    # homepage.
     root = [e for e in entries if e.get("url") == SITE]
     if len(root) != 1:
         errors.append(f"{name}: expected exactly one entry at {SITE}, found {len(root)}")
     else:
-        if root[0].get("branch") != "main":
-            errors.append(f"{name}: the entry at {SITE} must have branch 'main'")
-        if not root[0].get("preferred"):
-            errors.append(f"{name}: the entry at {SITE} must be preferred")
+        if root[0].get("branch") != "develop":
+            errors.append(f"{name}: the entry at {SITE} must have branch 'develop'")
+        if root[0].get("preferred"):
+            errors.append(f"{name}: the entry at {SITE} must not be preferred")
+    if len(preferred) == 1 and preferred[0].get("branch") != "main":
+        errors.append(f"{name}: the preferred entry must have branch 'main'")
     return errors
 
 
@@ -130,6 +155,7 @@ def main():
         shipped = args.html_dir / "_static" / "switcher.json"
         errors = (
             check_switcher_wiring(args.html_dir, args.version)
+            + check_develop_banner(args.html_dir, args.version)
             + check_plain_programs(args.html_dir)
             + (check_switcher_json(shipped, "_static/switcher.json")
                if shipped.is_file() else [])

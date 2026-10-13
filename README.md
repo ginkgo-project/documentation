@@ -6,15 +6,22 @@ Ginkgo documentation pages, published at <https://gko-project.org/>.
 
 Each docs branch documents one Ginkgo version:
 
-| Docs branch    | Documents Ginkgo | Published at                       |
-|----------------|------------------|------------------------------------|
-| `main`         | `v1.11.0`        | <https://gko-project.org/>         |
-| `develop`      | `develop`        | <https://gko-project.org/develop/> |
-| `release/1.10` | `v1.10.0`        | <https://gko-project.org/1.10/>    |
+| Docs branch    | Documents Ginkgo | Published at                              |
+|----------------|------------------|-------------------------------------------|
+| `develop`      | `develop`        | <https://gko-project.org/> (default)      |
+| `main`         | `v1.11.0`        | <https://gko-project.org/1.11/> (stable)  |
+| `release/1.10` | `v1.10.0`        | <https://gko-project.org/1.10/>           |
 
 The Ginkgo ref a branch documents is pinned in its `.ginkgo-ref` file. The
 list of published versions, which also feeds the version switcher, is
 `_static/switcher.json` on `main`; edit it only there.
+
+The site root serves the develop docs. Their header carries a permanent
+orange banner (set in `conf.py`, styled in `_static/ginkgo-theme/custom.css`)
+that marks them as unstable and links to the stable docs, the `preferred`
+entry of the version list. Older versions show the theme's version warning
+instead. A page that only the stable docs have gets a redirect stub at the
+root (`scripts/assemble_site.sh`), so its old URL keeps working.
 
 Where changes go:
 
@@ -81,7 +88,7 @@ A self-contained smoke-test page lives at `_doxygen/smoke-test.md`
 `_static/switcher.json`, each from its docs branch against its pinned Ginkgo
 ref, checks each build with `scripts/check_build.py`, and deploys them
 together to GitHub Pages. It runs on every push to `main`, weekly (so
-`/develop/` follows Ginkgo's develop branch), and whenever
+the develop docs at the root follow Ginkgo's develop branch), and whenever
 `trigger-deploy.yml` dispatches it after a push to `develop` or
 `release/*`. Deploys always run from `main`. If any version fails to
 build, nothing is deployed and the previous site stays live.
@@ -109,10 +116,11 @@ When a Ginkgo release ships (shown for 1.12):
    ```
 
 3. Edit `_static/switcher.json`: add
-   `{"name": "1.12 (stable)", "version": "1.12", "url": "https://gko-project.org/", "branch": "main", "preferred": true}`;
-   change the 1.11 entry to `"name": "1.11"`, `"url": "https://gko-project.org/1.11/"`,
-   `"branch": "release/1.11"` without `preferred`; drop the oldest entry if
-   it is no longer maintained. Then commit the merge together with the new
+   `{"name": "1.12 (stable)", "version": "1.12", "url": "https://gko-project.org/1.12/", "branch": "main", "preferred": true}`;
+   change the 1.11 entry to `"name": "1.11"` and `"branch": "release/1.11"`
+   without `preferred` (its URL stays `https://gko-project.org/1.11/`); drop
+   the oldest entry if it is no longer maintained. The develop entry stays at
+   the root. Then commit the merge together with the new
    pin and list: `git add .ginkgo-ref _static/switcher.json && git commit`.
 4. Push `release/1.11` and `main` together:
    `git push --atomic origin main release/1.11`.

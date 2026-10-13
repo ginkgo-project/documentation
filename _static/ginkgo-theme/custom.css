@@ -1044,3 +1044,21 @@ html[data-theme="dark"] dl.cpp > dt {
 html[data-theme="dark"] dl.cpp > dd {
     border-left-color: rgba(255, 255, 255, 0.12);
 }
+
+/* Development-docs banner. conf.py sets the theme's announcement on the
+   develop build only; it has no close button. Orange in both colour
+   modes, with dark text (contrast 7.4:1). */
+.bd-header-announcement {
+    background-color: #f28c28;
+    color: #1f1300;
+}
+
+.bd-header-announcement a,
+.bd-header-announcement a:hover {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.bd-header-announcement a:hover {
+    text-decoration-thickness: 2px;
+}
