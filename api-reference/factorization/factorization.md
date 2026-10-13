@@ -1,10 +1,10 @@
 # `gko::experimental::factorization::`<br>`Factorization`
 
 The container produced by every factorisation in this namespace. Owns
-the computed factors and dispatches on `apply`: depending on the
-internal representation, applying the `Factorization` performs the
-appropriate combination of triangular solves and matrix multiplies that
-realises the action of $A^{-1}$ (or its approximation).
+the computed factors, stored in one of several representations, and hands
+them to `gko::experimental::solver::Direct`, which uses them for the
+triangular solves. When the factors are kept as a composition, `apply`
+multiplies by the factors.
 
 :::{attention}
 This class lives in the `experimental` namespace; its interface may change.

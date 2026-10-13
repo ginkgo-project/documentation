@@ -31,7 +31,7 @@ substituted for cases where the triangular solves are the bottleneck.
   sparsity pattern of $A$ (for ILU(0)) or by a tunable budget (for ParILUT).
 - **As the preconditioner inside [BiCGSTAB](../solvers/bicgstab.md),
   [GMRES](../solvers/gmres.md), or [IDR(s)](../solvers/idr.md)** — ILU
-  does not preserve symmetry, so non-symmetric Krylov methods are the
+  factors generally break the symmetry of $A$, so non-symmetric Krylov methods are the
   natural pairing.
 - **Pair with a fill-reducing reordering** ([AMD](../reordering/amd.md),
   [nested dissection](../reordering/nested-dissection.md)) and/or an
@@ -97,8 +97,8 @@ use `gko::as<ConcreteType>(...)` to reach solver-specific accessors.
 
 ## Implementation notes
 
-ILU does **not** preserve symmetry of the system matrix, so the
-preconditioned operator is generally non-symmetric even when $A$ is — use
+ILU factors generally break the symmetry of the system matrix, so the
+preconditioned operator is non-symmetric even when $A$ is symmetric — use
 non-symmetric Krylov methods (BiCGSTAB, GMRES, IDR(s)) with ILU rather
 than CG.
 

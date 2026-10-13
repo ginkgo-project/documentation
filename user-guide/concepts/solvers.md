@@ -39,7 +39,7 @@ Every Krylov solver expects a stopping criterion and, optionally, a precondition
 
 ## Direct solvers
 
-Ginkgo's direct family is **sparse**, not dense. `gko::experimental::solver::Direct` takes a sparse factorisation factory (`gko::experimental::factorization::Lu` or `Cholesky`) and turns the resulting factors into a solver `LinOp`. The factorisation result is itself a `LinOp`, so you can compose it as a preconditioner inside a Krylov solver or use it stand-alone.
+Ginkgo's direct family is **sparse**, not dense. `gko::experimental::solver::Direct` takes a sparse factorisation factory (`gko::experimental::factorization::Lu` or `Cholesky`) and turns the resulting factors into a solver `LinOp`. The resulting `Direct` solver is itself a `LinOp`, so you can use it stand-alone or pass its factory as a Krylov solver's preconditioner.
 
 ```cpp
 auto direct = gko::experimental::solver::Direct<double, int>::build()

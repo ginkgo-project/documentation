@@ -78,7 +78,7 @@ auto solver_factory =
 
 ## Composition with `Combined`
 
-Multiple criteria compose via `gko::stop::Combined`, which stops when *any* sub-criterion fires (OR semantics by default). Pass the sub-criteria as factories:
+Multiple criteria compose via `gko::stop::Combined`, which always stops as soon as *any* sub-criterion fires (OR semantics). Pass the sub-criteria as factories:
 
 ```cpp
 auto criteria = gko::stop::Combined::build()

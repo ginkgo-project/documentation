@@ -1,7 +1,8 @@
 # `gko::solver`
 
-Iterative and direct linear solvers. Every solver is a `LinOp` that
-takes a system matrix and a stopping criterion, and exposes a typed
+Iterative and direct linear solvers. Every solver is a `LinOp` built
+from a system matrix; iterative solvers also take stopping criteria. Each
+exposes a typed
 `Factory` produced by the `build()` method. For the high-level taxonomy
 and how to pick a solver see the
 [Solvers overview](../../user-guide/concepts/solvers.md) concept page.

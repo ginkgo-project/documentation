@@ -179,7 +179,7 @@ auto fgmres = gko::solver::Gmres<double>::build()
                   .on(exec);
 ```
 
-There is no separate `Fgmres` class; the same `Gmres` template implements both
+The same `Gmres` template implements both
 modes, switched by the `flexible` flag. The trade-off is memory: FGMRES has to
 store $M^{-1} v_j$ for every Krylov basis vector (not just $v_j$), so the
 basis-storage footprint roughly doubles compared to standard GMRES at the same

@@ -132,9 +132,8 @@ relaxation factor, and the supplied inner solver factory.
 | `default_initial_guess` | `initial_guess_mode` | What to assume about the input `x` when `apply` is called: `provided` (default; use `x` as the initial guess), `zero` (`x` is zero) or `rhs` (start from the right-hand side). |
 | `inner_initial_guess` | `initial_guess_mode` | Starting vector of the inner solver for each correction solve $A d = r$, when the inner solver uses an initial guess: `zero` (default; independent of the scaling of $A$) or `rhs` (start from the residual; IR diverges if the eigenvalues of $A$ are far from 1). |
 
-Note that IR does **not** have a `preconditioner` parameter — the inner solver
-*is* the correction operator, so there is no separate preconditioning slot. If
-you want preconditioning, configure it on the inner solver itself.
+IR's inner solver is its correction operator: configure preconditioning on the
+inner solver itself.
 
 ## The default-identity caveat
 
@@ -198,8 +197,8 @@ The `zero` mode is worth knowing about:
   accuracy down further without rebuilding the inner solver.
 - **Multigrid smoother** — the Richardson form, configured via `build_smoother`,
   is the canonical way to use a preconditioner as a multigrid smoother.
-- **Wrapping an external solver** — if you have a non-Ginkgo solver as a
-  `LinOp` (e.g., via `create_custom`), IR provides the residual-correct outer
+- **Wrapping an external solver** — if you have a non-Ginkgo solver wrapped
+  in a class derived from `gko::LinOp`, IR provides the residual-correct outer
   loop without modifying the solver itself.
 
 Avoid IR when:

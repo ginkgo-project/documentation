@@ -31,8 +31,8 @@ this section covers the per-level interfaces.
   coarse row or injecting only the selected rows; also accepts distributed
   matrices.
 - [`FixedCoarsening`](fixed-coarsening.md) — pick coarse-level rows by
-  user-supplied index list, with identity restriction and
-  prolongation. Useful when the application already knows a good
+  user-supplied index list, restricting by selection and
+  prolonging by injection. Useful when the application already knows a good
   coarsening (e.g. from a structured mesh).
 
 ```{toctree}

@@ -35,8 +35,9 @@ to be passed to `preconditioner::Ilu` / `preconditioner::Ic`.
 ## The factor container
 
 - [`experimental::Factorization`](factorization.md) — the `LinOp` that
-  owns the factors and dispatches on `apply` (forward-/backward-solve
-  or direct multiplication, depending on the stored representation).
+  owns the factors, which `gko::experimental::solver::Direct` uses for its
+  triangular solves; `apply` multiplies by the factors when they are kept as a
+  composition.
 
 ```{toctree}
 :hidden:

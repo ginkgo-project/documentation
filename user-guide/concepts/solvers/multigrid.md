@@ -39,7 +39,8 @@ finest level (output)
 
 - **Smoothers** (`pre_smoother`, `post_smoother`, optional `mid_smoother`) attack
   high-frequency errors that the coarse grid cannot represent. Defaults to one step
-  of iterative refinement with a scalar Jacobi preconditioner if not specified.
+  of iterative refinement with a scalar Jacobi preconditioner if not specified
+  (with scalar Jacobi as the local solver of `Schwarz` in distributed runs).
 - **Restriction** (`R`) maps the residual from a fine level to a coarse level.
 - **Prolongation** (`P`) maps a correction from a coarse level back to the fine
   level.
@@ -59,9 +60,9 @@ auto coarse   = level->get_coarse_op();    // A_{i+1}
 auto prolong  = level->get_prolong_op();   // P
 ```
 
-This is the contract every coarsening method satisfies. Custom coarsening can be
-implemented by inheriting `gko::multigrid::EnableMultigridLevel<ValueType>` and
-calling `set_multigrid_level(prolong, coarse, restrict)` from `generate()`.
+This is the contract every coarsening method satisfies. A custom coarsening
+is a `LinOp` that also inherits `gko::multigrid::EnableMultigridLevel<ValueType>`
+and calls `set_multigrid_level(prolong, coarse, restrict)` from `generate()`.
 
 ### Cycle types
 
@@ -87,14 +88,14 @@ elliptic problems out of the box.
 | Parameter | Type | Purpose |
 |---|---|---|
 | `mg_level` | vector of `LinOpFactory` | Coarsening factories — see [Coarsening methods](#coarsening-methods). Required; generation fails without at least one entry. |
-| `pre_smoother`, `post_smoother`, `mid_smoother` | vector of `LinOpFactory` | Smoother factory per level (or one shared). Empty vector means "use the default smoother": one step of iterative refinement with scalar Jacobi. `nullptr` entries skip smoothing at that level. |
+| `pre_smoother`, `post_smoother`, `mid_smoother` | vector of `LinOpFactory` | Smoother factory per level (or one shared). Empty vector means "use the default smoother": one step of iterative refinement with scalar Jacobi (with scalar Jacobi as the local solver of `Schwarz` in distributed runs). `nullptr` entries skip smoothing at that level. |
 | `post_uses_pre` | `bool` *(default `true`)* | When `true`, post-smoothing reuses the pre-smoother factory; the explicit `post_smoother` parameter is ignored. |
 | `mid_case` | `mid_smooth_type` | Behaviour of the mid-smoother in F and W cycles: `both`, `post_smoother`, `pre_smoother`, `standalone` *(default)*. Has no effect on V cycles. |
 | `max_levels` | `size_type` *(default 10)* | Maximum number of coarsening steps (excluding the coarsest solver). |
-| `min_coarse_rows` | `size_type` *(default 64)* | Stop coarsening when the matrix has fewer rows than this. |
+| `min_coarse_rows` | `size_type` *(default 64)* | Stop coarsening once the matrix has at most this many rows. |
 | `coarsest_solver` | vector of `LinOpFactory` | Solver factory for the coarsest level. The default is a direct LU solver in single-process runs, GMRES with Jacobi on DPC++ and GMRES with a Schwarz preconditioner (Jacobi local solver) in distributed runs. |
 | `cycle` | `multigrid::cycle` *(default `v`)* | V, W, or F cycle. |
-| `smoother_relax`, `smoother_iters` | scalar | Tune the *default* smoother (only consulted if `pre_smoother` is empty). |
+| `smoother_relax`, `smoother_iters` | scalar | Tune the *default* smoother (they apply wherever no smoother factory is given). |
 | `criteria` | vector of `CriterionFactory` | Stopping criteria of the multigrid iteration. Required, also when `Multigrid` is used as a preconditioner; an empty list makes generation throw. `gko::stop::max_iters(1u)` applies exactly one cycle. |
 | `default_initial_guess` | `initial_guess_mode` *(default `zero`)* | What to assume about the initial `x` passed to `apply` — `zero`, `provided`, or `rhs` (the input is the right-hand side). |
 | `level_selector`, `solver_selector` | `std::function<size_type(size_type, const LinOp*)>` | Pick which `mg_level` / `coarsest_solver` factory to use at each level based on the level number and the fine matrix. Defaults to "use index `i` at level `i`, last entry once exhausted" for `mg_level` and "first entry" for `coarsest_solver`. |
@@ -232,7 +233,7 @@ simpler preconditioners on the right class of problems.
 
 :::{seealso}
 - [Solvers — taxonomy](../solvers.md) — multigrid in context of the other families.
-- [Preconditioners — taxonomy](../preconditioners.md) — what plugs into the smoother slots.
+- [Preconditioners — taxonomy](../preconditioners.md) — the preconditioners that `build_smoother` wraps for the smoother slots.
 - [LinOp and composition](../linop-and-composition.md) — the factory pattern multigrid uses.
 - Publications: [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9), [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024)
 - API reference: [`gko::solver::Multigrid`](../../../api-reference/solver/multigrid.md), [`gko::multigrid::MultigridLevel`](../../../api-reference/multigrid/multigrid-level.md)

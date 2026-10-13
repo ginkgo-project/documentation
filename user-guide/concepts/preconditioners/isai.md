@@ -2,8 +2,8 @@
 
 `gko::preconditioner::Isai<IsaiType, ValueType, IndexType>` computes a
 **sparse approximation** $M_A \approx A^{-1}$ directly, then applies it as
-the preconditioner via a single sparse matrix-vector product. There is no
-triangular solve at apply time — which is exactly the appeal on hardware
+the preconditioner via a single sparse matrix-vector product. The apply step stays free of
+triangular solves — which is exactly the appeal on hardware
 where triangular substitution serialises poorly.
 
 The trade-off is that the quality of the preconditioner is bounded by the
@@ -75,7 +75,7 @@ auto ilu = gko::preconditioner::Ilu<double, false, gko::int32>::build()
 | `sparsity_power` | `int` | Use the sparsity pattern of $A^k$ instead of $A$ for the approximate inverse. Larger values give denser approximations and better preconditioner quality at the cost of generation time and storage. Default `1`. |
 | `excess_limit` | `size_type` | Rows with more than 32 nonzeros are handled through an "excess" system; when set to $m > 0$, that system is solved as soon as its size exceeds $m$, repeatedly, until all excess rows are done. Default `0` (one excess solve). |
 | `excess_solver_factory` | `LinOpFactory` | Solver for the excess system. Defaults to a triangular solver for `lower` / `upper` ISAI and to block-Jacobi-preconditioned GMRES for `general` / `spd` ISAI. |
-| `excess_solver_reduction` | `remove_complex<ValueType>` | Residual-reduction target of the excess solve. Default `1e-6`. |
+| `excess_solver_reduction` | `remove_complex<ValueType>` | Residual-reduction factor of the default GMRES excess solver used for `general` and `spd` ISAI. Only the default GMRES excess solver (`general` / `spd`) reads it. Default `1e-6`. |
 
 ## Implementation notes
 
@@ -85,9 +85,8 @@ controlled by `excess_limit` and `excess_solver_factory`; with
 `sparsity_power > 1` more rows reach that size, which raises generation
 time.
 
-ISAI is **not** transpose-symmetric in the general case — that is,
-$\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$ — except for the `spd`
-flavour. If you need the transposed approximate inverse, compute it from
+In the general case, $\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$; only the
+`spd` flavour is transpose-symmetric. If you need the transposed approximate inverse, compute it from
 $A^T$ directly.
 
 :::{seealso}

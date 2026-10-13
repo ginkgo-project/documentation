@@ -67,9 +67,9 @@ the matrix.
 | `max_block_stride` | `uint32` | Stride between two columns of a stored block, in elements. `0` (default) picks the executor's native width (32 on NVIDIA and CPU executors, 64 on AMD). |
 | `skip_sorting` | `bool` | Set `true` when the input matrix is already sorted by row and column index to skip the internal sort. Default `false`. |
 | `block_pointers` | `array<index_type>` | Starting row of each diagonal block. Omit to auto-detect via the supervariable-agglomeration heuristic; the heuristic is conservative — explicit pointers from domain knowledge are usually faster and more accurate. |
-| `storage_optimization` | `storage_optimization_type` | Adaptive-precision policy: each block can be stored in a lower precision than `ValueType` to reduce bandwidth. Use the constructor that takes a per-block-precision array to enable, or the global form to apply a single reduction policy to every block. |
-| `accuracy` | `remove_complex<ValueType>` | Threshold used when `storage_optimization` is adaptive: a block is stored in a lower precision if the resulting rounding error is below this fraction of the block's condition. Default `1e-1`. |
-| `aggregate_l1` | `bool` | Generate the preconditioner on $A + \mathrm{diag}(\sum_{k \in \text{off-block}} |A_{ik}|)$ instead of $A$. Useful as a smoother in multigrid; see the upstream docstring for the row-dominance condition. Default `false`. |
+| `storage_optimization` | `precision_reduction` or `array<precision_reduction>` | Adaptive-precision policy: each block can be stored in a lower precision than `ValueType` to reduce bandwidth. Default `precision_reduction(0, 0)` (full precision, non-adaptive). A single `precision_reduction::autodetect()` or an array of per-block values enables the adaptive variant. |
+| `accuracy` | `remove_complex<ValueType>` | Threshold for blocks set to `autodetect()`: a lower precision is accepted when `cond * eps < accuracy`, i.e. its rounding error stays below `accuracy / cond`. Default `1e-1`. |
+| `aggregate_l1` | `bool` | Generate the preconditioner on $A + \mathrm{diag}(\sum_{k \in \text{off-block}} \lvert A_{ik} \rvert)$ instead of $A$. Useful as a smoother in multigrid; see the upstream docstring for the row-dominance condition. Default `false`. |
 
 The block-detection heuristic and the available adaptive-precision options
 are documented in detail on the class docstring; see the API reference
@@ -86,8 +86,8 @@ where the regularity of the access matters more than the block coupling.
 
 The adaptive-precision variant analyses each block's condition number at
 generation time and chooses a per-block storage precision (`double` →
-`float` → `half`, …) that keeps the block-apply rounding error below the
-`accuracy` threshold. This reduces the memory traffic during `apply` —
+`float` → `half`, …) whose rounding error stays below
+`accuracy / cond` (with `cond` the block's condition number). This reduces the memory traffic during `apply` —
 the biggest cost on GPUs — without changing the working precision of the
 iterative solver around it.
 

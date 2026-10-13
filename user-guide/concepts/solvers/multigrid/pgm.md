@@ -15,11 +15,13 @@ candidate.
 The procedure for each iteration:
 
 1. **Strongest-neighbour selection.** For each unaggregated row `i`, identify the
-   neighbour `j` reachable via the largest absolute matrix entry.
+   neighbour `j` with the strongest symmetric coupling: the average of `|a_ij|` and
+   `|a_ji|` relative to the larger of the two diagonal entries.
 2. **Mutual-match aggregation.** If row `j`'s strongest neighbour is also `i`, merge
    the pair into a new aggregate.
-3. **Repeat** until the fraction of unaggregated rows has dropped to
-   `max_unassigned_ratio` or `max_iterations` passes have run.
+3. **Repeat** until a pass makes no new match, the number of unaggregated rows
+   drops below `max_unassigned_ratio` times the number of rows, or
+   `max_iterations` passes have run.
 
 Rows still unaggregated after that are folded into an existing
 neighbouring aggregate (or kept singleton if no neighbour is available).
@@ -46,8 +48,8 @@ The reuse interface is experimental and may change.
 | Parameter | Type | Purpose |
 |---|---|---|
 | `max_iterations` | `unsigned` | Upper bound on the number of handshaking iterations. Default `15`, which mirrors the NVIDIA AMGX reference manual. |
-| `max_unassigned_ratio` | `double` | Stop iterating when at most this fraction of rows remain unaggregated. Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. Default `0.05`. |
-| `deterministic` | `bool` | When `true`, the matching is reproducible across runs (at extra cost). When `false`, the order of strong-neighbour resolution can depend on parallel scheduling — different runs may produce different aggregations of the same matrix, though always valid ones. Use `true` for debugging and regression testing. Default `false`. |
+| `max_unassigned_ratio` | `double` | Stop iterating when fewer than this fraction of the rows remain unaggregated. Lower values demand more complete aggregation; higher values trade aggregation completeness for fewer iterations. Default `0.05`. |
+| `deterministic` | `bool` | `true` selects the deterministic `assign_to_exist_agg` step, so the same matrix always yields the same aggregates (at extra cost). `false` lets that step depend on the execution order, so different runs may produce different, always valid, aggregations of the same matrix. Use `true` for debugging and regression testing. Default `false`. |
 | `skip_sorting` | `bool` | If you can guarantee that the input CSR is sorted by column index within each row, set `true` to skip Pgm's internal sort. Wrong-set value silently produces incorrect aggregations. Default `false`. |
 
 ## When to use Pgm

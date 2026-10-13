@@ -38,7 +38,8 @@ good reordering they often stay within a small constant factor.
 The recommended preprocessing recipe is:
 
 1. **Match (optional)**: apply `Mc64` to push large entries onto the diagonal,
-   improving pivoting stability.
+   which can increase the numerical stability of the pivot-free `Lu`
+   factorisation.
 2. **Reorder**: apply `Amd` (default for small / medium matrices) or
    `NestedDissection` (for large structured systems; requires METIS) to reduce
    fill-in. As an alternative — particularly when the triangular solves are

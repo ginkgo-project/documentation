@@ -1,8 +1,8 @@
 # FixedCoarsening — user-specified coarse rows
 
 `gko::multigrid::FixedCoarsening` is a deterministic coarsening method where the
-caller picks which fine-level rows survive into the coarse level. There is no
-algebraic decision-making — no aggregation, no matching, no value-based weighting.
+caller picks which fine-level rows survive into the coarse level. The selection is purely the caller's: no aggregation, no matching, no
+value-based weighting happens.
 This makes it a niche choice, but the right one in two scenarios:
 
 1. **Hierarchical-mesh problems.** When your discretisation already provides a
@@ -27,16 +27,16 @@ matrix) of rows to keep. FixedCoarsening builds:
 - A coarse operator `A_{i+1} = R A_i P`, equivalent to the principal sub-matrix of
   `A_i` indexed by `coarse_rows`.
 
-There is no interpolation — entries at non-selected fine-level positions are zero
-in the prolonged correction. This is intentional and what makes FixedCoarsening
-"fixed": no algebraic smoothing of the prolongation operator, no interpolation
-weights.
+The prolongation is pure injection: entries at non-selected fine-level positions
+are zero in the prolonged correction. This is intentional and what makes
+FixedCoarsening "fixed": the prolongation operator is not smoothed and carries no
+interpolation weights.
 
 ## Factory parameters
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `coarse_rows` | `array<IndexType>` | The required input — global row indices of the fine matrix to keep as coarse rows. Must be passed by the user; without it generation fails. Default `nullptr`. |
+| `coarse_rows` | `array<IndexType>` | The required input — global row indices of the fine matrix to keep as coarse rows. Must be non-empty (debug builds assert on a missing or empty array). Default `nullptr`. |
 | `skip_sorting` | `bool` | If you can guarantee that the input system matrix is sorted (first by row, then by column index), set `true` to skip the internal sort. Wrong-setting silently corrupts the coarsening — see [`csr.md`'s sorted-column-indices section](../../formats/csr.md#sorted-column-indices) for context on when sortedness can or cannot be assumed. Default `false`. |
 
 ## When to use FixedCoarsening
