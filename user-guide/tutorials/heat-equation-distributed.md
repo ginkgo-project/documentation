@@ -86,8 +86,8 @@ chunk of those rows — i.e. a horizontal stripe of the grid. The 5-point
 stencil row $r$ has couplings to rows $r \pm 1$ (same stripe) and $r \pm N$
 (possibly on the neighbouring rank), and the
 [`distributed::Matrix`](../concepts/distributed.md#a-worked-example) splits
-those automatically into a *diagonal* block (entries this rank owns) and an
-*off-diagonal* block (entries on remote ranks). The halo exchange that
+those automatically into a *local* block (columns this rank owns) and a
+*non-local* block (columns on remote ranks). The halo exchange that
 SpMV needs is set up once at matrix construction and reused on every
 iteration of CG.
 
@@ -194,9 +194,10 @@ range as a flat array, so `[rank, rank+1]` is this rank's stripe.
 
 ### Assembling the local matrix entries
 
-Each rank fills a `matrix_data` with only the rows it owns. The
-distributed matrix reader will route any off-rank column indices to the
-correct neighbour automatically:
+Each rank fills a `matrix_data` with only the rows it owns. Entries
+whose column is owned by another rank go into the matrix's non-local
+block when `read_distributed` assembles it; the halo exchange of `apply`
+fetches the remote values:
 
 ```cpp
 const double c_val   = diffusion * tau * 4.0 / h2 + 1.0;
@@ -218,7 +219,7 @@ The `idx` helper is just `I*N + j` — row-major linearisation of the 2D
 grid. Every entry's row index `r` lies in this rank's range, but the
 column indices can land in another rank's range — that happens at the
 top and bottom of the stripe, when `I-1` or `I+1` crosses a partition
-boundary. Those entries become off-diagonal-block entries on this rank
+boundary. Those entries become non-local-block entries on this rank
 and drive the halo exchange during SpMV.
 
 ### Initial condition and source term
@@ -263,10 +264,11 @@ for (GlobalIdx r = row_start; r < row_end; ++r) {
 
 ### Read into distributed types
 
-`read_distributed` is required to run on a host executor — that's
-where the partition lives and where the routing logic dispatches off-rank
-entries. After reading, we copy onto the compute executor (a no-op if the
-two are the same):
+`read_distributed` runs on the executor the matrix was created on.
+Reading on the host and copying to the compute executor is the portable
+pattern, and the one to use with a DPC++ executor. After reading,
+`copy_from` moves the data onto the compute executor (a deep copy even when
+the two are the same executor):
 
 ```cpp
 auto A_host = gko::share(dist_mtx::create(host, comm));
@@ -654,9 +656,10 @@ pattern.
 
 ## Pitfalls
 
-- **`read_distributed` insists on a host executor.** The data routing
-  logic runs CPU-side. Build with `host`, then `copy_from` onto the
-  compute executor — exactly the pattern shown above.
+- **Read on the host, compute on the device.** `read_distributed` runs
+  on the executor the matrix was created on. Build with `host`, then
+  `copy_from` onto the compute executor — exactly the pattern shown
+  above.
 - **Per-rank file output races.** With 4 ranks and 80 frames per rank
   that's only a few hundred small files; with thousands of ranks the
   filesystem will object. Production codes batch into shared
@@ -666,11 +669,11 @@ pattern.
   `exec` to a GPU executor, the local vector returned by
   `get_local_vector()` lives on the device; copy with
   `gko::clone(host, ...)` before writing it out.
-- **Two distinct meanings of "diagonal".** Ginkgo's distributed-matrix
-  vocabulary uses *diagonal matrix* for the block of entries this rank
-  owns (rows and columns both local) and *off-diagonal matrix* for the
-  entries with remote columns. Both are sparse blocks; neither is a
-  literal diagonal-of-the-matrix in the linear-algebra sense. The
+- **Local and non-local blocks.** Ginkgo's distributed-matrix
+  vocabulary uses *local matrix* for the block of entries this rank
+  owns (rows and columns both local) and *non-local matrix* for the
+  entries with remote columns. Both are general sparse blocks; the
+  names describe column ownership. The
   [worked example on the distributed page](../concepts/distributed.md#a-worked-example)
   walks through this on a tiny 4x4 system.
 

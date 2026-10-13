@@ -7,9 +7,11 @@ arguments into an `Operation` via `GKO_REGISTER_OPERATION`, hands that to
 `exec->run(...)`, and the executor selects the right backend implementation.
 
 This page walks through the chain end to end on a real, minimal kernel —
-`csr::row_wise_absolute_sum` — that lives in the source tree today
-(`core/distributed/preconditioner/schwarz.cpp` uses it to build an $\ell_1$
-diagonal for the off-diagonal block).
+`csr::row_wise_absolute_sum` — that ships in the source tree. It is
+registered in `core/distributed/preconditioner/schwarz.cpp`, which uses it
+to build an $\ell_1$ diagonal for the non-local block. The walkthrough shows
+the extra step a new kernel would take when `Csr` itself exposes it as a
+member function.
 
 ## What you need to write
 
@@ -18,9 +20,9 @@ For a new kernel `foo` on `matrix::Csr`, you touch five files:
 | File | Purpose |
 |---|---|
 | `core/matrix/csr_kernels.hpp` | Macro-expanded forward declaration (one entry per backend) |
-| `core/matrix/csr.cpp` | `GKO_REGISTER_OPERATION` + the public `LinOp` method that calls it |
+| `core/matrix/csr.cpp` (or the file that calls the kernel) | `GKO_REGISTER_OPERATION` + the public `LinOp` method that calls it |
 | `reference/matrix/csr_kernels.cpp` | The single-threaded reference implementation (correctness baseline) |
-| `common/unified/matrix/csr_kernels.cpp` *or* `cuda/`, `hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
+| `common/unified/matrix/csr_kernels.cpp` *or* `common/cuda_hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
 | `core/device_hooks/common_kernels.inc.cpp` | A `GKO_STUB_*` line that produces a `GKO_NOT_COMPILED` placeholder for backends that are disabled at configure time |
 
 The Reference implementation is mandatory; it's the parity baseline every
@@ -57,8 +59,11 @@ backend's namespace. Two rules for editing this block:
 
 ## Step 2: Register the operation and write the dispatch method
 
-In `core/matrix/csr.cpp`, in the anonymous-namespace block at the top
-where `GKO_REGISTER_OPERATION` is called for every existing kernel, add:
+Register the operation in the file that runs it. `row_wise_absolute_sum` is
+registered in the anonymous-namespace block of
+`core/distributed/preconditioner/schwarz.cpp`; a kernel that `Csr` exposes
+is registered in `core/matrix/csr.cpp`, next to the other
+`GKO_REGISTER_OPERATION` lines:
 
 ```cpp
 GKO_REGISTER_OPERATION(row_wise_absolute_sum, csr::row_wise_absolute_sum);
@@ -71,11 +76,14 @@ What the macro produces:
 - The `Operation`'s `run` dispatches to
   `kernels::reference::csr::row_wise_absolute_sum`,
   `kernels::cuda::csr::row_wise_absolute_sum`, … by executor type.
-- The dispatch is a compile-time `if constexpr` chain, so a missing
-  backend implementation surfaces as a linker error, not a runtime
+- The dispatch is an `if` chain over `std::is_same` checks on the
+  executor type. Every branch is compiled, so a missing backend
+  implementation surfaces as a linker error, not a runtime
   fall-through.
 
-Then write the public method that fires the dispatch. In the same file:
+Then write the method that fires the dispatch. As a new `Csr` member (an
+illustrative addition; Ginkgo's own call site invokes the
+`make_row_wise_absolute_sum` operation directly) it reads, in the same file:
 
 ```cpp
 template <typename ValueType, typename IndexType>
@@ -167,9 +175,10 @@ macros it uses lower to the right primitives per executor:
 
 If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
 reductions, shared-memory tiling — put it in a backend-specific file
-instead (`cuda/matrix/csr_kernels.cu`,
-`hip/matrix/csr_kernels.hip.cpp`, …). Shared CUDA/HIP device code goes
-in a `.hpp.inc` header `#include`-d from both.
+instead. CUDA and HIP share one source under `common/cuda_hip/`
+(for `Csr`, `common/cuda_hip/matrix/csr_kernels.template.cpp`, with shared
+device code in `csr_common.hpp.inc`); it is registered in
+`common/cuda_hip/CMakeLists.txt`.
 
 ## Step 5: Register a stub in `device_hooks`
 
@@ -203,7 +212,8 @@ The macro family is keyed on the kernel's template signature:
 | `GKO_STUB_VALUE_TYPE(_macro)` | `<typename ValueType>` |
 | `GKO_STUB_INDEX_TYPE(_macro)` | `<typename IndexType>` |
 | `GKO_STUB_VALUE_AND_INDEX_TYPE(_macro)` | `<typename ValueType, typename IndexType>` (the common matrix case) |
-| `GKO_STUB_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE(_macro)` | Distributed `<V, L, G>` kernels |
+| `GKO_STUB_VALUE_AND_LOCAL_GLOBAL_INDEX_TYPE_BASE(_macro)` | Distributed `<ValueType, LocalIndexType, GlobalIndexType>` kernels |
+| `GKO_STUB_LOCAL_GLOBAL_TYPE(_macro)` | Distributed `<LocalIndexType, GlobalIndexType>` kernels |
 | `GKO_STUB_NON_COMPLEX_VALUE_TYPE(_macro)` | Real-only kernels |
 
 For the `row_wise_absolute_sum` example, the corresponding line in
@@ -253,7 +263,7 @@ reductions on dense input.
 
 ## The circular-dependency rule
 
-Inside any kernel module (`reference/`, `omp/`, `cuda/`, `hip/`,
+Inside any kernel module (`reference/`, `omp/`, `common/cuda_hip/`,
 `dpcpp/`, `common/unified/`):
 
 - **Allowed**: calling other kernels in the same backend namespace —

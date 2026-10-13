@@ -2,9 +2,9 @@
 
 A preconditioner in Ginkgo is a `LinOp` with two extra entry points:
 `generate(system_matrix)` which builds the operator from a source matrix,
-and `apply(b, x)` which applies the resulting operator. There is no
-workspace machinery — preconditioners do their work in a single
-`apply` and have no iteration loop.
+and `apply(b, x)` which applies the resulting operator. Preconditioners
+do their work in a single `apply`, in one pass without an iteration
+loop or workspace machinery.
 
 This page covers two patterns: a **local** preconditioner modelled on
 `preconditioner::Jacobi` (`include/ginkgo/core/preconditioner/jacobi.hpp`,
@@ -126,13 +126,15 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* b,
     precision_dispatch_real_complex<ValueType>(
         [this](auto dense_b, auto dense_x) {
             this->get_executor()->run(my_precond::make_apply(
-                /* preconditioner state */ data_,
-                dense_b->get_const_device_view(),
-                dense_x->get_device_view()));
+                /* preconditioner state */ data_, dense_b, dense_x));
         },
         b, x);
 }
+```
 
+The advanced overload passes `alpha` and `beta` through:
+
+```cpp
 template <typename ValueType, typename IndexType>
 void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
                                                  const LinOp* b,
@@ -143,11 +145,7 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
         [this](auto dense_alpha, auto dense_b,
                auto dense_beta, auto dense_x) {
             this->get_executor()->run(my_precond::make_apply(
-                dense_alpha->get_const_device_view(),
-                data_,
-                dense_b->get_const_device_view(),
-                dense_beta->get_const_device_view(),
-                dense_x->get_device_view()));
+                data_, dense_alpha, dense_b, dense_beta, dense_x));
         },
         alpha, b, beta, x);
 }
@@ -231,7 +229,7 @@ template <typename ValueType, typename LocalIndexType, typename GlobalIndexType>
 void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_impl(
     const LinOp* b, LinOp* x) const
 {
-    precision_dispatch_real_complex_distributed<ValueType>(
+    experimental::precision_dispatch_real_complex_distributed<ValueType>(
         [this](auto dense_b, auto dense_x) {
             this->apply_dense_impl(dense_b, dense_x);
         },
@@ -250,10 +248,11 @@ void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_dense_impl(
 }
 ```
 
-`gko::detail::get_local(v)` is the helper from
-`core/distributed/helpers.hpp`. It returns the rank-local
-`matrix::Dense<V>*` for both `distributed::Vector` and ordinary
-`matrix::Dense`, so the same iteration body covers serial and MPI use.
+`gko::detail::get_local(v)` is the internal helper (in
+`core/distributed/helpers.hpp`) that Ginkgo's own solvers and
+preconditioners use. It returns the rank-local `matrix::Dense<V>*` for
+both `experimental::distributed::Vector` and ordinary `matrix::Dense`,
+so the same body covers serial and MPI use.
 
 ### Where MPI can live
 
@@ -282,9 +281,9 @@ behind on-device work:
    ordering for GPU executors](../../concepts/distributed/communication-primitives.md#stream-mpi-ordering-for-gpu-executors)).
 4. Launch the kernel that consumes the received data.
 
-The distributed `Matrix::apply` is the canonical example: diagonal
-matrix kernel runs concurrently with the halo `i_all_to_all_v`, then
-the off-diagonal kernel fires once the receive completes (see
+The distributed `Matrix::apply` is the canonical example: the local
+block's kernel runs concurrently with the halo `i_all_to_all_v`, then
+the non-local block's kernel fires once the receive completes (see
 [Communication
 primitives](../../concepts/distributed/communication-primitives.md)).
 Replicate that structure rather than putting an `MPI_Allreduce`

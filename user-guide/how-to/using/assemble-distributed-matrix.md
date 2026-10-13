@@ -2,9 +2,9 @@
 
 `gko::experimental::distributed::Matrix` represents a sparse matrix
 whose rows are partitioned across MPI ranks. Each rank owns a
-contiguous block of global rows; entries with column indices outside
-the rank's row range become *off-diagonal matrix* entries that
-participate in the halo exchange during `apply`.
+contiguous block of global rows; entries whose column is owned by
+another rank form the *non-local block*, which participates in the halo
+exchange during `apply`.
 
 ## The recipe
 
@@ -22,25 +22,25 @@ auto host = exec->get_master();
 
 // Decide ownership: which global rows each rank owns.
 const GlobalIdx global_n = 1'000'000;
-auto partition = Partition::build_from_global_size_uniform(
-    host, comm.size(), global_n);
+auto partition = gko::share(Partition::build_from_global_size_uniform(
+    host, comm.size(), global_n));
 
-// Build the full matrix data on the host. Each rank can contribute
-//    nonzeros for any global row; read_distributed routes them by ownership.
+// Collect the triplets of this rank's rows on the host.
 gko::matrix_data<double, GlobalIdx> data{gko::dim<2>{global_n, global_n}};
-for (auto [i, j, v] : your_triplets_anywhere) {
+for (auto [i, j, v] : your_triplets) {
     data.nonzeros.emplace_back(i, j, v);
 }
 
-// Build the distributed matrix.
+// The partition is passed as a shared_ptr.
 auto A = gko::share(Matrix::create(exec, comm));
-A->read_distributed(data, partition.get());
+A->read_distributed(data, partition);
 ```
 
 After `read_distributed`, each rank holds only the rows assigned to it
 by `partition`. Within that block-row, the matrix is split by column
-ownership into a *diagonal matrix* (this rank also owns the column) and
-an *off-diagonal matrix* (the column is owned by some other rank).
+ownership into a *local block* (this rank also owns the column, reached
+through `get_local_matrix()`) and a *non-local block* (the column is
+owned by some other rank, reached through `get_non_local_matrix()`).
 A worked 4 × 4 example with the resulting per-rank storage is in
 [Distributed Computing — Block-structured view across
 ranks](../../concepts/distributed.md#a-worked-example); the short
@@ -51,16 +51,20 @@ Rank R's share of A:
 
        cols R owns        cols other ranks own
        ┌───────────────┬──────────────────────┐
-       │  diagonal     │  off-diagonal        │
-       │  matrix       │  matrix (compressed) │
+       │  local        │  non-local           │
+       │  block        │  block (compressed)  │
        └───────────────┴──────────────────────┘
 ```
 
-The off-diagonal matrix is stored compressed: it keeps only the remote
+The non-local block is stored compressed: it keeps only the remote
 columns this rank's rows actually reference, renumbered into a compact
-$0..K-1$ local indexing via the matrix's `index_map`. "Diagonal"
-here refers to the block structure of the partitioned global matrix,
-not to the diagonal of the matrix in the linear-algebra sense.
+$0..K-1$ local indexing via the matrix's `index_map`.
+
+The default `assembly_mode::local_only` drops entries outside the rows
+the rank owns. Pass `gko::experimental::distributed::assembly_mode::communicate`
+as the last argument of `read_distributed` when the ranks hold overlapping
+contributions: entries of rows owned by other ranks are sent to the owner
+and added up there.
 
 ## Pick a partition
 
@@ -82,20 +86,27 @@ Right-hand sides and solution vectors must use the same partition:
 
 ```cpp
 using Vector = gko::experimental::distributed::Vector<double>;
-auto b = Vector::create(exec, comm,
-                        gko::dim<2>{global_n, 1},
-                        gko::dim<2>{partition->get_part_sizes()[comm.rank()], 1});
+auto b = Vector::create(
+    exec, comm, gko::dim<2>{global_n, 1},
+    gko::dim<2>{static_cast<gko::size_type>(
+                    partition->get_part_size(comm.rank())),
+                1});
 auto x = gko::clone(exec, b);
-// Fill b->get_local_vector()->at(i, 0) on each rank for the rank-local rows.
+// Fill the rank-local rows through the writable pointer.
+double* b_local = b->get_local_values();
 ```
+
+Alternatively, `b->read_distributed(b_data, partition)` fills the vector
+from `matrix_data` in one call. `get_local_vector()` returns a
+read-only view of the rank-local block.
 
 The two `dim<2>` arguments are the *global* size and the *local* size
 respectively.
 
 ## Solve
 
-Distributed-ready Krylov solvers (`Cg`, `Fcg`, `Gmres`, `Bicgstab`,
-`Ir`, `Chebyshev`, `Multigrid` — see
+Distributed-ready solvers (`Cg`, `Fcg`, `PipeCg`, `Cgs`, `Bicgstab`,
+`Gcr`, `Gmres`, `Minres`, `Ir`, `Chebyshev`, `Multigrid` — see
 [Distributed solvers and preconditioners](../../concepts/distributed/solvers-and-preconditioners.md))
 work without modification:
 
@@ -106,9 +117,11 @@ auto solver = gko::solver::Cg<double>::build()
         gko::stop::ResidualNorm<double>::build()
             .with_reduction_factor(1e-8).on(exec))
     .with_preconditioner(
-        gko::experimental::distributed::preconditioner::Schwarz<double, LocalIdx, GlobalIdx>::build()
-            .with_local_solver(/* per-rank preconditioner factory */)
-            .on(exec))
+        gko::experimental::distributed::preconditioner::
+            Schwarz<double, LocalIdx, GlobalIdx>::build()
+                .with_local_solver(
+                    gko::preconditioner::Jacobi<double, LocalIdx>::build())
+                .on(exec))
     .on(exec)
     ->generate(A);
 solver->apply(b, x);

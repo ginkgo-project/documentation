@@ -60,12 +60,14 @@ cmake -G Ninja .. && cmake --build . -j
 
 `ccache` caches compiled object files keyed on preprocessed source, so a
 clean rebuild after `git clean -fdx` finishes in a few minutes instead of
-the full half hour. Wire it into both the C++ and CUDA compilers:
+the full half hour. Ginkgo wires it in for you: with
+`GINKGO_WITH_CCACHE=ON` (the default) and `ccache` on your `PATH`, the
+configure step sets the C++ launcher and, for CUDA builds, the CUDA
+launcher. A plain configure picks it up:
 
 ```sh
-cmake .. \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache
+which ccache      # found on PATH, so no launcher flags are needed
+cmake ..
 ```
 
 If you build CUDA code regularly, raise the ccache size from the 5 GB
@@ -75,13 +77,14 @@ default — CUDA object files are large and fill the cache fast:
 ccache -M 50G
 ```
 
-For HIP, the launcher variable is `CMAKE_HIP_COMPILER_LAUNCHER`.
+For HIP, pass the launcher yourself with
+`-DCMAKE_HIP_COMPILER_LAUNCHER=ccache`.
 
 ## Do not oversubscribe memory
 
 `-j$(nproc)` is the lazy default for parallel builds, but `nvcc` peaks at
 several gigabytes of RAM per object on heavy template files
-(`jacobi_*_kernels.cu` is a notorious offender). On a 32-core / 64 GB
+(`jacobi_*_kernels.cpp` under `common/cuda_hip/preconditioner/` is a notorious offender). On a 32-core / 64 GB
 workstation, `-j32` will swap-thrash long before it finishes. A safer
 rule of thumb is one parallel compilation per ≈ 2 GB of RAM:
 
@@ -101,7 +104,7 @@ specifically need them:
 
 | Flag | Cost | Default |
 |---|---|---|
-| `GINKGO_JACOBI_FULL_OPTIMIZATIONS` | Compiling `jacobi_generate_kernels.cu` with this on can take 20+ minutes by itself. | `OFF` |
+| `GINKGO_JACOBI_FULL_OPTIMIZATIONS` | Compiling `jacobi_generate_kernels.cpp` with this on can take 20+ minutes by itself. | `OFF` |
 | `GINKGO_ENABLE_HALF` / `GINKGO_ENABLE_BFLOAT16` | Each adds another precision instantiation across every templated kernel. | `ON` — turn off only if you don't touch fp16 / bf16 in this iteration. |
 | `GINKGO_MIXED_PRECISION` | Compiles dedicated mixed-precision kernels instead of converting on the fly. | `OFF` |
 
@@ -124,8 +127,7 @@ single-GPU CUDA workstation:
 ```sh
 cmake -G Ninja .. \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+    -DGINKGO_WITH_CCACHE=ON \
     -DGINKGO_CUDA_ARCHITECTURES=Ampere \
     -DGINKGO_BUILD_OMP=ON \
     -DGINKGO_BUILD_CUDA=ON \

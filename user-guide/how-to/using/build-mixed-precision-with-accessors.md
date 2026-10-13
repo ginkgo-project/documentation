@@ -250,6 +250,7 @@ scaling factor:
 
 ```cpp
 #include <accessor/range.hpp>
+#include <accessor/reduced_row_major.hpp>
 #include <accessor/scaled_reduced_row_major.hpp>
 
 constexpr std::uint64_t single_scale = 0b00;   // one scalar for the whole range
@@ -260,16 +261,12 @@ using x_acc = gko::acc::scaled_reduced_row_major</*Dim=*/2,
                                                  single_scale>;
 
 std::vector<std::int8_t> x_storage(n);
-double                   x_scale = 1.0;
-
-// Initialise the scale so that |x|_max maps to int8_t's range [-127, 127].
-// Pick the scale once, before any writes — the kernel divides by it on
-// store and multiplies by it on load.
-x_scale = x_max_abs / 127.0;
+// Pick the scale once, before any writes: the kernel divides by it on
+// store and multiplies by it on load. |x|_max maps to [-127, 127].
+double x_scale = x_max_abs / 127.0;
 
 auto x = gko::acc::range<x_acc>(size, x_storage.data(),
-                                /*storage_stride=*/stride,
-                                &x_scale);
+                                /*storage_stride=*/stride, &x_scale);
 
 // y_acc unchanged — plain double-stored output.
 auto y = gko::acc::range<y_acc>(size, y_storage.data(), stride);

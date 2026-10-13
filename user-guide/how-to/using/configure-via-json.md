@@ -12,18 +12,16 @@ exposing solver choice to end users.
 #include <ginkgo/ginkgo.hpp>
 
 // The property tree — typically loaded from a JSON file.
-auto config = gko::config::pnode{{
-    {"type", gko::config::pnode{"solver::Cg"}},
-    {"criteria", gko::config::pnode{{
-        {{"type", gko::config::pnode{"Iteration"}},
-         {"max_iters", gko::config::pnode{1000}}},
-        {{"type", gko::config::pnode{"ResidualNorm"}},
-         {"reduction_factor", gko::config::pnode{1e-8}}}
-    }}},
-    {"preconditioner", gko::config::pnode{{
-        {"type", gko::config::pnode{"preconditioner::Jacobi"}}
-    }}}
-}};
+using gko::config::pnode;
+auto config = pnode{pnode::map_type{
+    {"type", pnode{"solver::Cg"}},
+    {"criteria", pnode{pnode::array_type{
+        pnode{pnode::map_type{{"type", pnode{"Iteration"}},
+                              {"max_iters", pnode{1000}}}},
+        pnode{pnode::map_type{{"type", pnode{"ResidualNorm"}},
+                              {"reduction_factor", pnode{1e-8}}}}}}},
+    {"preconditioner", pnode{pnode::map_type{
+        {"type", pnode{"preconditioner::Jacobi"}}}}}}};
 
 // The registry — knows what types the parser is allowed to build.
 auto registry = gko::config::registry{};
@@ -37,8 +35,9 @@ auto solver = factory->generate(system_matrix);
 solver->apply(b, x);
 ```
 
-`pnode` is Ginkgo's executor-independent property tree. The shape
-above corresponds to a JSON document like:
+`pnode` is Ginkgo's executor-independent property tree; a map node is
+built from a `pnode::map_type` and a list node from a `pnode::array_type`.
+The shape above corresponds to a JSON document like:
 
 ```json
 {
@@ -53,8 +52,8 @@ above corresponds to a JSON document like:
 
 ## Load from a JSON file
 
-The `extensions::config::json_config` helper parses a JSON file into a
-`pnode` for you:
+The `gko::ext::config::parse_json_file` helper from
+`json_config.hpp` parses a JSON file into a `pnode` for you:
 
 ```cpp
 #include <ginkgo/extensions/config/json_config.hpp>
@@ -156,11 +155,14 @@ recompilation when the JSON changes.
 
 ## Type names
 
-The `"type"` field names a Ginkgo type. The parser recognises the
-standard solvers / preconditioners / matrix formats / reorderings; see
-`include/ginkgo/core/config/registry.hpp` for the canonical list.
-Examples: `solver::Cg`, `solver::Gmres`, `preconditioner::Jacobi`,
-`preconditioner::Ic`, `factorization::Ilu`, `matrix::Csr`.
+The `"type"` field names a registered Ginkgo type: the `solver::`,
+`factorization::` and `preconditioner::` types, plus `multigrid::Pgm`
+for the coarsening of `solver::Multigrid`. Examples: `solver::Cg`,
+`solver::Gmres`, `preconditioner::Jacobi`, `preconditioner::Ic`,
+`factorization::Ilu`, `multigrid::Pgm`.
+
+Entries of a `criteria` list use the stopping-criterion names `Iteration`,
+`ResidualNorm`, `ImplicitResidualNorm` and `Time`.
 
 ## Register custom types
 
@@ -171,10 +173,11 @@ it from config, supply a parse callable when constructing the
 `include/ginkgo/core/config/registry.hpp`:
 
 ```cpp
-std::function<gko::deferred_factory_parameter<gko::LinOpFactory>(
-    const gko::config::pnode&,
-    const gko::config::registry&,
-    gko::config::type_descriptor)>
+using parse_fn = std::function<
+    gko::deferred_factory_parameter<gko::LinOpFactory>(
+        const gko::config::pnode&,
+        const gko::config::registry&,
+        gko::config::type_descriptor)>;
 ```
 
 Wire it up like this:
@@ -183,34 +186,38 @@ Wire it up like this:
 auto my_parse =
     [](const gko::config::pnode& config,
        const gko::config::registry& context,
-       gko::config::type_descriptor td) {
+       gko::config::type_descriptor td)
+        -> gko::deferred_factory_parameter<gko::LinOpFactory> {
         // Read keys off `config`, look up nested factories in `context`,
-        // and return a deferred factory parameter for your type.
-        return MyLinOpFactory::build()
-            .with_some_param(config.get("some_param").get_integer());
+        // and return the factory parameters of your type. Cg stands in
+        // for your own factory's build().
+        return gko::solver::Cg<double>::build().with_criteria(
+            gko::stop::Iteration::build().with_max_iters(
+                config.get("max_iters").get_integer()));
     };
 
-// `usr::` prefix is the convention suggested by the registry doxygen
-// to avoid colliding with Ginkgo's built-in type names.
-auto registry = gko::config::registry{{{"usr::MyLinOp", my_parse}}};
+// The `usr::` prefix keeps your names clear of Ginkgo's built-in types.
+auto registry = gko::config::registry{
+    gko::config::configuration_map{{"usr::MyLinOp", my_parse}}};
 
 auto factory = gko::config::parse(config, registry).on(exec);
 ```
 
-The doubled braces are intentional: the outer pair constructs the
-`configuration_map` argument, the inner pair is the initialiser list
-of `{name, callable}` entries. Mismatching the callable signature will
-fail to convert to `std::function<...>` and the compiler points at the
-inner brace.
+Three levels of braces nest here: the outermost pair initialises the
+`registry`, the pair after `configuration_map` is its list of entries, and
+the innermost pair is one `{name, callable}` entry. A callable whose signature differs
+from `parse_fn` fails to convert to the `std::function` and the compiler
+points at the inner brace.
 
 ## Common pitfalls
 
 - **Precision.** The parser respects a `type_descriptor` (third arg to
   `parse`) for the value and index types. Pass an explicit
   `type_descriptor` if you want anything other than the defaults.
-- **JSON numbers are doubles.** Integer fields like `max_iters` are
-  read as numeric; the parser converts to `size_type` at registration
-  time. Avoid quoting integers as strings.
+- **Integers and reals are distinct nodes.** `parse_json` turns JSON
+  integers into integer nodes and numbers with a decimal point or
+  exponent into real nodes. Write counts such as `max_iters` as plain
+  integers, without a decimal point or quotes.
 - **Nested types.** Composing a Krylov solver with an ILU
   preconditioner means nesting `preconditioner` inside the solver's
   config; each nested object goes through the same `parse` path
