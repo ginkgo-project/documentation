@@ -18,7 +18,8 @@ building blocks that the distributed kernels use internally.
   `MPI_Finalize`; construct once at the top of `main`.
 - [`communicator`](communicator.md) — reference-counted C++ wrapper
   around `MPI_Comm`. Queries the rank and size, and is the value that
-  every distributed Ginkgo type holds onto.
+  the distributed `Matrix`, `Vector` and
+  `RowGatherer` hold onto.
 
 ## Asynchronous operations
 

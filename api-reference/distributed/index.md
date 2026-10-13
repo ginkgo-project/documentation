@@ -6,8 +6,9 @@ and each rank exchanges off-rank columns through halo communication
 during `apply`. `Matrix` and `Schwarz` are templated on
 `(ValueType, LocalIndexType, GlobalIndexType)`, `Vector` on
 `ValueType`, `Partition` and `index_map` on the two index types, and
-`RowGatherer` on `LocalIndexType`. The types require the build to
-include MPI (`GINKGO_BUILD_MPI`).
+`RowGatherer` on `LocalIndexType`. `Partition` and `index_map` are part of
+every build; everything else on this page requires the build to include
+MPI (`GINKGO_BUILD_MPI`).
 
 For background and a worked example see the
 [Distributed concept page](../../user-guide/concepts/distributed.md).
