@@ -9,14 +9,13 @@ straight into Caliper, so a single config flip moves your solver's
 internal phases between a wall-clock table, a Nsight Systems timeline,
 and a flame graph.
 
-The supported integration point is `ProfilerHook::create_custom`.
-Ginkgo does not ship a dedicated Caliper factory — see [Logging and
-observability](../../concepts/logging.md#caliper) for the rationale
-and the full list of preset back-ends.
+Caliper is reached through the generic custom hook, `ProfilerHook::create_custom`, rather than a
+dedicated factory. See [Logging and observability](../../concepts/logging.md#caliper) for the hook;
+the preset back-ends are listed in the ProfilerHook section just above it.
 
 ## Build-time setup
 
-Ginkgo itself does not depend on Caliper; the integration lives
+Ginkgo itself builds without Caliper; the integration lives
 entirely in your application.
 
 1. Install Caliper (Spack: `spack install caliper`; from source:
@@ -67,7 +66,7 @@ exec->add_logger(caliper_hook);
 ```
 
 The `profile_event_category` enum argument is the kind of region
-(`solver`, `factorization`, `operation`, ...) Ginkgo is announcing.
+(`solver`, `factory`, `operation`, ...) Ginkgo is announcing.
 The snippet ignores it because Caliper region names already carry
 enough information; if you want richer attributes, route the category
 through a `cali_set_int` keyed attribute before `cali_begin_region`.
@@ -93,8 +92,7 @@ int main()
 
     auto exec = gko::ReferenceExecutor::create();
 
-    // Caliper hook — created once, attached wherever we want
-    // annotations.
+    // Caliper hook — created once and attached to the executor (see below).
     auto caliper_hook = gko::log::ProfilerHook::create_custom(
         [](const char* name, gko::log::profile_event_category) {
             cali_begin_region(name);
@@ -211,9 +209,8 @@ Three small rules keep the resulting profile readable:
 
 :::{seealso}
 - [Logging and observability](../../concepts/logging.md) — the
-  conceptual reference for the `ProfilerHook` API, the available
-  preset back-ends, and the reasons Caliper specifically needs
-  `create_custom` rather than `create_tau`.
+  conceptual reference for the `ProfilerHook` API and the available
+  preset back-ends.
 - [Caliper documentation](https://software.llnl.gov/Caliper/) — the
   authoritative guide to `CALI_CONFIG` strings and `cali-query`.
 :::

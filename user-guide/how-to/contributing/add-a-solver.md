@@ -14,7 +14,7 @@ loop in `apply_dense_impl`. This page walks through the pattern using
 | `include/ginkgo/core/solver/my_solver.hpp` | Class template, `parameters_type`, `workspace_traits` specialisation |
 | `core/solver/my_solver.cpp` | `apply_impl`, `apply_dense_impl`, `transpose`/`conj_transpose`, workspace-trait method bodies, `parse` for JSON config |
 | `core/solver/my_solver_kernels.hpp` | Per-step kernel declarations (e.g. CG has `initialize` + `step_1` + `step_2`) |
-| One backend implementation per kernel | `reference/solver/`, `common/unified/solver/` or `cuda/solver/`, `hip/solver/`, `omp/solver/`, `dpcpp/solver/` |
+| One backend implementation per kernel | `reference/solver/`, `common/unified/solver/` or `common/cuda_hip/solver/`, `omp/solver/`, `dpcpp/solver/` |
 | `core/config/config_helper.hpp` | Add an enum entry to `LinOpFactoryType` |
 | `core/config/registry.cpp` | Add `"solver::MySolver"` to the configuration map |
 | `core/config/solver_config.cpp` | Add the `GKO_PARSE_VALUE_TYPE(MySolver, gko::solver::MySolver)` specialisation |
