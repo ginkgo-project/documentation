@@ -1,9 +1,10 @@
 # `gko::multigrid::FixedCoarsening`
 
 The simplest possible level generator: select coarse-level rows by a
-user-supplied index list, then use the identity for restriction and
-prolongation. No interpolation, no weighting — coarse value at index
-$i_k$ equals fine value at index $i_k$, and vice versa.
+user-supplied index list. Restriction selects those rows and
+prolongation injects by transposition ($R$ holds the selected rows of
+the identity, $P = R^T$). No interpolation, no weighting — coarse value
+$k$ equals fine value at index $i_k$, and prolongation places it back.
 
 Use `FixedCoarsening` when the application already knows which rows
 should remain on the coarse level. Typical sources of such knowledge:

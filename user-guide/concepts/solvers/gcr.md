@@ -14,7 +14,7 @@ $$
 That orthogonality lets each iteration update the residual with a single
 projection along $A p_k$. The trade-off is that the search directions all
 have to be remembered to keep them orthogonal — so memory grows linearly
-with the iteration count, the same as GMRES.
+with the iteration count up to the restart length `krylov_dim`, the same as GMRES.
 
 ## When to use GCR
 

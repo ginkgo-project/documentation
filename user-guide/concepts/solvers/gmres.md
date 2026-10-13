@@ -9,8 +9,8 @@ iterations.
 ## When to use GMRES
 
 - **Non-symmetric or indefinite systems** → GMRES is the safe default. It is
-  guaranteed not to break down (unlike BiCGSTAB on some matrices) and can
-  converge for any non-singular system given enough iterations.
+  free of the breakdown that BiCGSTAB can show on some matrices, and its
+  residual norm never increases within a restart cycle.
 - **Memory-tight non-symmetric systems** → consider [BiCGSTAB](bicgstab.md) or
   [IDR(s)](idr.md) instead; both have bounded memory unlike GMRES, whose
   memory grows with `krylov_dim`.
@@ -131,13 +131,19 @@ every time it is applied.
 auto fgmres = gko::solver::Gmres<double>::build()
                   .with_krylov_dim(50u)
                   .with_flexible(true)
-                  .with_preconditioner(/* possibly varying inner solver */)
-                  .with_criteria(/* ... */)
+                  .with_preconditioner(
+                      gko::solver::Cg<double>::build().with_criteria(
+                          gko::stop::Iteration::build().with_max_iters(5u)))
+                  .with_criteria(
+                      gko::stop::Iteration::build().with_max_iters(1000u).on(exec),
+                      gko::stop::ResidualNorm<double>::build()
+                          .with_reduction_factor(1e-8)
+                          .on(exec))
                   .on(exec);
 ```
 
-There is no separate `Fgmres` class; the same `Gmres` template implements both
-modes, switched by the `flexible` flag. The trade-off is memory: FGMRES has to
+The same `Gmres` template implements both modes, switched by the `flexible`
+flag. The trade-off is memory: FGMRES has to
 store $M^{-1} v_j$ for every Krylov basis vector (not just $v_j$), so the
 basis-storage footprint roughly doubles compared to standard GMRES at the same
 `krylov_dim`. The orthogonalisation cost is unchanged — the second basis still

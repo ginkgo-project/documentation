@@ -7,7 +7,7 @@ Ginkgo provides three families of solvers — Krylov, direct, and multigrid — 
 | Family    | Examples                                              | When to use                                                                                |
 | --------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Krylov    | CG, GMRES (with flexible mode = FGMRES), BiCGSTAB, FCG, IR, GCR, CGS, IDR | Default for sparse iterative; need a preconditioner. |
-| Direct    | Sparse LU, Cholesky, triangular solves (LowerTrs / UpperTrs), cuDSS (CUDA only) | Sparse one-off solves or repeated solves on a fixed sparsity pattern; preconditioner inside Krylov. |
+| Direct    | Sparse LU, Cholesky, triangular solves (LowerTrs / UpperTrs) | Sparse one-off solves or repeated solves on a fixed sparsity pattern; preconditioner inside Krylov. |
 | Multigrid | AMG, mixed-precision multigrid                        | Heavily diagonally-dominant or elliptic-style systems.                                     |
 
 All three families follow the same factory pattern and produce a `LinOp` whose `apply(b, x)` solves the system. This uniformity means a solver composed as a preconditioner inside another solver requires no special glue — see [LinOp and composition](linop-and-composition.md) for the underlying mechanics.
@@ -28,7 +28,7 @@ Every Krylov solver expects a stopping criterion and, optionally, a precondition
 
 ## Direct solvers
 
-Ginkgo's direct family is **sparse**, not dense. `gko::experimental::solver::Direct` takes a sparse factorisation factory (`gko::experimental::factorization::Lu` or `Cholesky`) and turns the resulting factors into a solver `LinOp`. The factorisation result is itself a `LinOp`, so you can compose it as a preconditioner inside a Krylov solver or use it stand-alone.
+Ginkgo's direct family is **sparse**, not dense. `gko::experimental::solver::Direct` takes a sparse factorisation factory (`gko::experimental::factorization::Lu` or `Cholesky`) and turns the resulting factors into a solver `LinOp`. The resulting `Direct` solver is itself a `LinOp`, so you can use it stand-alone or pass its factory as a Krylov solver's preconditioner.
 
 ```cpp
 auto direct = gko::experimental::solver::Direct<double, int>::build()
@@ -44,32 +44,38 @@ The factorisation step runs once at `generate` time; subsequent `apply` calls pe
 
 ### Triangular solves on their own
 
-Underneath the direct solver are two stand-alone triangular solvers, `gko::solver::LowerTrs` and `gko::solver::UpperTrs`. They take a CSR matrix that is already lower- or upper-triangular and compute `L x = b` or `U x = b` respectively. They are the building blocks `Direct` uses internally, but you can also use them on their own — for example, when you have already obtained `L` and `U` from an external factorisation and only need the triangular sweeps. The CUDA backend has two implementations to choose from via `with_algorithm`: `trisolve_algorithm::sparselib` (cuSPARSE, the default) and `trisolve_algorithm::syncfree` (Ginkgo's own kernel). The other backends each ship a single triangular-solve kernel, so the parameter is accepted but does not change which implementation runs.
+Underneath the direct solver are two stand-alone triangular solvers, `gko::solver::LowerTrs` and `gko::solver::UpperTrs`. They take a CSR matrix that is already lower- or upper-triangular and compute `L x = b` or `U x = b` respectively. They are the building blocks `Direct` uses internally, but you can also use them on their own — for example, when you have already obtained `L` and `U` from an external factorisation and only need the triangular sweeps. The CUDA backend has two implementations to choose from via `with_algorithm`: `trisolve_algorithm::sparselib` (cuSPARSE, the default) and `trisolve_algorithm::syncfree` (Ginkgo's own kernel). The Reference, OpenMP and HIP backends each run a single triangular-solve implementation, so the parameter does not change which one runs.
 
 ### Reorder before factorising
 
-Sparse direct solvers are sensitive to the row/column ordering of the input matrix. A naïve ordering can produce a factorisation many times larger than the original matrix; a fill-reducing reordering (AMD or nested dissection) typically keeps the factorisation tractable. See [Reordering and permutations](reordering.md) for the available algorithms and the recommended preprocessing recipe — `Mc64` for matching, `Amd` or `NestedDissection` for fill reduction, and `Rcm` as an alternative that minimises bandwidth/profile rather than fill. RCM is most useful when the triangular solves are bandwidth-bound on CPU; for GPU sparse direct solves the fill-reducers are usually a better starting point. The `ScaledReordered` wrapper bundles those steps with the inner solver so you do not have to manage the permutations yourself.
+Sparse direct solvers are sensitive to the row/column ordering of the input matrix. A naïve ordering can produce a factorisation many times larger than the original matrix; a fill-reducing reordering (AMD or nested dissection) typically keeps the factorisation tractable. See [Reordering and permutations](reordering.md) for the available algorithms and the recommended preprocessing recipe — `Mc64` for matching, `Amd` or `NestedDissection` for fill reduction, and `Rcm` as an alternative that minimises bandwidth/profile rather than fill. RCM is most useful when the triangular solves are bandwidth-bound on CPU; for GPU sparse direct solves the fill-reducers are usually a better starting point. Apply the transforms with `Csr::scale_permute` and `Csr::permute`, permuting `b` and mapping the solution back afterwards. The `ScaledReordered` wrapper covers fixed diagonal scalings plus an RCM reordering around an inner solver; MC64, AMD and nested dissection are applied by hand as described in [Reordering and permutations](reordering.md).
 
 :::{note}
-Sparse direct solvers can scale to large systems when paired with a fill-reducing reordering — that is what packages like SuperLU, MUMPS, and cuDSS do at scale. The classical caveat is fill-in: without a good reordering, factorisation memory and time can grow super-linearly with the number of unknowns. For matrices where even a well-reordered factorisation does not fit in memory, switch to a Krylov solver with an ILU/IC or AMG preconditioner.
+Sparse direct solvers can scale to large systems when paired with a fill-reducing reordering — that is what packages like SuperLU and MUMPS do at scale. The classical caveat is fill-in: without a good reordering, factorisation memory and time can grow super-linearly with the number of unknowns. For matrices where even a well-reordered factorisation does not fit in memory, switch to a Krylov solver with an ILU/IC or AMG preconditioner.
 :::
 
 ## Multigrid
 
 `gko::solver::Multigrid` builds a hierarchy of coarsened systems with a smoother at each level. It is configurable with respect to cycle type (V, W, F), per-level coarsener, per-level pre- and post-smoother, and the coarse-level solver. Multigrid is most effective on elliptic problems where geometric or algebraic coarsening can capture the low-frequency error modes efficiently.
 
-In practice, multigrid is more commonly used as a *preconditioner* inside a Krylov solver (typically CG or GMRES) than as the outer solver itself. Plugging it in requires only passing the multigrid factory as `with_preconditioner`:
+In practice, multigrid is more commonly used as a *preconditioner* inside a Krylov solver (typically CG or GMRES) than as the outer solver itself. Plugging it in requires only passing the multigrid factory as `with_preconditioner`. A Multigrid factory needs at least one `mg_level` (the coarsening method, here `Pgm`) and stopping `criteria`; the coarse-level solver is the `coarsest_solver` parameter:
 
 ```cpp
 auto mg = gko::solver::Multigrid::build()
+              .with_mg_level(gko::multigrid::Pgm<double, int>::build())
               .with_max_levels(10u)
-              .with_pre_smoother(/* smoother factory */)
-              .with_coarse_solver(/* coarse-level solver factory */)
+              .with_coarsest_solver(
+                  gko::preconditioner::Jacobi<double, int>::build())
+              .with_criteria(
+                  gko::stop::Iteration::build().with_max_iters(1u))
               .on(exec);
 
 auto cg_factory = gko::solver::Cg<double>::build()
-                      .with_preconditioner(mg)
-                      .with_criteria(/* ... */)
+                      .with_preconditioner(gko::share(std::move(mg)))
+                      .with_criteria(
+                          gko::stop::Iteration::build().with_max_iters(100u),
+                          gko::stop::ResidualNorm<double>::build()
+                              .with_reduction_factor(1e-8))
                       .on(exec);
 ```
 
@@ -101,7 +107,7 @@ These rules cover the common cases; profiling and problem-specific knowledge alw
 1. **SPD systems** (e.g., FEM Poisson, structural mechanics with symmetric loading): start with CG plus a Jacobi or IC preconditioner.
 2. **Non-symmetric systems**: GMRES is the safe default. Try BiCGSTAB or IDR(s) if memory is tight and the matrix is not too ill-conditioned — both have bounded memory unlike restarted GMRES, and IDR(s) often converges faster than BiCGSTAB on stiff problems with a modest `s` (e.g. `s = 4`).
 3. **Variable preconditioner** (e.g., adaptive multigrid, inner solver with changing tolerance): use FCG (SPD), FGMRES via `Gmres::build().with_flexible(true)` (non-symmetric), or IR.
-4. **Sparse one-off solves, or repeated solves on a fixed sparsity pattern**: direct LU or Cholesky, paired with a fill-reducing reordering (AMD or nested dissection). On NVIDIA GPUs, consider the cuDSS extension instead.
+4. **Sparse one-off solves, or repeated solves on a fixed sparsity pattern**: direct LU or Cholesky, paired with a fill-reducing reordering (AMD or nested dissection).
 5. **Large elliptic systems**: AMG as preconditioner inside CG or GMRES.
 6. **Mixed-precision acceleration**: IR wrapping a low-precision inner solver — see [Mixed-precision design](mixed-precision.md).
 

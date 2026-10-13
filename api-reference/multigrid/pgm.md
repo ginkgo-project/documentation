@@ -5,13 +5,16 @@ coarsening. Pgm builds the coarse level by aggregating fine-level rows
 in two phases:
 
 1. For every unaggregated row $i$, find the *strongest neighbour* —
-   the column $j$ in $i$'s row that maximises $|a_{ij}|$.
+   the column $j$ in $i$'s row with the largest symmetric weight
+   $(|a_{ij}| + |a_{ji}|)/2$, scaled by the larger of the diagonal
+   entries $|a_{ii}|$ and $|a_{jj}|$.
 2. Match rows whose strongest-neighbour relation is mutual (row $i$
    picks $j$ and row $j$ picks $i$), forming aggregates of size 2.
 
-Rows that remain unaggregated after one pass are assigned to an
-existing aggregate or left as singletons. The procedure is repeated
-until every row has been placed. The current implementation supports
+The handshaking repeats until `max_iterations` passes (default 15) have
+run, a pass makes no new match, or the number of unaggregated rows drops
+below `max_unassigned_ratio` (default 0.05) times the number of rows; the
+remaining rows are attached to an existing aggregate or left as singletons. The current implementation supports
 aggregates of size 2 (one-phase handshaking); the resulting coarse
 operator is built by Galerkin projection $A_c = R\, A\, P$.
 

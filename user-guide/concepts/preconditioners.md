@@ -14,9 +14,11 @@ preconditioner must be cheap to apply relative to the cost it saves in iteration
 count.
 
 Krylov solvers (CG, GMRES, BiCGSTAB, ...) are the most common consumers, but the
-same preconditioner plugs into iterative refinement (`gko::solver::Ir`), serves as
-a smoother in `gko::solver::Multigrid`, and accelerates fixed-point-style
-iterations as well — all through the same `with_preconditioner(...)` factory hook.
+same preconditioner plugs into iterative refinement (`gko::solver::Ir`) and
+accelerates fixed-point-style iterations as well — all through the same
+`with_preconditioner(...)` factory hook. In `gko::solver::Multigrid` a preconditioner
+serves as a smoother once `gko::solver::build_smoother` wraps it, and the result goes
+to `with_pre_smoother`, `with_mid_smoother` or `with_post_smoother`.
 
 In Ginkgo, a preconditioner is a `LinOp` whose `apply(r, z)` computes $z \approx
 A^{-1} r$. Solvers call this in their inner iteration loop. Because it is a
@@ -37,9 +39,9 @@ Mathematically, a preconditioner $M$ can be applied in three ways:
   Standard for SPD systems where $M_L = M_R^T$ keeps the preconditioned operator
   symmetric.
 
-Ginkgo's user-facing API does not expose a left/right switch — `.with_preconditioner(M)`
-is the only knob. The actual placement is method-specific and follows the standard
-preconditioned formulation for each Krylov family:
+In Ginkgo's user-facing API, `.with_preconditioner(M)` is the single entry point,
+and each Krylov family places the preconditioner according to its standard
+preconditioned formulation:
 
 - **CG and FCG** apply $z = M^{-1} r$ in the inner loop and run the
   recurrences in the original-variable space. The SpMV is on the unpreconditioned
@@ -61,10 +63,12 @@ preconditioned formulation for each Krylov family:
 - **IR** delegates to its inner solver, whose preconditioning placement is
   whatever the inner family above prescribes.
 
-In every case, the convergence test sees the *unpreconditioned* residual
-$r = b - A x$ — the stopping criterion is not affected by the preconditioner
-placement. See [Stopping criteria](stopping-criteria.md) for how to control the
-convergence test independently.
+With `ResidualNorm`, the convergence test sees the *unpreconditioned* residual
+$r = b - A x$ for every placement above. `ImplicitResidualNorm` reads the
+quantity the solver's recurrence maintains instead — for CG-type solvers the
+preconditioned inner product $\langle r, M^{-1} r \rangle$. See
+[Stopping criteria](stopping-criteria.md) for how to control the convergence
+test independently.
 
 ## The catalog
 
@@ -104,22 +108,20 @@ Block Jacobi also supports per-block precision reduction via `with_storage_optim
 
 Incomplete LU factorisation computes approximate triangular factors `L` and `U` such that `L U ≈ A`, discarding fill-in according to a sparsity pattern rule. Ginkgo provides three flavours:
 
-- **ILU(0)** — `gko::factorization::Ilu`. No fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
-- **ParILU** — `gko::factorization::ParIlu`. A parallelizable ILU(0) suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than sequential elimination.
+- **ILU(0)** — `gko::factorization::Ilu`. Exact ILU(0) with no fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
+- **ParILU** — `gko::factorization::ParIlu`. A parallelizable ILU(0) suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than the exact elimination of `Ilu`.
 - **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
 
 :::{note}
-Ginkgo does **not** support classical ILU(k) for $k > 0$:
+Ginkgo's fill control is threshold-based, and its ILU(0) is level-zero:
 
-- `gko::factorization::Ilu` has no `level_of_fill` / `fill_level`
-  parameter — only `l_strategy`, `u_strategy`, `skip_sorting`, and
-  `algorithm`.
-- The closest fill-control knob is
-  `ParIlut::with_fill_in_limit(ratio)`, which caps `nnz(L + U)` at
-  `ratio × nnz(A)`. That is *threshold*-based fill control, not the
-  level-based fill control of ILU(k) — different sparsity patterns,
-  different cost/quality trade-offs.
-- For level-based fill, factorise externally (e.g., SuperLU in
+- `gko::factorization::Ilu` is configured by `l_strategy`, `u_strategy`,
+  `skip_sorting`, and `algorithm`.
+- `ParIlut::with_fill_in_limit(ratio)` caps `nnz(L + U)` at
+  `ratio × nnz(A)`. That is *threshold*-based fill control; the
+  level-based fill control of classical ILU(k) yields different sparsity
+  patterns and different cost/quality trade-offs.
+- For level-based fill (ILU(k), $k > 0$), factorise externally (e.g., SuperLU in
   `level_of_fill` mode) and feed the resulting `L`/`U` into Ginkgo as
   plain CSR matrices.
 :::
@@ -138,7 +140,7 @@ auto ilu = gko::preconditioner::Ilu<gko::solver::LowerTrs<double, int>,
 The inner triangular solvers (`LowerTrs`, `UpperTrs`) are themselves `LinOp` factories, so you can swap in different implementations without touching the outer ILU interface.
 
 :::{attention}
-`ParILU` and `ParILUT` produce a factorisation that converges to the true ILU in the limit of many sweeps. With the default number of sweeps the result is a good approximation, but it may differ slightly from sequential ILU on the same matrix. This is expected behaviour, not a bug.
+`ParILU` and `ParILUT` produce a factorisation that converges to the true ILU in the limit of many sweeps. With the default number of sweeps the result is a good approximation, but it may differ slightly from the exact ILU(0) of `gko::factorization::Ilu` on the same matrix. This is expected behaviour, not a bug.
 :::
 
 ## IC (Incomplete Cholesky)
@@ -174,27 +176,46 @@ Algebraic multigrid achieves mesh-independent convergence on elliptic problems b
 
 ```cpp
 auto amg = gko::solver::Multigrid::build()
+               .with_mg_level(gko::multigrid::Pgm<double, int>::build())
+               .with_coarsest_solver(
+                   gko::solver::Ir<double>::build()
+                       .with_solver(gko::preconditioner::Jacobi<double, int>::build())
+                       .with_criteria(
+                           gko::stop::Iteration::build().with_max_iters(4u)))
                .with_max_levels(10u)
-               .with_pre_smoother(/* smoother factory */)
-               .with_coarse_solver(/* coarse-level solver factory */)
+               .with_criteria(gko::stop::Iteration::build().with_max_iters(1u))
                .on(exec);
 
 auto cg_factory = gko::solver::Cg<double>::build()
-                      .with_preconditioner(amg)
-                      .with_criteria(/* ... */)
+                      .with_preconditioner(std::move(amg))
+                      .with_criteria(
+                          gko::stop::Iteration::build().with_max_iters(100u),
+                          gko::stop::ResidualNorm<double>::build()
+                              .with_reduction_factor(1e-8))
                       .on(exec);
 ```
+
+`Multigrid` needs at least one `mg_level` factory (here the aggregation-based
+`Pgm`) and a `criteria` entry, also when it serves as a preconditioner;
+`coarsest_solver` selects the solver on the coarsest level. The fixed number of
+iterative-refinement sweeps used here applies the same linear operator on every
+call, which is what an outer `Cg` expects from its preconditioner. In single-process runs the smoothers
+default to one step of iterative refinement with a scalar Jacobi
+preconditioner (distributed runs wrap it in `Schwarz`).
 
 Setup cost is high — the coarsening hierarchy must be constructed — so AMG is most cost-effective when the same matrix is solved many times, or when the problem is large enough that the iteration savings justify the setup.
 
 ## Plugging a preconditioner into a Krylov solver
 
-The `.with_preconditioner(...)` setter accepts a preconditioner *factory*, not a generated `LinOp`. The solver calls the factory internally when it generates itself for a particular system matrix:
+The `.with_preconditioner(...)` setter accepts a preconditioner *factory*, not a generated `LinOp`. A factory returned by `.on(exec)` is a `std::unique_ptr`; pass it with `std::move`, or wrap it with `gko::share(std::move(...))` to keep a shared handle. The solver calls the factory internally when it generates itself for a particular system matrix:
 
 ```cpp
 auto solver_factory = gko::solver::Cg<double>::build()
-                          .with_preconditioner(jac)
-                          .with_criteria(/* ... */)
+                          .with_preconditioner(std::move(jac))
+                          .with_criteria(
+                              gko::stop::Iteration::build().with_max_iters(100u),
+                              gko::stop::ResidualNorm<double>::build()
+                                  .with_reduction_factor(1e-8))
                           .on(exec);
 
 // The solver generates the preconditioner for system_matrix internally.
@@ -238,6 +259,6 @@ preconditioners/amg
 
 :::{seealso}
 - [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
-- [Mixed-precision design](mixed-precision.md) — `AdaptivePrecisionJacobi` lives in this space.
+- [Mixed-precision design](mixed-precision.md) — adaptive-precision block Jacobi (`gko::preconditioner::Jacobi` with `storage_optimization`).
 - API reference: [`gko::preconditioner`](../../api-reference/preconditioner/index.md)
 :::

@@ -37,21 +37,31 @@ good reordering they often stay within a small constant factor.
 
 The recommended preprocessing recipe is:
 
-1. **Match (optional)**: apply `Mc64` to push large entries onto the diagonal,
-   improving pivoting stability.
+1. **Match (optional)**: compute `Mc64` and apply its scaled permutations with
+   `Csr::scale_permute` to push large entries onto the diagonal, making
+   the pivot-free `Lu` factorisation stable.
 2. **Reorder**: apply `Amd` (default for small / medium matrices) or
    `NestedDissection` (for large structured systems; requires METIS) to reduce
    fill-in. As an alternative — particularly when the triangular solves are
    bandwidth-bound on CPU — `Rcm` minimises bandwidth/profile instead of fill;
    it can produce different (sometimes better) cache behaviour than the
-   fill-reducers but is not a fill-reducing reordering itself.
+   fill-reducers but is not a fill-reducing reordering itself. Apply the
+   permutation with `Csr::permute`.
 3. **Factorise** with `Direct` on the permuted matrix.
-4. **Solve** with `apply(b, x)`.
+4. **Solve**: permute `b` the same way as the rows of the matrix, call
+   `apply(b_permuted, y)`, and map `y` back to the original variable order. After an
+   MC64 step with scaling, `y` is also mapped back through MC64's column
+   `ScaledPermutation`, which includes the column scaling.
 
-The `ScaledReordered` linear operator bundles steps 1–3 around an inner solver, so
-the caller passes the original system matrix and right-hand side and receives the
-permuted result transparently. See [Reordering and permutations](../reordering.md)
-for the full taxonomy of algorithms and worked examples.
+The `ScaledReordered` linear operator covers fixed diagonal scalings plus an RCM
+reordering (the deprecated `gko::reorder::Rcm`, which expects a structurally
+symmetric matrix)
+around an inner solver, so the caller passes the original system matrix and
+right-hand side and receives the result in the original ordering. MC64, AMD and
+nested dissection are applied with `Csr::scale_permute` and `Csr::permute` as
+described above. See [Reordering and permutations](../reordering.md) for the full
+taxonomy of algorithms and worked examples, and
+[ScaledReordered](../reordering/scaled-reordered.md) for the wrapper itself.
 
 ## Triangular solves under the hood
 
@@ -68,18 +78,16 @@ On the CUDA backend, both triangular solvers expose two algorithm choices via
 `with_algorithm`:
 
 - `trisolve_algorithm::sparselib` — cuSPARSE's triangular solve (default).
-- `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation, often
-  faster for highly parallel triangular structures.
+- `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation.
 
-On the other backends the parameter is part of the API for uniformity but does not
-change which implementation runs — Reference, OMP, HIP, and DPC++ each ship a
-single triangular-solve kernel, and the kernel does not branch on `algorithm`.
+The Reference, OpenMP and HIP backends each run a single triangular-solve
+implementation (HIP uses hipSPARSE), selected regardless of `algorithm`.
 
 ## When sparse direct is (and is not) appropriate
 
 Sparse direct solvers can handle large systems when paired with a fill-reducing
-reordering — that is exactly what production sparse-direct packages (SuperLU, MUMPS,
-cuDSS) do for million-degree-of-freedom problems. They are particularly attractive
+reordering — that is exactly what production sparse-direct packages (SuperLU, MUMPS)
+do for million-degree-of-freedom problems. They are particularly attractive
 when:
 
 - The same matrix is used for many right-hand sides — the factorisation is amortised.
@@ -96,8 +104,12 @@ The classical caveats:
 - **Single-precision wins are limited**. Direct solvers are bandwidth- and
   flop-bound on the factors; the speedup from low-precision arithmetic is usually
   smaller than for Krylov methods.
-- **Cross-backend coverage varies**. The Ginkgo core implementation works on every
-  backend, but vendor-tuned alternatives (cuDSS) are CUDA-only.
+- **Backend coverage**. The factorisations (`Lu`, `Cholesky`) and the triangular
+  solves (`LowerTrs`, `UpperTrs`) that `Direct` is built from run on the Reference,
+  OpenMP, CUDA and HIP executors. Run `Direct` on one of those four.
+- **Right-hand-side count on CUDA**. The `num_rhs` factory parameter (default `1`)
+  sizes the CUDA triangular-solve setup; on CUDA, applying the solver to a different
+  number of right-hand sides throws.
 
 When the system is too large for a direct factorisation, switch to a Krylov solver
 with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.md).

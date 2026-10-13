@@ -1,9 +1,10 @@
 # `gko::stop`
 
 Stopping criteria for iterative solvers. Every Krylov solver in
-[`gko::solver`](../solver/index.md) consumes a `Criterion::Factory`
+[`gko::solver`](../solver/index.md) consumes a `CriterionFactory`
 that produces a `Criterion` whose `check()` decides whether to stop
-on each iteration. Multiple criteria can be combined.
+on each iteration. When a solver receives several criteria, it stops as
+soon as any one of them fires.
 
 ## Base machinery
 
