@@ -106,19 +106,19 @@ The same four real types are also supported in their `std::complex<…>` form. I
 
 #### Build-time gating per backend
 
-Half precision (`float16`, `bfloat16`) is opt-in at build time and additionally gated per backend depending on hardware capabilities:
+Half precision (`float16`, `bfloat16`) is controlled by build options (both default to `ON`) and additionally gated per backend depending on hardware capabilities:
 
 | Backend | Gate for `float16` | Gate for `bfloat16` |
 |---|---|---|
 | Reference, OMP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
-| CUDA | `-DGINKGO_ENABLE_HALF=ON` **and** `__CUDA_ARCH__ >= 530` (Maxwell GM200 / GeForce 9xx and newer) | `-DGINKGO_ENABLE_BFLOAT16=ON` **and** `__CUDA_ARCH__ >= 800` (Ampere A100 and newer) |
+| CUDA | `-DGINKGO_ENABLE_HALF=ON` **and** `__CUDA_ARCH__ >= 530` (compute capability 5.3 and newer: Jetson TX1, Pascal and later) | `-DGINKGO_ENABLE_BFLOAT16=ON` **and** `__CUDA_ARCH__ >= 800` (compute capability 8.0 and newer: Ampere A100 and later) |
 | HIP | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | DPC++ (Intel SYCL) | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | MSVC / MINGW (Windows) | **Forced OFF** regardless of the flag | **Forced OFF** regardless of the flag |
 
 Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros in `include/ginkgo/core/base/types.hpp` skip those template instantiations rather than emitting code that would fail to compile.
 
-The practical implication: if you build for an older NVIDIA card (pre-Ampere) and want bfloat16, the option will accept the flag but the relevant kernels will not be available at runtime — calls into them produce a `gko::NotImplemented` error.
+The practical implication: on CUDA, the kernels that rely on 16-bit atomics check the device's compute capability at run time. On a CUDA device below compute capability 7.0 the `float16` paths of `Coo` and `Idr` throw `gko::NotSupported`, and below compute capability 8.0 the same holds for `bfloat16`. `Ell` with several threads per row throws `gko::KernelNotFound` under the same thresholds, and `Csr` skips its atomic-based kernels there and selects another path. On HIP and DPC++ the 16-bit atomic paths are unavailable for both 16-bit types, and the same errors apply without a compute-capability test: `Coo` and `Idr` throw `gko::NotSupported`, and `Ell` with several threads per row throws `gko::KernelNotFound`. On HIP and DPC++, `Csr` also skips its atomic-based kernels; on HIP, the `ParIlu`, `ParIlut`, `ParIc` and `ParIct` kernels throw `gko::NotSupported`. Operations without a 16-bit atomic requirement are unaffected by these checks.
 
 ### Native vs conversion-based dispatch
 

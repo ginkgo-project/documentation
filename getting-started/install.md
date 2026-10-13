@@ -27,7 +27,7 @@ automatically by `pre-commit`) and optionally `clang-tidy` and `iwyu`.
 ## Build from source (the standard path)
 
 ```sh
-git clone https://github.com/ginkgo-project/ginkgo.git
+git clone --branch v1.11.0 https://github.com/ginkgo-project/ginkgo.git
 cd ginkgo
 mkdir build && cd build
 cmake .. && cmake --build . -j
@@ -92,8 +92,9 @@ cmake --install .
 |---|---|---|
 | [Spack](https://packages.spack.io/package.html?name=ginkgo) | `spack install ginkgo` | Variants for `+cuda`, `+rocm`, `+sycl`, `+openmp`, `+mpi` plus version pins. Recommended on HPC systems. See the [Spack package page](https://packages.spack.io/package.html?name=ginkgo) for the full variant matrix. |
 
-Pre-built packages are convenient but lag the development branch — for the
-latest features build from source.
+Pre-built packages are convenient but lag the development branch. The clone
+command above builds the v1.11.0 release; for the latest unreleased features,
+clone the repository without `--branch` to build its default branch.
 
 ## Verify the install
 
