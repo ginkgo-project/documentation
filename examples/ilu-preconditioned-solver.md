@@ -110,7 +110,10 @@ triangular solver - in this case the exact triangular solves
 
 ```cpp
     auto ilu_pre_factory =
-        gko::preconditioner::Ilu<ValueType, false, IndexType>::build().on(exec);
+        gko::preconditioner::Ilu<gko::solver::LowerTrs<ValueType, IndexType>,
+                                 gko::solver::UpperTrs<ValueType, IndexType>,
+                                 false>::build()
+            .on(exec);
 ```
 
 Use incomplete factors to generate ILU preconditioner

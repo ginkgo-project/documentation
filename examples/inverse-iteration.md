@@ -199,7 +199,7 @@ g = x^* A x
 
 ```cpp
         A->apply(x, tmp);
-        x->compute_conj_dot(tmp, g);
+        x->compute_dot(tmp, g);
         auto g_val = clone(this_exec, g)->get_values()[0];
         std::cout << "\"eigenvalue\": " << g_val << ", ";
 ```

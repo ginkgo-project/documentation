@@ -38,7 +38,7 @@ Some shortcuts
     using cg = gko::solver::Cg<ValueType>;
     using ir = gko::solver::Ir<ValueType>;
     using mg = gko::solver::Multigrid;
-    using ic = gko::preconditioner::Ic<ValueType>;
+    using ic = gko::preconditioner::Ic<gko::solver::LowerTrs<ValueType>>;
     using pgm = gko::multigrid::Pgm<ValueType, IndexType>;
 ```
 

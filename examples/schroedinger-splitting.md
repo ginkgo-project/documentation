@@ -13,9 +13,9 @@ to solve the non-linear Schrödinger equation with a splitting method.
 
 The non-linear Schrödinger equation (NLS) is given by
 
-$
+$$
     i \partial_t \theta = -\delta \theta + |\theta|^2 \theta
-$
+$$
 
 Here $\theta$ is the wave function of a single particle in two dimensions.
 Its magnitude $|\theta|^2$ describes the probability distribution of the 
@@ -23,26 +23,32 @@ particle's position.
 
 This equation can be split in to its linear (1) and non-linear (2) part
 
-\f{align*}{
+$$
+\begin{align*}
     (1) \quad i \partial_t \theta &= -\delta \theta\\
     (2) \quad i \partial_t \theta &= |\theta|^2 \theta
-\f}
+\end{align*}
+$$
 
 For both of these equations, we can compute exact solutions, assuming periodic
 boundary conditions and using the Fourier series expansion for (1) and using the
 fact that $| \theta |^2$ is constant in (2):
 
-\f{align*}{
+$$
+\begin{align*}
     (\hat 1) \quad \quad \partial_t \hat\theta_k &= -i |k|^2 \theta \\
     (2') \quad \partial_t |\theta|^2 &= i |\theta|^2 (\theta - \theta) = 0
-\f}
+\end{align*}
+$$
 
 The exact solutions are then given by
 
-\f{align*}{
+$$
+\begin{align*}
     (\hat 1) \quad \hat\theta(t) &= e^{-i |k|^2 t} \hat\theta(0)\\
     (2') \quad \theta(t) &= e^{-i |\theta|^2 t} \theta(0)
-\f}
+\end{align*}
+$$
 
 These partial solutions can be used to approximate a solution to the full NLS
 by alternating between small time steps for (1) and (2).

@@ -654,7 +654,7 @@ Create an OperationLogger to analyze the apply step
         exec->add_logger(apply_logger);
 ```
 
-Create a ResidualLogger to log the recurrent residual
+Create a ResidualLogger to log the recurent residual
 
 ```cpp
         auto res_logger = std::make_shared<loggers::ResidualLogger<ValueType>>(

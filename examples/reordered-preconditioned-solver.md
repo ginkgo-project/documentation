@@ -37,7 +37,10 @@ Some shortcuts
     using real_vec = gko::matrix::Dense<RealValueType>;
     using mtx = gko::matrix::Csr<ValueType, IndexType>;
     using cg = gko::solver::Cg<ValueType>;
-    using ilu = gko::preconditioner::Ilu<ValueType, false, IndexType>;
+    using ilu =
+        gko::preconditioner::Ilu<gko::solver::LowerTrs<ValueType, IndexType>,
+                                 gko::solver::UpperTrs<ValueType, IndexType>,
+                                 false, IndexType>;
 ```
 
 Print version information

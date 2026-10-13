@@ -10,12 +10,14 @@ The Kokkos assembly example.
 
 This example solves a 1D Poisson equation:
 
-@f[
+$$
+\begin{gathered}
     u : [0, 1] \rightarrow R\\
     u'' = f\\
     u(0) = u0\\
     u(1) = u1
-@f]
+\end{gathered}
+$$
 
 using a finite difference method on an equidistant grid with `K` discretization
 points (`K` can be controlled with a command line parameter).
