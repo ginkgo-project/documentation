@@ -82,13 +82,13 @@ correctness baseline; the others are auto-detected from the toolchain.
   - Compile true mixed-precision kernels instead of converting on the fly. Increases library size; faster mixed-precision paths. Defaults to `OFF`.
 * - `GINKGO_ENABLE_HALF`
   - `ON` / `OFF`
-  - Half-precision (`fp16`) support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. With CUDA before 12.2, requires compute capability ≥ 5.3.
+  - Half-precision (`fp16`) support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. The CUDA backend compiles its half kernels for compute capability ≥ 5.3 (`__CUDA_ARCH__ >= 530`).
 * - `GINKGO_ENABLE_BFLOAT16`
   - `ON` / `OFF`
-  - bfloat16 support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. With CUDA before 12.2, requires compute capability ≥ 8.0.
+  - bfloat16 support. Defaults to `ON`. Forced `OFF` on MSVC / MSYS2. The CUDA backend compiles its bfloat16 kernels for compute capability ≥ 8.0 (`__CUDA_ARCH__ >= 800`).
 * - `GINKGO_JACOBI_FULL_OPTIMIZATIONS`
   - `ON` / `OFF`
-  - All optimisations for the CUDA Jacobi algorithm. Defaults to `OFF`; enabling can push compile time of `jacobi_generate_kernels.cu` above 20 minutes with high memory use.
+  - All optimisations for the Jacobi kernels on CUDA and HIP. Defaults to `OFF`; enabling compiles every block size (1 to 32 on CUDA, 1 to 64 on HIP) instead of the default subset. Each block size gets three generated files (`jacobi_generate_kernels.instantiate.<N>.cpp`, `jacobi_simple_apply_kernels.instantiate.<N>.cpp` and `jacobi_advanced_apply_kernels.instantiate.<N>.cpp`), configured into the build tree from templates in `common/cuda_hip/preconditioner/`, so the build compiles many more heavy template files, with long compile times and high memory use.
 ```
 
 ## Auxiliary components
@@ -152,7 +152,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - Purpose
 * - `GINKGO_DEVEL_TOOLS`
   - `ON` / `OFF`
-  - Install the formatting `pre-commit` hook (downloads `clang-format`). Defaults to `OFF`. The default `OFF` setting installs a hook that **disables** git commits — turn this on for active development.
+  - Install the formatting `pre-commit` hook (downloads `clang-format`). Defaults to `OFF`; turn it on for active development.
 * - `GINKGO_WITH_CLANG_TIDY`
   - `ON` / `OFF`
   - Run `clang-tidy` during the build. Path is set with `GINKGO_CLANG_TIDY_PATH`. Defaults to `OFF`.

@@ -19,7 +19,7 @@ For the user-facing walk-through of each extension, see
 - [`Kokkos interop`](kokkos.md) — helpers for round-tripping
   Ginkgo's `array`, `Dense`, and executor types through Kokkos views
   and execution spaces. Lives in `gko::ext::kokkos`; requires Kokkos
-  at build time.
+  in your application's build.
 
 ```{toctree}
 :hidden:

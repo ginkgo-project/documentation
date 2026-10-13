@@ -1,8 +1,8 @@
 # `gko::reorder`
 
 Permutation generators for sparse matrices. Each reordering algorithm
-takes a system matrix and produces a `Permutation` (or
-`ScaledPermutation`) that can be applied to the matrix to reduce
+takes a system matrix and produces a `Permutation` (or, for `Mc64`, a
+`Composition` of two `ScaledPermutation` objects) that can be applied to the matrix to reduce
 fill-in (for sparse direct solvers), improve numerical stability, or
 expose more parallelism. For background and a comparison table see
 the [Reordering concept page](../../user-guide/concepts/reordering.md).

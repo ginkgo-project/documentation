@@ -111,7 +111,7 @@ executor:
 |---|---|---|
 | `create_nvtx(color_argb = …)` | NVTX | NSight Systems on CUDA |
 | `create_roctx()` | ROCTX | rocprof on HIP |
-| `create_vtune()` | Intel VTune ITT | VTune on CPU |
+| `create_vtune()` | Intel VTune ITT | VTune on CPU and DPC++ |
 | `create_tau(initialize = true)` | TAU via PerfStubs | TAU and other PerfStubs targets |
 | `create_for_executor(exec)` | Picks the right one of the above for the executor's backend (NVTX for CUDA, ROCTX for HIP on AMD, VTune for DPC++, TAU otherwise) | General-purpose default |
 | `create_custom(begin, end, …)` | User-supplied callbacks | Any profiler with a C entry point — including **Caliper** |
@@ -126,8 +126,7 @@ it straightforward to identify which part of a solve is expensive.
 
 ### Caliper
 
-Ginkgo does not ship a dedicated Caliper factory; the supported integration path
-is `create_custom`. Pass two function objects that call Caliper's C API directly
+Caliper is reached through the generic custom hook, `create_custom`. Pass two function objects that call Caliper's C API directly
 (`cali_begin_region` / `cali_end_region`) as the begin/end callbacks, and Ginkgo
 will invoke them at every annotated region boundary.
 

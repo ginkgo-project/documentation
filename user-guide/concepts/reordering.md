@@ -86,8 +86,8 @@ version, which integrates more cleanly with the rest of the reordering API.
 `Mc64` is technically a *scaling and matching*, not just a permutation — it produces a
 row permutation with row scaling and a column scaling, returned as a `Composition` of
 two `ScaledPermutation` operators, that together push large elements onto the
-diagonal. It is most useful as a preprocessing step before a direct solver, where it
-improves pivoting stability.
+diagonal. It is most useful as a preprocessing step before Ginkgo's `Lu`, which factorises
+without pivoting: MC64 can increase the numerical stability of that factorisation.
 :::
 
 :::{note}

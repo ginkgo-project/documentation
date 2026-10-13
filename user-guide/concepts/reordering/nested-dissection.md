@@ -4,8 +4,7 @@ Nested dissection (ND) is a recursive, divide-and-conquer fill-reducing reorderi
 A balanced **vertex separator** of the matrix's adjacency graph is chosen, the two
 disconnected sub-graphs are ordered (recursively, by the same procedure), and the
 separator vertices are placed **last**. The recursion bottoms out on small
-sub-graphs, where a local heuristic — typically [AMD](amd.md) — finishes the
-ordering.
+sub-graphs, which METIS orders itself.
 
 The separator-last property bounds the fill-in to the union of fills inside each
 sub-graph plus a contribution from the separator. For meshes with a regular

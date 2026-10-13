@@ -31,8 +31,8 @@ to use see the
   ROCTX / VTune / TAU, so external profilers can attribute time to
   Ginkgo operations.
 - [`PerformanceHint`](performance-hint.md) — heuristic checks that flag
-  potentially wasteful patterns (unexpected cross-device copies,
-  reallocations, etc.) at runtime.
+  repeated cross-executor copies from or to the same pointer and
+  repeated allocation/free pairs of the same size at runtime.
 
 ```{toctree}
 :hidden:

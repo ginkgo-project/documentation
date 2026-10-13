@@ -140,8 +140,9 @@ bool sorted = csr->is_sorted_by_column_index();
 csr->sort_by_column_index();
 ```
 
-`read(matrix_data)` produces a row-major-sorted CSR when the input was sorted (which
-`matrix_data::sort_row_major()` guarantees). Conversions from other formats also
+`read(matrix_data)` expects the input sorted in row-major order with unique positions
+(`sum_duplicates()` guarantees both), and then produces CSR with sorted column indices
+in each row. Conversions from other formats also
 generally preserve sortedness. The risk is in the explicit-array constructor (pattern 2
 above): if you build a CSR from raw arrays, you are responsible for ensuring the per-row
 column indices are sorted before handing it to a preconditioner factory.

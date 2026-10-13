@@ -3,7 +3,7 @@
 Ginkgo is a header- and library-based C++17 project. Most users build it from
 source with CMake; pre-built packages are also available via Spack and PyPI.
 
-:::{important}
+:::{attention}
 The canonical, exhaustively-maintained install guide is the upstream
 [`INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md)
 in the Ginkgo repository. This page summarises the most common paths and
@@ -65,7 +65,7 @@ into MPI calls instead of staging through host buffers:
 cmake .. -DGINKGO_BUILD_MPI=ON -DGINKGO_FORCE_GPU_AWARE_MPI=ON
 ```
 
-:::{warning}
+:::{attention}
 `GINKGO_FORCE_GPU_AWARE_MPI` is an **assertion**, not a feature detection.
 Setting it `ON` against an MPI that is **not** GPU-aware will fail
 catastrophically at the first device-pointer send. Default is `OFF`; only

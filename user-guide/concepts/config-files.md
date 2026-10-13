@@ -35,7 +35,7 @@ auto solver_factory = gko::config::parse(
                           .on(exec);
 ```
 
-`gko::config::parse` returns a deferred factory; `.on(exec)` turns it into a `std::shared_ptr<gko::LinOpFactory>` on `exec`, ready for `generate`. The third argument, a `type_descriptor` created with `gko::config::make_type_descriptor<V, I>()`, carries the default `value_type` and `index_type` used to instantiate templated classes. Nodes that specify their own `"value_type"` or `"index_type"` in the JSON override the descriptor locally.
+`gko::config::parse` returns a deferred factory; `.on(exec)` turns it into a `std::shared_ptr<gko::LinOpFactory>` on `exec`, ready for `generate`. The third argument, a `type_descriptor` created with `gko::config::make_type_descriptor<V, I>()`, carries the default `value_type` and `index_type` used to instantiate templated classes. Nodes that specify their own `"value_type"` in the JSON override the descriptor locally; the index type always comes from the `type_descriptor`.
 
 Additional types are added by passing a `gko::config::configuration_map` (type name to parse function) to the registry constructor. A `"type"` string that names an unregistered class produces an error at parse time.
 
@@ -69,7 +69,6 @@ A solver setup with a preconditioner and stopping criteria follows this schema:
     "preconditioner": {
         "type": "preconditioner::Jacobi",
         "value_type": "float64",
-        "index_type": "int32",
         "max_block_size": 8
     }
 }
@@ -78,7 +77,7 @@ A solver setup with a preconditioner and stopping criteria follows this schema:
 Three conventions govern this format:
 
 - **`type` discriminator.** Every node that represents a Ginkgo object must carry a `"type"` key. The value is the unqualified class path within the Ginkgo namespace, e.g. `"solver::Cg"` for `gko::solver::Cg`. The `gko::`, `experimental::` and `stop::` prefixes are omitted, e.g. `"Iteration"` for `gko::stop::Iteration`.
-- **Precision strings.** Templated types carry `"value_type"` (`"float32"`, `"float64"`, `"complex<float64>"`, …) and, where applicable, `"index_type"` (`"int32"`, `"int64"`). These strings must name types Ginkgo was compiled with.
+- **Precision strings.** Templated types carry `"value_type"` (`"float32"`, `"float64"`, `"complex<float64>"`, …). Index types come from `make_type_descriptor<V, I>()` (for example `int32` or `int64`). The `"value_type"` strings must name types Ginkgo was compiled with.
 - **Recursive composition.** Nested objects (criteria list, preconditioner, inner solver) follow the same schema recursively, matching the same [LinOp composition model](linop-and-composition.md) you use in C++.
 
 ## End-to-end example
@@ -108,8 +107,8 @@ The solver factory produced this way is reusable. Call `generate(matrix)` multip
 ## Limitations
 
 - **Only registered types.** Custom `LinOp` subclasses are constructible from config once you add them to the registry through a `configuration_map`. The class must expose a factory type.
-- **Static type signatures.** The `"value_type"` and `"index_type"` strings must match types Ginkgo was compiled with. Requesting `"float128"` on a build that doesn't include it will fail at parse time.
-- **No control flow.** Config is data — there are no conditionals, loops, or expressions. For dynamic solver selection, load different files from application code.
+- **Static type signatures.** The `"value_type"` strings must match types Ginkgo was compiled with. Requesting `"float16"` on a build with `GINKGO_ENABLE_HALF=OFF` fails at parse time with a `gko::InvalidStateError`.
+- **Config is data.** A file holds values only, with no conditionals, loops, or expressions. For dynamic solver selection, load different files from application code.
 - **Parser library required.** The JSON and YAML readers are header-only (`<ginkgo/extensions/config/json_config.hpp>` and `yaml_config.hpp`) and separate from `ginkgo/ginkgo.hpp`. Link your target against `nlohmann_json::nlohmann_json` (JSON) or `yaml-cpp::yaml-cpp` (YAML) alongside `Ginkgo::ginkgo`. Failures while reading or parsing throw an exception derived from `std::exception`.
 
 :::{seealso}

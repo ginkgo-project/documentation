@@ -94,8 +94,9 @@ This carries two performance costs:
 
 1. **Atomic overhead at row boundaries.** Rows that span several chunks are combined
    through atomics.
-2. **Irregular memory access.** `row_idxs[k]` addresses `y` non-sequentially, reducing
-   cache effectiveness compared to CSR's row-sequential access.
+2. **Atomic writes to `y`.** Each row segment is combined and then written to
+   `y[row_idxs[k]]` by an atomic add, which is less cache-friendly than CSR's plain
+   row-sequential write of `y`.
 
 On modern GPUs, atomics to distinct addresses are fast, so COO SpMV is not catastrophically
 slow — but it is consistently slower than CSR on the same matrix.
@@ -142,8 +143,9 @@ prefix-sum over row counts to build `row_ptrs`, then copies `col_idxs` and `valu
 ## Limitations
 
 - **No row-access semantics.** CSR's `row_ptrs` array lets algorithms skip directly to
-  row `i` in `O(1)`. COO has no such shortcut — scanning for row `i` is `O(nnz)` unless
-  the data is pre-sorted.
+  row `i` in `O(1)`. COO has no such shortcut — finding row `i` means searching the
+  row-grouped `row_idxs` array (`O(log nnz)` by binary search; entries are always grouped
+  by row).
 - **Larger index storage.** COO stores `nnz` row indices; CSR stores only `n_rows + 1`
   row pointers. For matrices where `n_rows << nnz`, CSR uses noticeably less memory.
 - **Preconditioners and factorisation require CSR.** Passing a COO matrix to a

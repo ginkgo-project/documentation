@@ -34,8 +34,8 @@ auto perm = reorder_factory->generate(system_matrix);
 auto permuted = system_matrix->permute(perm.get());
 ```
 
-To combine AMD with a downstream direct solver in one step, see
-[`ScaledReordered`](scaled-reordered.md).
+To use AMD with a downstream direct solver, permute the matrix with `Csr::permute`,
+permute `b` the same way, solve, and map the solution back with the inverse permutation.
 
 ## Implementation notes
 

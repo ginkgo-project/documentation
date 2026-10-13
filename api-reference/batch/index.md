@@ -15,7 +15,7 @@ For background on when batched solvers help, see the
 - [`MultiVector`](multi-vector.md) — the right-hand-side container:
   one dense block per batch item, all sharing the same shape.
 - [`matrix::Csr`](matrix-csr.md) — batched compressed sparse row.
-- [`matrix::Dense`](matrix-dense.md) — batched column-major dense.
+- [`matrix::Dense`](matrix-dense.md) — batched row-major dense.
 - [`matrix::Ell`](matrix-ell.md) — batched equal-length-rows.
 - [`matrix::Identity`](matrix-identity.md) — batched identity LinOp.
 

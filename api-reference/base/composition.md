@@ -15,8 +15,9 @@ executors differ.
 
 The classic use case is factorisation output: `factorization::Ilu`,
 `ParIlu` and `ParIlut` return a `Composition{L, U}` of their factors (and
-`factorization::Ic`, `ParIc` and `ParIct` a `Composition{L, L^H}`), which is
-exactly the input that `preconditioner::Ilu` and `preconditioner::Ic` accept.
+`factorization::Ic`, `ParIc` and `ParIct` a `Composition{L, L^H}`), which
+`preconditioner::Ilu` and `preconditioner::Ic` also accept in place of the
+system matrix.
 Multigrid level generators also expose their coarse correction
 $P\,A_c\,R$ as a `Composition` through `get_composition()`.
 

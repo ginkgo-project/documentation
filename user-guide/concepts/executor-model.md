@@ -64,10 +64,10 @@ auto a_gpu  = gko::array<double>{gpu, a_host};   // copies host → device
 
 The cross-executor constructor is the standard idiom. For matrices and vectors, `gko::clone(exec, ptr)` produces a deep copy on another executor (see [Cloning](linop-and-composition.md#cloning)). To run a solver on another executor, generate it there from its factory.
 
-A few situations introduce *implicit* transfers that are easy to miss:
+A few situations involve host/device transfers that are easy to miss:
 
 - **Reading a device-side scalar to host** — e.g., reading the residual norm from a `Convergence` logger triggers a device→host copy.
-- **Element accessors on a device-resident matrix or array** — `at()`, iterators, `get_const_value` for individual entries each perform a one-shot transfer. Avoid in inner loops.
+- **Element accessors on a device-resident matrix or array** — `Dense::at()` and other per-entry accessors need host-accessible memory (calling `at()` on a device matrix from the host is a runtime error), so copy the matrix to a host executor first, for example with `gko::clone(exec->get_master(), mtx)`.
 - **Reading `matrix_data` from a device-resident matrix** — copies the entries back to host before sorting or writing.
 
 Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.

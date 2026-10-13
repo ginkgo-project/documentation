@@ -72,8 +72,9 @@ auto from_arrays = gko::matrix::Ell<double, int>::create(
 ## Performance characteristics
 
 ELL's SpMV is memory-bound and dominated by reads of `values` and `col_idxs`.
-Bytes-per-output-element ≈ $2 \cdot \mathrm{sizeof}(\mathrm{ValueType}) \cdot
-k$ plus the once-per-row read of $x[j]$ for each non-zero column.
+Bytes-per-output-element ≈ $(\mathrm{sizeof}(\mathrm{ValueType}) +
+\mathrm{sizeof}(\mathrm{IndexType})) \cdot k$ plus the $x$ reads (each slot reads one
+value and one column index).
 
 The padding overhead is $n_\text{rows} \times (k - \bar n)$ stored zeros,
 where $\bar n$ is the average non-zero count per row.  For tightly-uniform
