@@ -22,7 +22,7 @@ For a new kernel `foo` on `matrix::Csr`, you touch five files:
 | `core/matrix/csr_kernels.hpp` | Macro-expanded forward declaration (one entry per backend) |
 | `core/matrix/csr.cpp` | `GKO_REGISTER_OPERATION` + the public `LinOp` method that calls it |
 | `reference/matrix/csr_kernels.cpp` | The single-threaded reference implementation (correctness baseline) |
-| `common/unified/matrix/csr_kernels.cpp` *or* `cuda/`, `hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
+| `common/unified/matrix/csr_kernels.cpp` *or* `common/cuda_hip/`, `omp/`, `dpcpp/` | The performance implementation(s) |
 | `core/device_hooks/common_kernels.inc.cpp` | A `GKO_STUB_*` line that produces a `GKO_NOT_COMPILED` placeholder for backends that are disabled at configure time |
 
 The Reference implementation is mandatory; it's the parity baseline every
@@ -70,8 +70,11 @@ backend's namespace. Two rules for editing this block:
 
 ## Step 2: Register the operation and write the dispatch method
 
-In `core/matrix/csr.cpp`, in the anonymous-namespace block at the top
-where `GKO_REGISTER_OPERATION` is called for every existing kernel, add:
+Ginkgo's own `row_wise_absolute_sum` is registered in
+`core/distributed/preconditioner/schwarz.cpp`, the file that uses it.
+For a new kernel on `Csr`, register it in `core/matrix/csr.cpp`, in the
+anonymous-namespace block at the top where `GKO_REGISTER_OPERATION` is
+called for every existing kernel, add:
 
 ```cpp
 GKO_REGISTER_OPERATION(row_wise_absolute_sum, csr::row_wise_absolute_sum);
@@ -181,9 +184,10 @@ macros it uses lower to the right primitives per executor:
 
 If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
 reductions, shared-memory tiling — put it in a backend-specific file
-instead (`cuda/matrix/csr_kernels.cu`,
-`hip/matrix/csr_kernels.hip.cpp`, …). Shared CUDA/HIP device code goes
-in a `.hpp.inc` header `#include`-d from both.
+instead. CUDA and HIP share one source under `common/cuda_hip/`
+(`common/cuda_hip/matrix/csr_kernels.template.cpp`, with shared code in
+`csr_common.hpp.inc`); the existing CMake lists already compile it, so
+no list needs editing. `omp/` and `dpcpp/` have their own trees.
 
 ## Step 5: Register a stub in `device_hooks`
 

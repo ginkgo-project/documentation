@@ -76,7 +76,8 @@ ccache -M 50G
 
 `-j$(nproc)` is the lazy default for parallel builds, but `nvcc` peaks at
 several gigabytes of RAM per object on heavy template files
-(`jacobi_*_kernels.cu` is a notorious offender). On a 32-core / 64 GB
+(the per-block-size `jacobi_*_kernels.instantiate.<N>.cpp` files generated from
+`common/cuda_hip/preconditioner/` are notorious offenders). On a 32-core / 64 GB
 workstation, `-j32` will swap-thrash long before it finishes. A safer
 rule of thumb is one parallel compilation per ≈ 2 GB of RAM:
 
@@ -96,7 +97,7 @@ specifically need them:
 
 | Flag | Cost | Default |
 |---|---|---|
-| `GINKGO_JACOBI_FULL_OPTIMIZATIONS` | Compiling `jacobi_generate_kernels.cu` with this on can take 20+ minutes by itself. | `OFF` |
+| `GINKGO_JACOBI_FULL_OPTIMIZATIONS` | With this on, every Jacobi block size (1 to 32 on CUDA, 1 to 64 on HIP) gets its own generated `jacobi_*_kernels.instantiate.<N>.cpp` files instead of the default subset, which adds many heavy template files and lengthens the build considerably. | `OFF` |
 | `GINKGO_ENABLE_HALF` / `GINKGO_ENABLE_BFLOAT16` | Each adds another precision instantiation across every templated kernel. | `ON` — turn off only if you don't touch fp16 / bf16 in this iteration. |
 | `GINKGO_MIXED_PRECISION` | Compiles dedicated mixed-precision kernels instead of converting on the fly. | `OFF` |
 

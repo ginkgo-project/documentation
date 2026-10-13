@@ -232,9 +232,10 @@ inner brace.
 - **Precision.** The parser respects a `type_descriptor` (third arg to
   `parse`) for the value and index types. Pass an explicit
   `type_descriptor` if you want anything other than the defaults.
-- **JSON numbers are doubles.** Integer fields like `max_iters` are
-  read as numeric; the parser converts to `size_type` at registration
-  time. Avoid quoting integers as strings.
+- **Integers and reals.** `parse_json` turns JSON integers into integer
+  nodes and numbers with a decimal point or exponent into real nodes;
+  write counts such as `max_iters` as plain integers. Avoid quoting
+  integers as strings.
 - **Nested types.** Composing a Krylov solver with an ILU
   preconditioner means nesting `preconditioner` inside the solver's
   config; each nested object goes through the same `parse` path

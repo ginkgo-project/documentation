@@ -21,9 +21,10 @@ auto direct = gko::experimental::solver::Direct<double, int>::build()
 direct->apply(b, x);
 ```
 
-For SPD matrices, swap `Lu` for `Cholesky` — the factor is
-self-adjoint so memory roughly halves and the factorisation kernel is
-faster.
+For SPD matrices, swap `Lu` for `Cholesky`. It derives the fill
+pattern from the elimination forest of the symmetric pattern and
+returns `L` and `L^H` from one combined `Csr` factor, so the factor
+memory is of the same order as with `Lu`.
 
 ## Reorder first
 
@@ -67,7 +68,7 @@ reordering. `ScaledReordered`'s `reordering` parameter takes the `ReorderingBase
 | `experimental::reorder::Amd` | Minimise fill | Default for small to medium unstructured matrices. |
 | `experimental::reorder::NestedDissection<V, I>` | Minimise fill, structured | Large structured systems; requires METIS. |
 | `experimental::reorder::Rcm` | Minimise bandwidth | When the triangular solves are bandwidth-bound on CPU. Not a fill reducer. |
-| `experimental::reorder::Mc64<V, I>` | Push heavy entries to the diagonal | Returns row and column scaled permutations; improves pivoting stability when composed with one of the above. |
+| `experimental::reorder::Mc64<V, I>` | Push heavy entries to the diagonal | Returns row and column scaled permutations. Compose it with one of the above before an `Lu` factorisation of an indefinite or strongly non-symmetric matrix: it can increase the numerical stability of an LU factorisation without pivoting. |
 
 For SPD matrices skip MC64 (the diagonal is already heavy).
 

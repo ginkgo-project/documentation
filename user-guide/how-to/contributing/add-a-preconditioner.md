@@ -20,7 +20,7 @@ modelled on `experimental::distributed::preconditioner::Schwarz`
 | Public header | `include/ginkgo/core/preconditioner/my_precond.hpp` | `include/ginkgo/core/distributed/preconditioner/my_precond.hpp` |
 | Implementation | `core/preconditioner/my_precond.cpp` | `core/distributed/preconditioner/my_precond.cpp` |
 | Kernel header | `core/preconditioner/my_precond_kernels.hpp` | Usually reuses local kernels — no MPI in kernels |
-| Backend kernels | `reference/preconditioner/`, `cuda/preconditioner/`, ... | Same |
+| Backend kernels | `reference/preconditioner/`, `common/cuda_hip/preconditioner/`, ... | Same |
 | `core/CMakeLists.txt` | Add `preconditioner/my_precond.cpp` | Add under the `if(GINKGO_BUILD_MPI)` block |
 | `core/config/config_helper.hpp` | Append to `LinOpFactoryType` | Append to `LinOpFactoryType` |
 | `core/config/registry.cpp` | Add to `generate_config_map()` | Same, but guarded `#if GINKGO_BUILD_MPI` |
@@ -150,8 +150,8 @@ void MyPrecond<ValueType, IndexType>::apply_impl(const LinOp* alpha,
         [this](auto dense_alpha, auto dense_b,
                auto dense_beta, auto dense_x) {
             this->get_executor()->run(my_precond::make_apply(
-                dense_alpha->get_const_device_view(),
                 data_,
+                dense_alpha->get_const_device_view(),
                 dense_b->get_const_device_view(),
                 dense_beta->get_const_device_view(),
                 dense_x->get_device_view()));
@@ -297,7 +297,7 @@ template <typename ValueType, typename LocalIndexType, typename GlobalIndexType>
 void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_impl(
     const LinOp* b, LinOp* x) const
 {
-    precision_dispatch_real_complex_distributed<ValueType>(
+    experimental::precision_dispatch_real_complex_distributed<ValueType>(
         [this](auto dense_b, auto dense_x) {
             this->apply_dense_impl(dense_b, dense_x);
         },
@@ -316,9 +316,10 @@ void MyPrecond<ValueType, LocalIndexType, GlobalIndexType>::apply_dense_impl(
 }
 ```
 
-`gko::detail::get_local(v)` is the helper from
-`core/distributed/helpers.hpp`. It returns the rank-local
-`matrix::Dense<V>*` for both `distributed::Vector` and ordinary
+`gko::detail::get_local(v)` is the internal helper in
+`core/distributed/helpers.hpp` that Ginkgo's own solvers and
+preconditioners use. It returns the rank-local
+`matrix::Dense<V>*` for both `experimental::distributed::Vector` and ordinary
 `matrix::Dense`, so the same iteration body covers serial and MPI use.
 
 ### Where MPI can live
@@ -353,6 +354,14 @@ matrix kernel runs concurrently with the halo `i_all_to_all_v`, then
 the off-diagonal kernel fires once the receive completes (see
 [Communication
 primitives](../../concepts/distributed/communication-primitives.md)).
+The overlap holds on device executors for both communicators, because
+the diagonal kernel is queued before the exchange is finalised. On host
+executors it holds whenever the exchange is non-blocking: always for
+`NeighborhoodCommunicator` (available except on Open MPI older than
+4.1), and for the default `DenseCommunicator`
+except on Open MPI older than 4.1, where the dense exchange falls back
+to the blocking `MPI_Alltoallv` (see [Dense
+communicator](../../concepts/distributed/dense-communicator.md)).
 Replicate that structure rather than putting an `MPI_Allreduce`
 between two synchronous kernel launches.
 

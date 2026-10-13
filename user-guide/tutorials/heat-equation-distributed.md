@@ -194,9 +194,10 @@ range as a flat array, so `[rank, rank+1]` is this rank's stripe.
 
 ### Assembling the local matrix entries
 
-Each rank fills a `matrix_data` with only the rows it owns. The
-distributed matrix reader will route any off-rank column indices to the
-correct neighbour automatically:
+Each rank fills a `matrix_data` with only the rows it owns.
+Entries whose column is owned by another rank go into the matrix's
+off-diagonal block when `read_distributed` assembles it; the halo
+exchange of `apply` fetches the remote values:
 
 ```cpp
 const double c_val   = diffusion * tau * 4.0 / h2 + 1.0;
@@ -267,7 +268,7 @@ We read on the host and copy to the compute executor — the pattern that
 works on every backend, including SYCL. On OMP, CUDA and HIP,
 `read_distributed` can also run directly on `exec`, because it runs on the
 executor the matrix was created on. After reading, we copy onto the compute
-executor (a no-op if the two are the same):
+executor (always a deep copy, also when the two are the same executor):
 
 ```cpp
 auto A_host = gko::share(dist_mtx::create(host, comm));

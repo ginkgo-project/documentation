@@ -26,7 +26,7 @@ prints the iteration count and true residual for each.
 
 ## The mental model: each `LinOp` owns its own precision
 
-There is no single "solve precision" in Ginkgo. Every object — the matrix,
+Precision is a property of each object, not of the solve as a whole. Every object — the matrix,
 the solver, and the preconditioner — is templated on its own `ValueType`,
 and each keeps its own value type for its whole lifetime:
 
@@ -135,7 +135,7 @@ Running the downloadable sample on a well-conditioned 1D-Poisson system
   tolerance, *even on this well-conditioned system*. Lowering a
   component's precision can stall — or, on harder problems, diverge — a
   solve that worked at higher precision. This is exactly the failure the
-  warning below is about.
+  attention note below is about.
 
 ## Where the conversion cost goes — and how to remove it
 
@@ -204,7 +204,7 @@ Dense instantiations, and a type outside it fails at the dispatch with
 and per backend; see
 [Supported value types](../../concepts/mixed-precision.md#supported-value-types).
 
-:::{warning}
+:::{attention}
 **Mixing precisions can make an otherwise convergent solve unstable or
 divergent.** Whether a given matrix/solver/preconditioner precision
 combination converges depends entirely on the properties of *your* linear

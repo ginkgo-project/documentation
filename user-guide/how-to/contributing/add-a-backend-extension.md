@@ -57,13 +57,17 @@ Umbrella header:
 
 The two substantive sub-headers do the bridging:
 
-- `kokkos/spaces.hpp` — defines `compatible_space<MemorySpace, ExecType>`,
-  a `std::integral_constant<bool, ...>` that answers "can this Kokkos
-  memory space be safely accessed from this Ginkgo executor?". Used
-  by `map_executor` to refuse mismatched pairs at compile time.
-- `kokkos/types.hpp` — defines `value_type<T>::type`
+- `kokkos/spaces.hpp` — defines `detail::compatible_space<MemorySpace,
+  ExecType>`, a `std::integral_constant<bool, ...>` that answers "can
+  this Kokkos memory space be safely accessed from this Ginkgo
+  executor?". `map_data` checks it through `assert_compatibility`,
+  which throws at run time (`GKO_THROW_IF_INVALID`) for a mismatched
+  pair. The header also provides `create_executor`,
+  `create_default_executor` and `create_default_host_executor` to
+  build Ginkgo executors from Kokkos execution spaces.
+- `kokkos/types.hpp` — defines `detail::value_type<T>::type`
   (`Kokkos::complex<T>` for `std::complex<T>`, identity otherwise)
-  plus helpers that wrap a `gko::array<T>` or `matrix::Dense<T>`
+  plus `map_data`, which wraps a `gko::array<T>` or `matrix::Dense<T>`
   storage region as a non-owning Kokkos `View`.
 
 The `config.hpp.in` is processed by Ginkgo's top-level CMakeLists:
@@ -76,9 +80,9 @@ configure_file(
 )
 ```
 
-It substitutes `GINKGO_BUILD_CUDA` / `GINKGO_BUILD_OMP` / ... into the
-generated `config.hpp` so the Kokkos spaces header can guard
-backend-specific bridges behind the right macros.
+It substitutes the `GINKGO_EXTENSION_KOKKOS_CHECK_TYPE_ALIGNMENT` option
+into the generated `config.hpp` so the Kokkos headers can switch their
+type-alignment checks on or off.
 
 ## Anatomy of the cuDSS extension (compiled library)
 
@@ -168,8 +172,12 @@ What gets built depends on the extension:
 
 - **Header-only extensions** contribute nothing to the build —
   consumers just `#include` the header. Their tests live under
-  `extensions/test/<name>/` and pull the third-party dependency via
-  `find_package` (with `FetchContent` fallback for JSON / YAML).
+  `extensions/test/<name>/`. `extensions/test/CMakeLists.txt` guards the
+  Kokkos tests with `find_package(Kokkos QUIET)`. The config tests
+  always build: `extensions/test/config/CMakeLists.txt` finds yaml-cpp
+  with `find_package(... QUIET)` and falls back to `FetchContent`,
+  nlohmann_json falls back to `third_party/`, and
+  `ginkgo_create_test(... ADDITIONAL_LIBRARIES ...)` links them.
 - **Compiled-library extensions** add a library target under
   `extensions/<area>/CMakeLists.txt`, conditional on the vendor
   package being found. The build skips the target when the
@@ -186,7 +194,7 @@ include/ginkgo/extensions/<myext>/types.hpp        ← per-concern headers
 include/ginkgo/extensions/<myext>/spaces.hpp
 include/ginkgo/extensions/<myext>/config.hpp.in    ← optional, if you need
                                                      Ginkgo build-flag knowledge
-extensions/test/<myext>/CMakeLists.txt             ← finds your third-party dep
+extensions/test/<myext>/CMakeLists.txt             ← links your third-party dep
 extensions/test/<myext>/<test1>.cpp                ← tests live here
 ```
 
@@ -194,11 +202,14 @@ CMake wiring:
 
 - If `<myext>` needs a generated `config.hpp`, add a `configure_file`
   block to the top-level `CMakeLists.txt` next to the Kokkos one.
-- Append your test subdirectory to `extensions/test/CMakeLists.txt`.
+- In `extensions/test/CMakeLists.txt`, wrap
+  `add_subdirectory(<myext>)` in a `find_package(<MyExtDep> QUIET)`
+  guard, so the tests are built only when the dependency is found.
 - In `extensions/test/<myext>/CMakeLists.txt`, call
-  `find_package(<MyExtDep> REQUIRED)` (with a `FetchContent` fallback
-  if appropriate) and link `Ginkgo::ginkgo` plus the third-party
-  target.
+  `ginkgo_create_test(<test1> ADDITIONAL_LIBRARIES <MyExtDep::target>)`
+  to link the third-party target into each test. Add a
+  `find_package(... QUIET)` plus `FetchContent` fallback there when the
+  tests should build without a preinstalled dependency.
 
 For a compiled-library extension `<myext>` (vendor `LinOp` wrapper):
 
@@ -206,7 +217,8 @@ For a compiled-library extension `<myext>` (vendor `LinOp` wrapper):
 include/ginkgo/extensions/<area>/<myext>.hpp       ← public LinOp class
 extensions/<area>/<myext>.cpp                      ← implementation
 extensions/<area>/CMakeLists.txt                   ← add_library + linking
-extensions/test/<area>/<myext>_test.cpp            ← tests
+extensions/test/<area>/CMakeLists.txt              ← ginkgo_create_test
+extensions/test/<area>/solver/<myext>.cpp          ← tests
 ```
 
 CMake wiring:
@@ -221,23 +233,30 @@ CMake wiring:
   `add_library(Ginkgo::ginkgo_<myext> ALIAS ginkgo_<myext>)`, public
   link to `ginkgo`, private link to the vendor target, and
   `ginkgo_default_includes` + `ginkgo_install_library`.
+- Add `add_subdirectory(<area>)` to `extensions/test/CMakeLists.txt`
+  (cuDSS's `cuda` directory is added under `if(GINKGO_BUILD_CUDA)`).
+  In `extensions/test/<area>/CMakeLists.txt`, return early when the
+  backend or vendor package is missing, then call
+  `ginkgo_create_test(solver/<myext> ADDITIONAL_LIBRARIES
+  ginkgo_<myext>)`, as `extensions/test/cuda/CMakeLists.txt` does for
+  cuDSS.
 
 The class itself is built like any other `LinOp` — see [Add a new
 solver](add-a-solver.md) or [Add a new
 preconditioner](add-a-preconditioner.md) for the factory / parse
 scaffolding.
 
-## Vendor-LinOp wrappers: extensions vs core
+## Where to place a vendor-LinOp wrapper
 
-Vendor library wrappers can also live in `core/` if they belong to a
-shipped Ginkgo type, rather than in `extensions/`:
+Vendor library wrappers can live in `core/` when they belong to a
+shipped Ginkgo type, or in `extensions/` when they stand alone:
 
 - **In `core/`** — when the vendor path is one implementation among
   several for a type that Ginkgo already exposes. Example:
-  `solver::LowerTrs` / `solver::UpperTrs` route triangular solves
-  through cuSPARSE on the CUDA executor and through Ginkgo's own
-  kernels on others; `factorization::Cholesky` has an optional
-  vendor path. The vendor calls live in
+  `solver::LowerTrs` / `solver::UpperTrs` expose the choice through
+  their `algorithm` parameter: `trisolve_algorithm::sparselib`
+  (the default) uses the vendor library, while `syncfree` runs
+  Ginkgo's own kernel on CUDA. The vendor calls live in
   `cuda/solver/lower_trs_kernels.cu` etc., gated by the executor
   type.
 - **In `extensions/`** — when the type is *only* the vendor wrapper

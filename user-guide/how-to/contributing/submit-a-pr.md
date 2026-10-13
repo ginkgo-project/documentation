@@ -76,9 +76,8 @@ build/test matrix. Stages are:
 | `build` | One job per `(CUDA version × MPI variant × compiler × build type × shared/static)` row. Current matrix covers CUDA 11.0–13.3, ROCm 6.2.0–7.2.0, SYCL (icpx and DPC++), no-CUDA OMP-only, and no-GPU configurations. Includes a `glibcxx-debug-release` row that enables `_GLIBCXX_DEBUG`. |
 | `test` | Runs the unit-test suite on each backend produced in `build`. |
 | `code_quality` | Static analysis (clang-tidy, IWYU on a subset). |
-| `deploy` | Documentation deployment from `develop`. |
+| `deploy` | Documentation deployment from `main`, `develop` and release tags. |
 | `QoS_tools` | Optional quality-of-service tooling. |
-| `benchmark-*` | A manually triggered CUDA SpMV benchmark job for changes to the matrix code. |
 
 A PR has to be green across both pipelines. Treat a red GitHub Actions
 build (formatting, macOS, Windows, ARM, Linux) the same way as a red

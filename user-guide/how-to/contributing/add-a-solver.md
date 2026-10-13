@@ -15,7 +15,7 @@ through the pattern using `gko::solver::Cg` (`include/ginkgo/core/solver/cg.hpp`
 | `include/ginkgo/core/solver/my_solver.hpp` | Class template, `parameters_type`, `workspace_traits` specialisation |
 | `core/solver/my_solver.cpp` | `apply_impl`, `apply_dense_impl`, `transpose`/`conj_transpose`, workspace-trait method bodies, `parse` for JSON config |
 | `core/solver/my_solver_kernels.hpp` | Per-step kernel declarations (e.g. CG has `initialize` + `step_1` + `step_2`) |
-| One backend implementation per kernel | `reference/solver/`, `common/unified/solver/` or `cuda/solver/`, `hip/solver/`, `omp/solver/`, `dpcpp/solver/` |
+| One backend implementation per kernel | `reference/solver/`, `common/unified/solver/` or `common/cuda_hip/solver/`, `omp/solver/`, `dpcpp/solver/` |
 | `core/config/config_helper.hpp` | Add an enum entry to `LinOpFactoryType` |
 | `core/config/registry.cpp` | Add `"solver::MySolver"` to the configuration map |
 | `core/config/solver_config.cpp` | Add the `GKO_PARSE_VALUE_TYPE(MySolver, gko::solver::MySolver)` specialisation |
@@ -154,7 +154,7 @@ when to reallocate and when to reuse.
 
 The two `apply_impl` overrides dispatch precision and then delegate to
 the templated `apply_dense_impl`. Use the distributed-aware variant —
-it accepts both `dist::Vector` and `matrix::Dense`, so the same code
+it accepts both `experimental::distributed::Vector` and `matrix::Dense`, so the same code
 path works in serial and MPI builds:
 
 ```cpp
@@ -272,8 +272,9 @@ Boilerplate macros (from `core/solver/solver_boilerplate.hpp`):
 | `GKO_SOLVER_ONE_MINUS_ONE()` | Creates the constants `one_op = 1` and `neg_one_op = −1`. |
 | `GKO_SOLVER_STOP_REDUCTION_ARRAYS()` | Allocates the `stop_status` and `reduction_tmp` `array<...>`s. |
 
-`gko::detail::get_local(v)` extracts the rank-local `matrix::Dense<V>*`
-from a vector pointer — works for both `experimental::distributed::Vector`
+`gko::detail::get_local(v)` is the internal helper (in
+`core/distributed/helpers.hpp`) that Ginkgo's own solvers use. It
+extracts the rank-local `matrix::Dense<V>*` from a vector pointer — works for both `experimental::distributed::Vector`
 and ordinary `matrix::Dense`, so the same iteration body covers both
 cases.
 

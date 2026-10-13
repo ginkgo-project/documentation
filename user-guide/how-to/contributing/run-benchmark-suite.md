@@ -115,21 +115,21 @@ collection and produces JSON files under
 `<build>/benchmark/results/<SYSTEM_NAME>/...`. The most useful
 variables:
 
-| Variable | Effect |
-|---|---|
-| `BENCHMARK={spmv, solver, preconditioner}` | Which pipeline to run. Default: `spmv`. |
-| `EXECUTOR={reference, omp, cuda, hip, dpcpp}` | Backend to benchmark on. Default: `cuda`. |
-| `SYSTEM_NAME=<name>` | Tag the results — used in the output directory layout. |
-| `SEGMENTS=<N>` + `SEGMENT_ID=<I>` | Run only the `I`-th of `N` chunks of the matrix list (parallel runs across machines). |
-| `MATRIX_LIST_FILE=<path>` | Restrict to a hand-picked subset; lines are `ID` or `Group/Name`. |
-| `BENCHMARK_PRECISION={double, single, dcomplex, scomplex}` | Value type. Default: `double`. |
-| `SOLVERS=<list>` | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,cb_gmres_reduce1,idr`. |
-| `PRECONDS=<list>` | Preconditioners to use. Default: `none`. |
-| `FORMATS=<list>` | Matrix formats to compare for SpMV. Default: `csr,coo,ell,hybrid,sellp`. |
-| `SOLVERS_PRECISION=<eps>` | Target residual reduction. Default: `1e-6`. |
-| `SOLVERS_MAX_ITERATIONS=<N>` | Iteration cap. Default: `10000`. |
-| `DETAILED={0, 1}` | Emit per-iteration residuals and per-operation timing. Default: `0`. |
-| `GPU_TIMER={true, false}` | Use the device timer rather than the wall clock. Default: `false`. |
+| Variable | Values | Purpose |
+|---|---|---|
+| `BENCHMARK` | `spmv`, `solver`, `preconditioner` | Which pipeline to run. Default: `spmv`. |
+| `EXECUTOR` | `reference`, `omp`, `cuda`, `hip`, `dpcpp` | Backend to benchmark on. Default: `cuda`. |
+| `SYSTEM_NAME` | any name | Tag the results; used in the output directory layout. |
+| `SEGMENTS` + `SEGMENT_ID` | integers `N` and `I` | Run only the `I`-th of `N` chunks of the matrix list (parallel runs across machines). |
+| `MATRIX_LIST_FILE` | path | Restrict to a hand-picked subset; lines are `ID` or `Group/Name`. |
+| `BENCHMARK_PRECISION` | `double`, `single`, `dcomplex`, `scomplex` | Value type. Default: `double`. |
+| `SOLVERS` | comma-separated list | Solvers to include in the solver benchmark. Default: `bicgstab,cg,cgs,fcg,gmres,cb_gmres_reduce1,idr`. |
+| `PRECONDS` | comma-separated list | Preconditioners to use. Default: `none`. |
+| `FORMATS` | comma-separated list | Matrix formats to compare for SpMV. Default: `csr,coo,ell,hybrid,sellp`. |
+| `SOLVERS_PRECISION` | `<eps>` | Target residual reduction. Default: `1e-6`. |
+| `SOLVERS_MAX_ITERATIONS` | `<N>` | Iteration cap. Default: `10000`. |
+| `DETAILED` | `0`, `1` | Emit per-iteration residuals and per-operation timing. Default: `0`. |
+| `GPU_TIMER` | `true`, `false` | Use the device timer rather than the wall clock. Default: `false`. |
 
 Variables can be `export`-ed once and reused across runs, or set
 inline:
@@ -187,6 +187,6 @@ it in the comparison.
   reference, including the full SuiteSparse setup loop.
 - [Speed up rebuilds](speed-up-builds.md) — for getting the suite
   built quickly.
-- [Submit a pull request](submit-a-pr.md) — GitLab CI can run the
-  CUDA SpMV benchmark job manually for changes to the matrix code.
+- [Submit a pull request](submit-a-pr.md) — the CI stages and labels
+  for a change.
 :::

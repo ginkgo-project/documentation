@@ -19,7 +19,7 @@ A new matrix format provides at least:
 | `WritableToMatrixData<V, I>` | `write` to round-trip back to host-side `matrix_data`. |
 | `ConvertibleTo<Dense<V>>`, `ConvertibleTo<Csr<V, I>>` | At minimum a path to and from CSR; Dense is conventional. |
 | `ConvertibleTo<Self<next_precision<V>, I>>` | Cross-precision conversion to the neighbouring float type. |
-| One backend kernel set | `spmv` plus `advanced_spmv` (alpha/beta variant); plus a `read` / `convert_to_csr` kernel per backend. |
+| One backend kernel set | `spmv` plus `advanced_spmv` (alpha/beta variant); plus the `read` helpers (`compute_max_row_nnz`, `fill_in_matrix_data`) and a `convert_to_csr` kernel per backend. |
 
 Conventional for current formats: `validate_data()` (structural and value
 checks via `GKO_VALIDATE` and the helpers in `core/base/validation.hpp`;
@@ -298,14 +298,20 @@ your arrays, then hand the device-side fill-in to a kernel:
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::read(const device_mat_data& data)
 {
-    auto size = data.get_size();
-    size_type max_row_nnz = 0;
-    // Compute the layout (max nnz per row, padding, etc.) from `data` on
-    // its executor, then resize the storage:
-    this->resize(size, max_row_nnz);
+    auto exec = this->get_executor();
+    auto local_data = make_temporary_clone(exec, &data);
+    // Compute the layout (max nnz per row, padding, etc.) on the
+    // executor, as Ell does, then resize the storage:
+    array<int64> row_ptrs(exec, data.get_size()[0] + 1);
+    exec->run(my_format::make_convert_idxs_to_ptrs(
+        local_data->get_const_row_idxs(), local_data->get_num_stored_elements(),
+        data.get_size()[0], row_ptrs.get_data()));
+    size_type max_row_nnz{};
+    exec->run(my_format::make_compute_max_row_nnz(row_ptrs, max_row_nnz));
+    this->resize(data.get_size(), max_row_nnz);
     // Hand off to the backend kernel:
-    this->get_executor()->run(my_format::make_fill_in_matrix_data(
-        data, this->get_device_view()));
+    exec->run(my_format::make_fill_in_matrix_data(
+        *local_data, row_ptrs.get_const_data(), this->get_device_view()));
 }
 
 template <typename ValueType, typename IndexType>
@@ -317,9 +323,17 @@ void MyFormat<ValueType, IndexType>::read(const mat_data& data)
 template <typename ValueType, typename IndexType>
 void MyFormat<ValueType, IndexType>::read(device_mat_data&& data)
 {
-    this->read(data);   // or specialise: avoid the extra copy if possible
+    this->read(data);
+    data.empty_out();
 }
 ```
+
+`my_format::make_convert_idxs_to_ptrs`, `make_compute_max_row_nnz` and
+`make_fill_in_matrix_data` are operations you register in
+`core/matrix/my_format.cpp` with `GKO_REGISTER_OPERATION`, as
+`core/matrix/ell.cpp` does: the first from the shared
+`components::convert_idxs_to_ptrs`, the other two from your format's
+kernels.
 
 `write` is the reverse:
 
@@ -364,8 +378,7 @@ described in [Add a new kernel](add-a-kernel.md). For a new format
 | `reference/matrix/my_format_kernels.cpp` | Reference single-thread impl |
 | `omp/matrix/my_format_kernels.cpp` | OMP impl (if hand-tuned) |
 | `common/unified/matrix/my_format_kernels.cpp` | Portable CUDA/HIP/SYCL/OMP impl |
-| `cuda/matrix/my_format_kernels.cu` (optional) | Hand-tuned CUDA |
-| `hip/matrix/my_format_kernels.hip.cpp` (optional) | Hand-tuned HIP |
+| `common/cuda_hip/matrix/my_format_kernels.cpp` (optional) | Hand-tuned CUDA / HIP, one source for both |
 | `dpcpp/matrix/my_format_kernels.dp.cpp` (optional) | Hand-tuned SYCL |
 
 ## CMake wiring
@@ -380,8 +393,9 @@ existing format. Add the file to each backend's source list:
   (`.dp.cpp` for DPC++) next to `matrix/ell_kernels.cpp`.
 - `common/unified/CMakeLists.txt` — add
   `matrix/my_format_kernels.cpp` if you have a portable kernel.
-- `cuda/CMakeLists.txt`, `hip/CMakeLists.txt` — add the
-  backend-specific files only if you wrote hand-tuned variants.
+- `common/cuda_hip/CMakeLists.txt` — add
+  `matrix/my_format_kernels.cpp` only if you wrote a hand-tuned
+  CUDA / HIP variant.
 
 The public header `include/ginkgo/core/matrix/my_format.hpp` becomes
 discoverable through the standard install layout once the file exists in
@@ -419,9 +433,9 @@ new format you write two files:
   (typically 100×100 or larger) so warp-boundary corner cases are
   exercised.
 
-The legacy per-backend trees (`cuda/test/matrix/`, `hip/test/matrix/`,
-...) are largely empty now — only formats that still need backend-
-specific test paths live there. Put new tests in `test/matrix/`.
+The per-backend test trees (for example `hip/test/matrix/`) hold only
+the few tests that need a backend-specific path. Put new tests in
+`test/matrix/`.
 
 :::{seealso}
 - [Add a new kernel](add-a-kernel.md) — the kernel files that back `apply_impl`.
