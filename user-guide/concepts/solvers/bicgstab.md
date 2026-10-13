@@ -43,8 +43,8 @@ solver->apply(b, x);
 
 ## Factory parameters
 
-`Bicgstab` has no algorithm-specific tuning knobs. Its parameter surface is the
-same as CG's — only the inherited `EnablePreconditionedIterativeSolver` settings:
+`Bicgstab` has the same parameter surface as CG; the inherited
+`EnablePreconditionedIterativeSolver` settings below are the complete tuning surface:
 
 | Parameter | Type | Purpose |
 |---|---|---|
@@ -54,7 +54,7 @@ same as CG's — only the inherited `EnablePreconditionedIterativeSolver` settin
 | `nullspace` | `std::shared_ptr<const LinOp>` | Right nullspace $N(A)$ of a singular matrix, a `solver::Nullspace`. The solver removes it from the initial guess and from every preconditioned vector (through `NullspaceProjection`). See [Singular systems and nullspaces](singular-systems.md). Default none. |
 | `left_nullspace` | `std::shared_ptr<const LinOp>` | Left nullspace $N(A^H)$, a `solver::Nullspace`. Projects $b$ onto $\mathrm{range}(A)$; set it together with `nullspace` whenever $b$ may have a component outside $\mathrm{range}(A)$. Default none. |
 
-All tuning happens in the choice of preconditioner and stopping criteria.
+Apart from the nullspaces of a singular system, all tuning happens in the choice of preconditioner and stopping criteria.
 
 ## Per-iteration cost
 

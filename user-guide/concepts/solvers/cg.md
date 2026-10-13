@@ -57,7 +57,7 @@ and returns the solver `LinOp`.
 ## Factory parameters
 
 `gko::solver::Cg` inherits its factory-parameter surface from
-`EnablePreconditionedIterativeSolver`. There are no CG-specific tuning knobs:
+`EnablePreconditionedIterativeSolver`; the parameters below are the complete tuning surface:
 
 | Parameter | Type | Purpose |
 |---|---|---|
@@ -69,7 +69,7 @@ and returns the solver `LinOp`.
 
 The simplicity here is deliberate: CG's algorithmic behaviour is fixed by the
 mathematics — there are no orthogonalisation, restart, or shadow-space choices to
-make. All tuning happens in the preconditioner and stopping criteria.
+make. Apart from the nullspaces of a singular system, all tuning happens in the preconditioner and stopping criteria.
 
 ## Preconditioning placement
 
