@@ -94,7 +94,7 @@ interface, whose only implementation is the deprecated `gko::reorder::Rcm`. See 
 `max_diagonal_product` strategy it returns a row permutation with row and column
 scaling coefficients that together push large elements onto the diagonal. It is
 most useful as a preprocessing step before Ginkgo's `Lu`, which factorises without
-pivoting: MC64 makes that factorisation stable.
+pivoting: MC64 can increase the numerical stability of that factorisation.
 :::
 
 :::{note}

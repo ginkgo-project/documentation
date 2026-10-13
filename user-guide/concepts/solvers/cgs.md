@@ -59,7 +59,7 @@ solver->apply(b, x);
 ## Factory parameters
 
 CGS inherits its factory-parameter surface from
-`EnablePreconditionedIterativeSolver`. There are no CGS-specific tuning knobs:
+`EnablePreconditionedIterativeSolver`; the three parameters below are the complete tuning surface:
 
 | Parameter | Type | Purpose |
 |---|---|---|

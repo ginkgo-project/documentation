@@ -6,7 +6,7 @@ in two phases:
 
 1. For every unaggregated row $i$, find the *strongest neighbour* —
    the column $j$ in $i$'s row with the largest symmetric weight
-   $(|a_{ij}| + |a_{ji}|)/2$, scaled by the larger of the diagonal
+   $(|a_{ij}| + |a_{ji}|)/2$, divided by the larger of the diagonal
    entries $|a_{ii}|$ and $|a_{jj}|$.
 2. Match rows whose strongest-neighbour relation is mutual (row $i$
    picks $j$ and row $j$ picks $i$), forming aggregates of size 2.

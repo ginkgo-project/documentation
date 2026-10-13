@@ -92,7 +92,7 @@ The solver factory produced this way is reusable. Call `generate(matrix)` multip
 
 - **Only registered types.** Custom `LinOp` subclasses are not constructible from config unless you register them with the registry first. The registration API is template-heavy and requires that the class expose a factory type.
 - **Static type signatures.** The `"value_type"` strings must match types Ginkgo was compiled with. Requesting `"float16"` on a build with `GINKGO_ENABLE_HALF=OFF` fails at parse time with a `gko::InvalidStateError` ("The provided runtime type … doesn't match any of the allowed compile time types"). The same error appears for `"float16"` and `"bfloat16"` on solvers parsed with the base type list only, such as `CbGmres`.
-- **No control flow.** Config is data — there are no conditionals, loops, or expressions. For dynamic solver selection, load different files from application code.
+- **Config is data.** A file holds values only, with no conditionals, loops, or expressions. For dynamic solver selection, load different files from application code.
 - **Reader headers are header-only.** JSON parsing lives in `ginkgo/extensions/config/json_config.hpp` and YAML parsing in `ginkgo/extensions/config/yaml_config.hpp`; both are separate from `ginkgo/ginkgo.hpp` and are installed with Ginkgo. In your own CMake project, link `nlohmann_json::nlohmann_json` for JSON or `yaml-cpp::yaml-cpp` for YAML in addition to `Ginkgo::ginkgo`.
 
 :::{seealso}

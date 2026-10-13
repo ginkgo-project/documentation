@@ -110,20 +110,21 @@ executor:
 | `create_tau(initialize = true)` | TAU via PerfStubs | TAU and other PerfStubs targets |
 | `create_for_executor(exec)` | Picks the right one of the above for the executor's backend (NVTX for CUDA, ROCTX for HIP on AMD, VTune for DPC++, TAU otherwise) | General-purpose default |
 | `create_summary()` | Accumulates wall-clock time per named range and prints a table when the logger is destroyed | Quick timing without an external tool |
-| `create_custom(begin, end, …)` | User-supplied callbacks | Any profiler with a C entry point — including **Caliper** |
+| `create_custom(begin, end)` | User-supplied callbacks | Any profiler with a C entry point — including **Caliper** |
 
 ```cpp
 auto profiler = gko::log::ProfilerHook::create_for_executor(exec);
-solver->add_logger(profiler);
+exec->add_logger(profiler);   // before generate, to include solver setup
 ```
 
-In the profiler UI you will see solver phases grouped by region name, which makes
-it straightforward to identify which part of a solve is expensive.
+Solvers, factories and stopping criteria on that executor forward their events to its
+propagating loggers, so one attachment covers apply, generate, criterion checks, kernels,
+allocations and copies. In the profiler UI you will see solver phases grouped by region
+name, which makes it straightforward to identify which part of a solve is expensive.
 
 ### Caliper
 
-Ginkgo does not ship a dedicated Caliper factory; the supported integration path
-is `create_custom`. Pass two function objects that call Caliper's C API directly
+Caliper is reached through the generic custom hook, `create_custom`. Pass two function objects that call Caliper's C API directly
 (`cali_begin_region` / `cali_end_region`) as the begin/end callbacks, and Ginkgo
 will invoke them at every annotated region boundary.
 

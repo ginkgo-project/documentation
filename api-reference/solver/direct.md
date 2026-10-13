@@ -4,7 +4,8 @@ Direct solver built from a sparse $LU$ or Cholesky factorisation
 supplied by a [`Factorization`](../factorization/factorization.md)
 factory. The factorisation is computed once during `generate()` and
 reused across every `apply()`; each apply runs a forward solve on
-the $L$ factor followed by a backward solve on the $U$ factor.
+the lower factor ($L$) followed by a backward solve on the upper factor
+($U$ for $LU$, $L^H$ for Cholesky).
 
 The factorisation factory is provided as the `factorization` factory
 parameter — typically a built-in factorisation
