@@ -30,7 +30,7 @@ std::cout << "value       = " << on_host->at(0, 0) << '\n';
 :::{attention}
 `get_residual_norm()` returns a `Dense` whose storage lives on the
 solver's executor. For a `CudaExecutor` / `HipExecutor` /
-`DpcppExecutor` solver this is a **device** pointer — dereferencing it
+`DpcppExecutor` solver this is a **device** pointer: dereferencing it
 on the host segfaults. `clone` to the master executor first, as shown
 above.
 :::
@@ -100,7 +100,7 @@ solver->apply(b, x);   // NVTX ranges now appear in nsys / Nsight
 Other factories: `create_roctx`, `create_vtune`, `create_tau`,
 `create_summary` (a per-operation timing table without an external
 profiler), `create_for_executor` (auto-pick based on executor), and
-`create_custom` (provide your own begin/end callbacks — the standard
+`create_custom` (provide your own begin/end callbacks; this is the standard
 path for Caliper, see
 [Integrate ProfilerHook with Caliper](profiler-hook-caliper.md)).
 
@@ -110,7 +110,7 @@ path for Caliper, see
 solver->remove_logger(convergence);
 ```
 
-Loggers can be attached and detached at runtime — useful when you
+Loggers can be attached and detached at runtime, useful when you
 want logging only during a setup phase.
 
 ## Common pitfalls
@@ -125,6 +125,6 @@ want logging only during a setup phase.
   (to a stream).
 
 :::{seealso}
-- [Logging and observability](../../concepts/logging.md) — the conceptual reference, including the full backend table for `ProfilerHook`.
+- [Logging and observability](../../concepts/logging.md): the conceptual reference, including the full backend table for `ProfilerHook`.
 - [Configure stopping criteria](configure-stopping-criteria.md).
 :::

@@ -1,14 +1,14 @@
 # RowGatherer
 
 To compute $y = A x$ where $A$ is row-distributed, every rank must **pull in** the entries of
-$x$ that its non-local matrix references but does not own — a halo gather. `RowGatherer` is the
+$x$ that its non-local matrix references but does not own (a halo gather). `RowGatherer` is the
 helper object that encapsulates this pattern. It sits on top of a
 [collective communicator](collective-communicator.md) and reuses a precomputed index pattern
 across many `apply` calls so that the per-call cost is just the all-to-all itself. Internally it uses
 `CollectiveCommunicator::create_inverse()` to turn each rank's receive pattern into the matching
 send pattern.
 
-Most user code does not interact with the gatherer directly — the distributed `Matrix` constructs
+Most user code does not interact with the gatherer directly; the distributed `Matrix` constructs
 and uses it internally. `gko::experimental::distributed::RowGatherer<L>` is public for users
 implementing custom distributed `LinOp` operations that drive their own asynchronous halo
 exchanges: it packs the rows of a distributed `Vector` that other ranks need into a contiguous
@@ -20,7 +20,7 @@ destination vector.
 The mathematical operation is the row-selection map $x_\text{halo} = R_\text{halo}\, x$, where
 $R_\text{halo}$ is the indicator that picks out the global rows of $x$ that this rank's
 non-local matrix needs. In distributed terms each rank owns a block of $x$, so satisfying
-$x_\text{halo}$ requires **other** ranks to send their owned values to this rank — i.e. an
+$x_\text{halo}$ requires **other** ranks to send their owned values to this rank, i.e. an
 all-to-all. `RowGatherer` is the object that owns the index list ("which local rows of *my* $x$
 do I need to send out, and to whom") plus the send-side buffer.
 
@@ -91,7 +91,7 @@ unless the destination's executor is the host executor. Internally, `RowGatherer
 
 | Method | Returns |
 |---|---|
-| `get_size()` | `dim<2>` — recv rows summed over all ranks (rows) × global index-space size of the index map (cols) |
+| `get_size()` | `dim<2>`: recv rows summed over all ranks (rows) × global index-space size of the index map (cols) |
 | `get_collective_communicator()` | The shared `CollectiveCommunicator` driving the exchange |
 | `get_const_send_idxs()` | Pointer to the local row indices being sent |
 | `get_num_send_idxs()` | Length of the send-index array |
@@ -108,15 +108,15 @@ The matrix holds one `RowGatherer` together with its `index_map`. On every execu
    synchronizes the executor, issues the all-to-all and returns the `mpi::request`.
 2. The local-matrix kernel runs while the exchange is in flight (with `DenseCommunicator` the
    exchange has already completed, so the two do not overlap).
-3. `req.wait()` — `x_halo` is now populated.
+3. `req.wait()`: `x_halo` is now populated.
 4. The non-local-matrix kernel applies to `x_halo`.
 5. The local-matrix result and the non-local-matrix result are summed into `y_local`.
 
 :::{seealso}
-- [Communication primitives](communication-primitives.md) — the SpMV pipeline that consumes the
+- [Communication primitives](communication-primitives.md): the SpMV pipeline that consumes the
   row gatherer.
-- [Collective communicators](collective-communicator.md) — the layer beneath the gatherer.
-- [Partitions and index maps](partition-and-index-map.md) — the bookkeeping that defines which
+- [Collective communicators](collective-communicator.md): the layer beneath the gatherer.
+- [Partitions and index maps](partition-and-index-map.md): the bookkeeping that defines which
   rows get gathered.
 - API reference: [`gko::experimental::distributed::RowGatherer`](../../../api-reference/distributed/row-gatherer.md)
 :::

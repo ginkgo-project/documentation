@@ -4,7 +4,7 @@ Reverse Cuthill–McKee (RCM) is a bandwidth-reducing reordering. It walks the
 matrix's adjacency graph by breadth-first search starting from a *pseudoperipheral*
 vertex (one of high eccentricity, computed by an inner BFS), enumerates the
 resulting level sets in order, and then **reverses** the resulting permutation. The
-reversal is the key step — it consistently tightens the *profile* of the matrix even
+reversal is the key step: it consistently tightens the *profile* of the matrix even
 when it does not change the worst-case bandwidth. The output is a row/column
 permutation that clusters nonzeros tightly along the diagonal.
 
@@ -15,7 +15,7 @@ permutation that clusters nonzeros tightly along the diagonal.
   reuse in `Ilu` / `ParIlu`.
 - **Banded direct solvers and out-of-core factorisation** where storage is dominated
   by the bandwidth.
-- As a **cheap preprocessing step** before a more elaborate reordering — RCM's BFS
+- As a **cheap preprocessing step** before a more elaborate reordering: RCM's BFS
   is essentially linear in the number of nonzeros, so it is far cheaper to compute
   than AMD or nested dissection.
 
@@ -56,6 +56,6 @@ arbitrary low-degree node.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::Rcm`](../../../api-reference/reorder/rcm.md).
-- [ILU preconditioner](../preconditioners/ilu.md) and [IC preconditioner](../preconditioners/ic.md) — typical consumers of an RCM pre-step on CPU.
-- [Reordering and permutations](../reordering.md) — overview and comparison table.
+- [ILU preconditioner](../preconditioners/ilu.md) and [IC preconditioner](../preconditioners/ic.md): typical consumers of an RCM pre-step on CPU.
+- [Reordering and permutations](../reordering.md): overview and comparison table.
 :::

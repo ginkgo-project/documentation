@@ -27,7 +27,7 @@ This single switch:
   build directory with `make format` (or `ninja format`). Behind the scenes
   this runs `pre-commit run`.
 
-`make format` re-stages nothing — after running it, verify the diff and `git
+`make format` re-stages nothing; after running it, verify the diff and `git
 add` the formatted files yourself before committing.
 
 ## Build the tests
@@ -43,7 +43,7 @@ cmake .. \
 - `GINKGO_BUILD_TESTS=ON` is the default and pulls in GoogleTest (it's
   fetched and built as a third-party dependency if not found on the system).
 - `GINKGO_BUILD_REFERENCE=ON` is implicitly forced on whenever tests are
-  enabled — the Reference backend is the parity baseline every other backend
+  enabled: the Reference backend is the parity baseline every other backend
   is checked against. Disabling it disables tests.
 - `GINKGO_FAST_TESTS=ON` shrinks the input sizes of the slowest tests
   (mostly the dense and Jacobi templates) so the suite returns in minutes
@@ -58,7 +58,7 @@ For a much faster smoke check during iteration, the build provides a
 make quick_test
 ```
 
-That subset doesn't touch any GPU — useful both for portable smoke testing
+That subset doesn't touch any GPU, which is useful both for portable smoke testing
 and for development on a machine where the GPU is busy with other work.
 
 ## Static analysis: clang-tidy and IWYU
@@ -101,7 +101,7 @@ cmake .. \
     -DGINKGO_BUILD_CUDA=OFF      # ASan does not compose with CUDA device code
 ```
 
-Use Clang as the host compiler for sanitizer builds when possible — its
+Use Clang as the host compiler for sanitizer builds when possible: its
 diagnostics are sharper and its `-static-libsan` works regardless of which
 sanitizer you picked.
 
@@ -117,7 +117,7 @@ pre-commit run clang-format          # run only clang-format on the staged diff
 ```
 
 The first run will download the pinned `clang-format` v14 binary into
-`~/.cache/pre-commit/` — subsequent runs are fast.
+`~/.cache/pre-commit/`; subsequent runs are fast.
 
 If your system clang-format is a different version, `dev_tools/scripts/clang-format.sh`
 calls the pre-commit-managed v14 explicitly, so you can wire it into your
@@ -142,13 +142,13 @@ cmake --build . -j8
 ctest -R 'core|reference'   # equivalent to make quick_test
 ```
 
-For deeper rebuild-speed tuning — ccache sizing, build-type tradeoffs,
-turning off backends you aren't touching — see
+For deeper rebuild-speed tuning (ccache sizing, build-type tradeoffs,
+turning off backends you aren't touching), see
 [Speed up rebuilds](speed-up-builds.md).
 
 :::{seealso}
-- [Build options](../../../getting-started/build-options.md) — every CMake flag in detail.
-- [Speed up rebuilds](speed-up-builds.md) — make the iteration cycle short.
-- [Submit a pull request](submit-a-pr.md) — what CI will check before a PR can merge.
-- [Write tests](write-tests.md) — the reference-parity test pattern.
+- [Build options](../../../getting-started/build-options.md): every CMake flag in detail.
+- [Speed up rebuilds](speed-up-builds.md): make the iteration cycle short.
+- [Submit a pull request](submit-a-pr.md): what CI will check before a PR can merge.
+- [Write tests](write-tests.md): the reference-parity test pattern.
 :::

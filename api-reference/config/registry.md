@@ -3,7 +3,7 @@
 Lookup table for externally-supplied named objects that the
 configuration document can refer to by string key. Without the
 registry, every operand of a configured factory would have to be
-inlined in the document — with it, the application can construct
+inlined in the document; with it, the application can construct
 e.g. the system matrix in C++ and have the document say
 `"system_matrix": "A"`.
 

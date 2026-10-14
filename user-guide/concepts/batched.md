@@ -1,7 +1,7 @@
-# Batched solvers — overview
+# Batched solvers: overview
 
-For workloads that need to solve many small independent linear systems — flame chemistry,
-multiphase Lagrangian particles, parameter sweeps — Ginkgo provides a batched subsystem.
+For workloads that need to solve many small independent linear systems (flame chemistry,
+multiphase Lagrangian particles, parameter sweeps), Ginkgo provides a batched subsystem.
 All systems are solved simultaneously inside a single fused GPU kernel, with no inter-batch
 communication. This page covers when batched is the right tool, the uniform-batch constraint,
 the storage layout, and the fused-kernel design.
@@ -11,7 +11,7 @@ the storage layout, and the fused-kernel design.
 Batched solvers are suited to:
 
 - Many systems (`> 100`) of small size (typically `≤ 10⁴` rows each).
-- All systems are independent — no coupling between batch items.
+- All systems are independent: no coupling between batch items.
 - Same matrix dimensions and same sparsity pattern across items (the uniform-batch constraint).
 
 If those conditions hold, batched almost always outperforms looping over single-system solves:
@@ -24,7 +24,7 @@ across batch items.
 All items in a batch must share:
 
 - the same matrix dimensions (`num_rows`, `num_cols`),
-- the same sparsity pattern — col indices and row pointers are stored **once**, shared across the
+- the same sparsity pattern: col indices and row pointers are stored **once**, shared across the
   batch,
 - the same number of non-zeros per item.
 :::
@@ -35,9 +35,9 @@ This is restrictive but it's what enables the fused-kernel design.
 
 For batched CSR, two arrays are batch-shared and one is per-item:
 
-- `col_idxs` — single shared copy, length `nnz`.
-- `row_ptrs` — single shared copy, length `num_rows + 1`.
-- `values`   — per-item, total length `batch_items * nnz`. Item `k`'s values start at offset
+- `col_idxs`: single shared copy, length `nnz`.
+- `row_ptrs`: single shared copy, length `num_rows + 1`.
+- `values`: per-item, total length `batch_items * nnz`. Item `k`'s values start at offset
   `k * nnz`.
 
 ```text
@@ -53,11 +53,11 @@ For batched dense, values are simply concatenated row-major per item.
 
 ## The fused-kernel design
 
-The defining feature of batched solvers: the entire iterative solve lives inside one device
-kernel — there is no host-side loop that re-launches the kernel each iteration.
+The defining feature of batched solvers: the entire iterative solve, every iteration
+included, runs inside a single device kernel launch.
 
 - **One workgroup per batch item.** A *workgroup* is the portable name for what CUDA calls a
-  *thread block* and HIP and SYCL also call a *work-group* — a fixed-size cluster of threads
+  *thread block* and HIP and SYCL also call a *work-group*, a fixed-size cluster of threads
   that share fast on-chip memory and can synchronise cheaply. Each batch item is solved
   independently inside its own workgroup.
 - **Sub-group reductions.** Within a workgroup the kernels further partition into a *sub-group*
@@ -66,9 +66,9 @@ kernel — there is no host-side loop that re-launches the kernel each iteration
   norms. The sub-group size is chosen at compile time per-backend.
 - **Backend-portable barriers.** The CUDA / HIP kernels synchronise the workgroup with
   `__syncthreads()`; the SYCL kernels use the equivalent `item.barrier(...)`. From the
-  high-level kernel source the call is the same — only the backend dispatch layer picks the
+  high-level kernel source the call is the same; only the backend dispatch layer picks the
   matching primitive.
-- The iteration loop runs **inside** the kernel — no per-iteration kernel launch.
+- The iteration loop runs **inside** the kernel: no per-iteration kernel launch.
 - Scalars (rho, alpha, residual norms) live in shared / local memory.
 - Vectors (residual, search direction) are split between shared and global memory based on a
   `storage_config` heuristic that balances against available shared memory.
@@ -83,23 +83,23 @@ Matrix formats:
 - `batch::matrix::Dense`
 - `batch::matrix::Csr`
 - `batch::matrix::Ell`
-- `batch::matrix::Identity` — for the no-matrix (identity preconditioner) case.
+- `batch::matrix::Identity`: for the no-matrix (identity preconditioner) case.
 
 Solvers:
 
-- `batch::solver::Cg` — for symmetric positive-definite systems.
-- `batch::solver::Bicgstab` — for general non-symmetric systems.
+- `batch::solver::Cg`: for symmetric positive-definite systems.
+- `batch::solver::Bicgstab`: for general non-symmetric systems.
 
 Preconditioners:
 
-- `batch::preconditioner::Jacobi` — scalar and block variants.
+- `batch::preconditioner::Jacobi`: scalar and block variants.
 
-The vector type is `batch::MultiVector<V>`, *not* `matrix::Dense`. These are distinct types — do
+The vector type is `batch::MultiVector<V>`, *not* `matrix::Dense`. These are distinct types; do
 not mix them.
 
 ## Construction example
 
-A batched matrix is built from three pre-packed `gko::array`s — the values concatenated across
+A batched matrix is built from three pre-packed `gko::array`s, namely the values concatenated across
 all items, plus the single shared `col_idxs` and `row_ptrs` for one item:
 
 ```cpp
@@ -158,7 +158,7 @@ the apply call.
 
 - Not a replacement for distributed solves. The batch dimension is **independent** items, not
   coupled subdomains.
-- Not for batches of *different* matrices — the uniform-batch constraint rules that out.
+- Not for batches of *different* matrices; the uniform-batch constraint rules that out.
 - Not currently for triangular factorisations or AMG (not implemented for batched).
 
 ## Batched sub-pages
@@ -184,7 +184,7 @@ batched/convergence
 - [Utilizing Batched Solver Ideas for Efficient Solution of Non-Batched Linear Systems](https://doi.org/10.1109/IPDPSW59300.2023.00113)
 
 :::{seealso}
-- [Solvers — taxonomy](solvers.md) — single-system solvers; batched lives in parallel.
-- [Stopping criteria](stopping-criteria.md) — batched uses simpler compile-time criteria.
+- [Solver taxonomy](solvers.md): single-system solvers; batched lives in parallel.
+- [Stopping criteria](stopping-criteria.md): batched uses simpler compile-time criteria.
 - API reference: [`gko::batch`](../../api-reference/batch/index.md)
 :::

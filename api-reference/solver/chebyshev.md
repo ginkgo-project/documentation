@@ -2,7 +2,7 @@
 
 Chebyshev iteration. A non-Krylov stationary method that uses a
 two-term recurrence with parameters derived from an estimate of the
-spectrum of the (preconditioned) operator. No inner products — useful
+spectrum of the (preconditioned) operator. Needs no inner products, which makes it useful
 as a smoother in multigrid and as an outer iteration when global
 reductions are expensive.
 

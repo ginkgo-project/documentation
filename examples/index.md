@@ -4,7 +4,7 @@ Annotated walkthroughs of every example shipped under `examples/` in the Ginkgo 
 
 ## Navigation graph
 
-Edges flow from each example to the ones that build on it — follow the arrows to go from the simplest setups toward more advanced material. Click any node to jump to its page.
+Edges flow from each example to the ones that build on it. Follow the arrows to go from the simplest setups toward more advanced material. Click any node to jump to its page.
 
 ```{mermaid}
 %%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'fontFamily': 'system-ui'}, 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 60, 'useMaxWidth': false, 'htmlLabels': true, 'padding': 16}}}%%
@@ -180,64 +180,64 @@ graph TB
 
 ### Basic solver setups
 
-- [iterative-refinement](iterative-refinement.md) — The iterative refinement solver example.
-- [minimal-cuda-solver](minimal-cuda-solver.md) — The minimal CUDA solver example.
-- [nine-pt-stencil-solver](nine-pt-stencil-solver.md) — The 9-point stencil example.
-- [poisson-solver](poisson-solver.md) — The poisson solver example.
-- [simple-solver](simple-solver.md) — The simple solver example.
-- [three-pt-stencil-solver](three-pt-stencil-solver.md) — The 3-point stencil example.
+- [iterative-refinement](iterative-refinement.md): The iterative refinement solver example.
+- [minimal-cuda-solver](minimal-cuda-solver.md): The minimal CUDA solver example.
+- [nine-pt-stencil-solver](nine-pt-stencil-solver.md): The 9-point stencil example.
+- [poisson-solver](poisson-solver.md): The poisson solver example.
+- [simple-solver](simple-solver.md): The simple solver example.
+- [three-pt-stencil-solver](three-pt-stencil-solver.md): The 3-point stencil example.
 
 ### Preconditioners
 
-- [ilu-preconditioned-solver](ilu-preconditioned-solver.md) — The ILU-preconditioned solver example.
-- [ir-ilu-preconditioned-solver](ir-ilu-preconditioned-solver.md) — The IR-ILU preconditioned solver example.
-- [mixed-multigrid-preconditioned-solver](mixed-multigrid-preconditioned-solver.md) — The preconditioned solver example.
-- [multigrid-preconditioned-solver](multigrid-preconditioned-solver.md) — The preconditioned solver example.
-- [multigrid-preconditioned-solver-customized](multigrid-preconditioned-solver-customized.md) — The customized multigrid preconditioned solver example.
-- [par-ilu-convergence](par-ilu-convergence.md) — The ParILU convergence example.
-- [preconditioned-solver](preconditioned-solver.md) — The preconditioned solver example.
-- [preconditioner-export](preconditioner-export.md) — The preconditioner export example.
-- [reordered-preconditioned-solver](reordered-preconditioned-solver.md) — The reordered preconditioned solver example.
+- [ilu-preconditioned-solver](ilu-preconditioned-solver.md): The ILU-preconditioned solver example.
+- [ir-ilu-preconditioned-solver](ir-ilu-preconditioned-solver.md): The IR-ILU preconditioned solver example.
+- [mixed-multigrid-preconditioned-solver](mixed-multigrid-preconditioned-solver.md): The preconditioned solver example.
+- [multigrid-preconditioned-solver](multigrid-preconditioned-solver.md): The preconditioned solver example.
+- [multigrid-preconditioned-solver-customized](multigrid-preconditioned-solver-customized.md): The customized multigrid preconditioned solver example.
+- [par-ilu-convergence](par-ilu-convergence.md): The ParILU convergence example.
+- [preconditioned-solver](preconditioned-solver.md): The preconditioned solver example.
+- [preconditioner-export](preconditioner-export.md): The preconditioner export example.
+- [reordered-preconditioned-solver](reordered-preconditioned-solver.md): The reordered preconditioned solver example.
 
 ### Stopping criteria
 
-- [custom-stopping-criterion](custom-stopping-criterion.md) — The custom stopping criterion creation example.
+- [custom-stopping-criterion](custom-stopping-criterion.md): The custom stopping criterion creation example.
 
 ### Mixed precision
 
-- [adaptiveprecision-blockjacobi](adaptiveprecision-blockjacobi.md) — The preconditioned solver example.
-- [mixed-multigrid-solver](mixed-multigrid-solver.md) — The mixed multigrid solver example.
-- [mixed-precision-ir](mixed-precision-ir.md) — The Mixed Precision Iterative Refinement (MPIR) solver example.
-- [mixed-spmv](mixed-spmv.md) — The mixed spmv example.
+- [adaptiveprecision-blockjacobi](adaptiveprecision-blockjacobi.md): The preconditioned solver example.
+- [mixed-multigrid-solver](mixed-multigrid-solver.md): The mixed multigrid solver example.
+- [mixed-precision-ir](mixed-precision-ir.md): The Mixed Precision Iterative Refinement (MPIR) solver example.
+- [mixed-spmv](mixed-spmv.md): The mixed spmv example.
 
 ### Logging and observability
 
-- [custom-logger](custom-logger.md) — The simple solver with a custom logger example.
-- [papi-logging](papi-logging.md) — The papi logging example.
-- [performance-debugging](performance-debugging.md) — The simple solver with performance debugging example.
-- [simple-solver-logging](simple-solver-logging.md) — The simple solver with logging example.
+- [custom-logger](custom-logger.md): The simple solver with a custom logger example.
+- [papi-logging](papi-logging.md): The papi logging example.
+- [performance-debugging](performance-debugging.md): The simple solver with performance debugging example.
+- [simple-solver-logging](simple-solver-logging.md): The simple solver with logging example.
 
 ### Techniques and integrations
 
-- [cb-gmres](cb-gmres.md) — The CB-GMRES solver example.
-- [custom-matrix-format](custom-matrix-format.md) — The custom matrix format example.
-- [external-lib-interfacing](external-lib-interfacing.md) — The external library(deal.II) interfacing example.
-- [file-config-solver](file-config-solver.md) — The file config solver example.
-- [ginkgo-overhead](ginkgo-overhead.md) — The ginkgo overhead measurement example.
-- [ginkgo-ranges](ginkgo-ranges.md) — The ranges and accessor example.
-- [heat-equation](heat-equation.md) — The heat equation example.
-- [inverse-iteration](inverse-iteration.md) — The inverse iteration example.
-- [kokkos-assembly](kokkos-assembly.md) — The Kokkos assembly example.
-- [schroedinger-splitting](schroedinger-splitting.md) — The Schroedinger equation example.
+- [cb-gmres](cb-gmres.md): The CB-GMRES solver example.
+- [custom-matrix-format](custom-matrix-format.md): The custom matrix format example.
+- [external-lib-interfacing](external-lib-interfacing.md): The external library(deal.II) interfacing example.
+- [file-config-solver](file-config-solver.md): The file config solver example.
+- [ginkgo-overhead](ginkgo-overhead.md): The ginkgo overhead measurement example.
+- [ginkgo-ranges](ginkgo-ranges.md): The ranges and accessor example.
+- [heat-equation](heat-equation.md): The heat equation example.
+- [inverse-iteration](inverse-iteration.md): The inverse iteration example.
+- [kokkos-assembly](kokkos-assembly.md): The Kokkos assembly example.
+- [schroedinger-splitting](schroedinger-splitting.md): The Schroedinger equation example.
 
 ### Batched functionality
 
-- [batched-solver](batched-solver.md) — Using and interfacing with a batched solver.
+- [batched-solver](batched-solver.md): Using and interfacing with a batched solver.
 
 ### Distributed solvers
 
-- [distributed-multigrid-preconditioned-solver](distributed-multigrid-preconditioned-solver.md) — The distributed multigrid preconditioned solver with customized components example.
-- [distributed-solver](distributed-solver.md) — The distributed solver example.
+- [distributed-multigrid-preconditioned-solver](distributed-multigrid-preconditioned-solver.md): The distributed multigrid preconditioned solver with customized components example.
+- [distributed-solver](distributed-solver.md): The distributed solver example.
 
 ```{toctree}
 :maxdepth: 1

@@ -20,7 +20,7 @@ against Open MPI older than 4.1, where Ginkgo disables its neighbourhood exchang
   is dominating, the dense pattern is a perfectly reasonable choice.
 
 For high rank counts with sparse halo connectivity (typical FE / FD meshes), prefer
-[`NeighborhoodCommunicator`](neighborhood-communicators.md) — it lets MPI skip the zero-size
+[`NeighborhoodCommunicator`](neighborhood-communicators.md); it lets MPI skip the zero-size
 entries entirely.
 
 ## Construction
@@ -38,10 +38,10 @@ auto coll_comm = std::make_shared<mpi::DenseCommunicator>(base_comm, imap);
 
 The constructor reads the index map's `remote_target_ids` and `remote_global_idxs` to compute the
 recv-side per-rank sizes, then performs an `MPI_Alltoall` over the size vector to discover the
-send-side sizes. After this point the communicator is "primed" — every subsequent
+send-side sizes. After this point the communicator is "primed": every subsequent
 `i_all_to_all_v(...)` call uses the cached size and offset vectors.
 
-A null-pattern constructor is also available — `DenseCommunicator(base_comm)` builds a
+A null-pattern constructor is also available: `DenseCommunicator(base_comm)` builds a
 communicator with empty send and receive sets. It exists mainly so that distributed types can be
 default-constructed before their pattern is known.
 
@@ -49,9 +49,9 @@ default-constructed before their pattern is known.
 
 Internally the dense communicator caches four `std::vector<comm_index_type>` per rank:
 
-- `send_sizes_` and `send_offsets_` — how many values this rank sends to each peer rank, and the
+- `send_sizes_` and `send_offsets_`: how many values this rank sends to each peer rank, and the
   start index of that block in the send buffer.
-- `recv_sizes_` and `recv_offsets_` — the receive-side equivalents.
+- `recv_sizes_` and `recv_offsets_`: the receive-side equivalents.
 
 `get_send_size()` and `get_recv_size()` return the cumulative totals (the back element of the
 respective offsets vector), which is the exact buffer size each side needs to allocate. The
@@ -80,14 +80,14 @@ For $P$ ranks, the per-call work is:
 
 The `MPI_Alltoallv` collective itself is internally implemented by most MPI runtimes as either a
 direct exchange between active senders and receivers (fast for sparse patterns) or a reduction
-tree (better for dense patterns). The Ginkgo side does not control the choice — it just supplies
+tree (better for dense patterns). The Ginkgo side does not control the choice; it just supplies
 the per-rank size vector and lets MPI pick.
 
 :::{seealso}
-- [Collective communicators](collective-communicator.md) — the abstract interface, picker
+- [Collective communicators](collective-communicator.md): the abstract interface, picker
   guidance, and the inverse-pattern protocol.
-- [Neighborhood communicator](neighborhood-communicators.md) — the sparse-topology alternative.
-- [Communication primitives](communication-primitives.md) — how the dense `i_all_to_all_v` is
+- [Neighborhood communicator](neighborhood-communicators.md): the sparse-topology alternative.
+- [Communication primitives](communication-primitives.md): how the dense `i_all_to_all_v` is
   consumed by distributed SpMV.
 - API reference: [`gko::experimental::mpi::DenseCommunicator`](../../../api-reference/mpi/dense-communicator.md)
 :::

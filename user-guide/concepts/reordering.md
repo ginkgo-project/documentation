@@ -39,12 +39,12 @@ controls **how** the permutation is applied. The enum is a 3-bit mask combining
 | `permute_mode::none` | $A' = A$ | No-op (mask cleared). |
 | `permute_mode::rows` | $A' = P A$ | Permute rows only. |
 | `permute_mode::columns` | $A' = A P^T$ | Permute columns only. |
-| `permute_mode::symmetric` *(default)* | $A' = P A P^T$ | Symmetric reordering — the standard pre-factorisation transform. |
+| `permute_mode::symmetric` *(default)* | $A' = P A P^T$ | Symmetric reordering, the standard pre-factorisation transform. |
 | `permute_mode::inverse_rows` | $A' = P^{-1} A$ | Undo a previous row permutation. |
 | `permute_mode::inverse_columns` | $A' = A P^{-T}$ | Undo a previous column permutation. |
 | `permute_mode::inverse_symmetric` | $A' = P^{-1} A P^{-T}$ | Undo a symmetric reordering (e.g., to map a solution computed in the permuted system back to the original variable order). |
 
-The fundamental modes can be combined with the bitwise `|`, `&`, and `^` operators —
+The fundamental modes can be combined with the bitwise `|`, `&`, and `^` operators:
 `rows | inverse` is the same as `inverse_rows`, and so on.
 
 `gko::matrix::Permutation<IndexType>` exposes two more helpers for working with
@@ -57,7 +57,7 @@ auto comp = perm1->compose(perm2);           // P_2 * P_1 — apply perm1 first,
 
 `compute_inverse()` returns `P^{-1}` as a new `Permutation` object. `compose(other)`
 combines two permutations so that applying the result is equivalent to applying
-`this` first and then `other` — useful when you want to chain a fill-reducing
+`this` first and then `other`, which is useful when you want to chain a fill-reducing
 reordering with a separate parallel-partitioning reordering, for instance.
 
 For non-symmetric problems where rows and columns should be permuted by **different**
@@ -113,11 +113,11 @@ dissection) typically keeps the factorisation tractable.
 
 The recommended pre-processing recipe for a sparse direct solver is:
 
-1. **Match (optional)** — compute MC64 and apply its scaled permutations with
+1. **Match (optional)**: compute MC64 and apply its scaled permutations with
    `Csr::scale_permute`.
-2. **Reorder** — apply the AMD or nested dissection permutation with `Csr::permute`.
-3. **Factorise** — pass the permuted matrix to the LU/Cholesky factorisation.
-4. **Solve** — permute `b` in the same way as the rows of the matrix, call
+2. **Reorder**: apply the AMD or nested dissection permutation with `Csr::permute`.
+3. **Factorise**: pass the permuted matrix to the LU/Cholesky factorisation.
+4. **Solve**: permute `b` in the same way as the rows of the matrix, call
    `apply(b_permuted, y)` on the factorised solver, and map `y` back to the original
    variable order with the inverse permutation to obtain `x`. When step 1 uses MC64's
    `max_diagonal_product` strategy, `y` is also mapped back through MC64's column
@@ -131,10 +131,10 @@ dissection, apply the transforms with `Csr::scale_permute` and `Csr::permute` as
 
 Reordering helps Krylov methods less directly, but is still useful in two scenarios:
 
-- **As a preprocessing step for an ILU/IC preconditioner** — incomplete factorisations
+- **As a preprocessing step for an ILU/IC preconditioner**: incomplete factorisations
   also benefit from fill-reducing reorderings; an RCM or AMD pass before computing
   the preconditioner can substantially change its quality.
-- **For cache locality on long triangular solves** — RCM compacts the bandwidth of the
+- **For cache locality on long triangular solves**: RCM compacts the bandwidth of the
   matrix, which can speed up the `LowerTrs` / `UpperTrs` kernels used inside ILU and
   direct solves on CPU.
 
@@ -152,7 +152,7 @@ reordering/scaled-reordered
 ```
 
 :::{seealso}
-- [Direct (LU / Cholesky)](solvers/direct.md) — the primary consumer of fill-reducing reorderings.
-- [Solvers — taxonomy](solvers.md) — where reordering fits relative to the solver families.
+- [Direct (LU / Cholesky)](solvers/direct.md): the primary consumer of fill-reducing reorderings.
+- [Solver taxonomy](solvers.md): where reordering fits relative to the solver families.
 - API reference: [`gko::experimental::reorder`](../../api-reference/reorder/index.md).
 :::

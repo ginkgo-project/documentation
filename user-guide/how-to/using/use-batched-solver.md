@@ -59,7 +59,7 @@ offset `k * n * 1` in the multi-vector's value buffer.
 | `batch::solver::Cg<V>` | Each item is SPD. |
 | `batch::solver::Bicgstab<V>` | Each item is general non-symmetric. |
 
-Both accept a preconditioner via `with_preconditioner` — currently
+Both accept a preconditioner via `with_preconditioner`; currently
 `batch::preconditioner::Jacobi` is the only batched preconditioner.
 
 ## Read per-item convergence
@@ -121,6 +121,6 @@ the batched matrix is in use.
   over single-system solves is much smaller there.
 
 :::{seealso}
-- [Batched solvers — overview](../../concepts/batched.md) — uniform-batch constraint and storage layout.
+- [Batched solvers: overview](../../concepts/batched.md) (uniform-batch constraint and storage layout).
 - [`batch::solver::Cg`](../../concepts/batched/cg.md), [`batch::solver::Bicgstab`](../../concepts/batched/bicgstab.md), [`batch::log::BatchConvergence`](../../concepts/batched/convergence.md).
 :::

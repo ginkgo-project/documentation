@@ -6,41 +6,41 @@ system matrix; iterative solvers also take stopping criteria. Each exposes a typ
 and how to pick a solver see the
 [Solvers overview](../../user-guide/concepts/solvers.md) concept page.
 
-## Krylov — symmetric / SPD systems
+## Krylov: symmetric / SPD systems
 
-- [`Cg`](cg.md) — conjugate gradient.
-- [`Fcg`](fcg.md) — flexible conjugate gradient (variable preconditioner).
-- [`PipeCg`](pipe-cg.md) — pipelined CG (overlapped reductions).
-- [`Minres`](minres.md) — minimum residual (symmetric indefinite).
+- [`Cg`](cg.md): conjugate gradient.
+- [`Fcg`](fcg.md): flexible conjugate gradient (variable preconditioner).
+- [`PipeCg`](pipe-cg.md): pipelined CG (overlapped reductions).
+- [`Minres`](minres.md): minimum residual (symmetric indefinite).
 
-## Krylov — non-symmetric systems
+## Krylov: non-symmetric systems
 
-- [`Bicg`](bicg.md) — biconjugate gradient.
-- [`Bicgstab`](bicgstab.md) — stabilised biconjugate gradient.
-- [`Cgs`](cgs.md) — conjugate gradient squared.
-- [`Gmres`](gmres.md) — generalised minimal residual.
-- [`CbGmres`](cb-gmres.md) — compressed-basis GMRES (mixed precision).
-- [`Idr`](idr.md) — induced dimension reduction.
-- [`Gcr`](gcr.md) — generalised conjugate residual.
+- [`Bicg`](bicg.md): biconjugate gradient.
+- [`Bicgstab`](bicgstab.md): stabilised biconjugate gradient.
+- [`Cgs`](cgs.md): conjugate gradient squared.
+- [`Gmres`](gmres.md): generalised minimal residual.
+- [`CbGmres`](cb-gmres.md): compressed-basis GMRES (mixed precision).
+- [`Idr`](idr.md): induced dimension reduction.
+- [`Gcr`](gcr.md): generalised conjugate residual.
 
 ## Stationary and miscellaneous
 
-- [`Ir`](ir.md) — iterative refinement / Richardson iteration.
-- [`Chebyshev`](chebyshev.md) — Chebyshev iteration.
+- [`Ir`](ir.md): iterative refinement / Richardson iteration.
+- [`Chebyshev`](chebyshev.md): Chebyshev iteration.
 
 ## Triangular substitution
 
-- [`LowerTrs`](lower-trs.md) — lower-triangular solve.
-- [`UpperTrs`](upper-trs.md) — upper-triangular solve.
+- [`LowerTrs`](lower-trs.md): lower-triangular solve.
+- [`UpperTrs`](upper-trs.md): upper-triangular solve.
 
 ## Direct (factorisation-based)
 
-- [`experimental::solver::Direct`](direct.md) — pairs a sparse
+- [`experimental::solver::Direct`](direct.md): pairs a sparse
   factorisation with `LowerTrs` / `UpperTrs` to act as a `LinOp`.
 
 ## Multigrid
 
-- [`Multigrid`](multigrid.md) — geometric / algebraic multigrid framework.
+- [`Multigrid`](multigrid.md): geometric / algebraic multigrid framework.
 
 ```{toctree}
 :hidden:

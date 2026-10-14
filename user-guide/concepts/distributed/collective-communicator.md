@@ -11,8 +11,8 @@ without the caller having to know which one runs.
 A halo exchange is a deterministic, repeated communication pattern: rank $r$ always sends the same
 local indices to the same set of neighbours, and always receives the same remote indices from the
 same neighbours. Once that pattern is computed (from the matrix's `index_map`), every subsequent
-`apply` reuses it. The `CollectiveCommunicator` is the object that owns the pattern — the per-rank
-send sizes, send offsets, recv sizes, recv offsets — so that the data path of `apply` is just:
+`apply` reuses it. The `CollectiveCommunicator` is the object that owns the pattern (the per-rank
+send sizes, send offsets, recv sizes, recv offsets), so that the data path of `apply` is just:
 
 ```cpp
 auto req = coll_comm->i_all_to_all_v(exec, send_buffer, recv_buffer);
@@ -59,7 +59,7 @@ buffer. Implementations override `i_all_to_all_v_impl` (the typed `void*` form) 
 actual MPI call.
 
 `create_inverse()` is what `RowGatherer` uses to derive the *send* index pattern from the *receive*
-index pattern stored in the matrix's `index_map` — see
+index pattern stored in the matrix's `index_map`; see
 [RowGatherer](row-gather-scatter.md).
 
 ## Picking an implementation
@@ -107,11 +107,11 @@ neighborhood-communicators
 ```
 
 :::{seealso}
-- [The MPI layer](mpi-layer.md) — `mpi::communicator`, `mpi::request`, the broader collective
+- [The MPI layer](mpi-layer.md): `mpi::communicator`, `mpi::request`, the broader collective
   surface this object sits on top of.
-- [Communication primitives](communication-primitives.md) — how `i_all_to_all_v` is consumed by
+- [Communication primitives](communication-primitives.md): how `i_all_to_all_v` is consumed by
   distributed SpMV.
-- [RowGatherer](row-gather-scatter.md) — the helper that uses a collective
+- [RowGatherer](row-gather-scatter.md): the helper that uses a collective
   communicator to perform the halo exchange.
 - API reference: [`gko::experimental::mpi::CollectiveCommunicator`](../../../api-reference/mpi/collective-communicator.md)
 :::

@@ -10,7 +10,7 @@ schedule the communication accordingly.
 `NeighborhoodCommunicator` is the collective communicator the distributed
 `Matrix` uses by default. When Ginkgo is configured against Open MPI older than
 4.1 the default is `DenseCommunicator` instead. `NeighborhoodCommunicator` suits large rank counts
-where the communication graph is sparse — typical of distributed PDE
+where the communication graph is sparse, as is typical of distributed PDE
 discretisations, where each rank only talks to its geometric
 neighbours. On dense graphs or modest process counts,
 [`DenseCommunicator`](dense-communicator.md) is simpler and often

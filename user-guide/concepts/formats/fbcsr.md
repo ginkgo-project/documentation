@@ -2,7 +2,7 @@
 
 Fbcsr is CSR over **dense sub-blocks** instead of scalars. The matrix is viewed
 as an $r \times r$ grid of $\mathrm{bs} \times \mathrm{bs}$ tiles, and the
-block-level sparsity pattern is stored exactly like CSR — except that each
+block-level sparsity pattern is stored exactly like CSR, except that each
 "non-zero" is a whole dense block. The format pays off whenever the matrix has
 a natural block structure where a few dense sub-blocks repeat across the
 sparsity pattern: finite-element matrices with multiple unknowns per node,
@@ -14,12 +14,12 @@ discretisation on a small per-DOF state space.
 Three arrays, parameterised by the fixed block size $\mathrm{bs}$ (which must
 divide both `n_rows` and `n_cols`):
 
-- **`row_ptrs`** — length $r + 1$, where $r = n_\text{rows} / \mathrm{bs}$ is
+- **`row_ptrs`**: length $r + 1$, where $r = n_\text{rows} / \mathrm{bs}$ is
   the number of block-rows. `row_ptrs[i]` is the index of the first stored
   block in block-row $i$; `row_ptrs[r]` equals the total stored-block count.
-- **`col_idxs`** — length equal to the number of stored blocks. The
+- **`col_idxs`**: length equal to the number of stored blocks. The
   block-column index of each block, ordered block-row by block-row.
-- **`values`** — length `num_blocks * bs * bs`. The dense data of each
+- **`values`**: length `num_blocks * bs * bs`. The dense data of each
   stored block, **column-major** within each block, with blocks concatenated in
   the same order as `col_idxs`.
 
@@ -38,7 +38,7 @@ Matrix (4 × 4, bs = 2):       Block layout (2 × 2 block grid):
                                            5, 9, 6, 10 ]  (block (1,1) col-major)
 ```
 
-The blocks themselves are dense — every entry of a stored block is held in
+The blocks themselves are dense; every entry of a stored block is held in
 `values`, including any zeros inside it. That redundancy is the price for
 fast block-SpMV: each block becomes a tight $\mathrm{bs} \times \mathrm{bs}$
 dense matrix-vector product that vector hardware can dispatch as a single
@@ -46,7 +46,7 @@ unrolled kernel.
 
 ## When to use Fbcsr
 
-- **Vector-valued PDEs** — solid mechanics with $\mathrm{bs} = 2$ or $3$ DOFs
+- **Vector-valued PDEs**: solid mechanics with $\mathrm{bs} = 2$ or $3$ DOFs
   per node, fluid dynamics with $4$ or $5$ unknowns per cell, electromagnetic
   problems with $6$ field components.
 - **Finite-element matrices** where the local element matrix has a fixed,
@@ -80,11 +80,11 @@ beforehand; both `n_rows` and `n_cols` must be divisible by it
 Per stored block, SpMV performs a $\mathrm{bs} \times \mathrm{bs}$ dense
 matrix-vector product. The vector accesses are reused $\mathrm{bs}$ times
 per block (once per output row), and the column-major block layout means a
-warp can stream the block's columns sequentially — both effects increase the
+warp can stream the block's columns sequentially; both effects increase the
 arithmetic intensity compared to scalar CSR. For block sizes that match a
 warp / SIMD width well (typically 4, 8, or 16 in mixed-precision builds), the
-saved memory traffic on the index arrays — only `num_blocks` column indices
-instead of `num_blocks * bs * bs` — is often the larger gain.
+saved memory traffic on the index arrays (only `num_blocks` column indices
+instead of `num_blocks * bs * bs`) is often the larger gain.
 
 ## Conversion behaviour
 
@@ -105,14 +105,14 @@ fbcsr2->copy_from(csr);
 
 `CSR → Fbcsr` walks the CSR pattern, accumulates non-zeros into the
 appropriate block tile, and stores any block that contains at least one
-non-zero — so a block's in-block zeros are introduced silently. If the
+non-zero, so a block's in-block zeros are introduced silently. If the
 scalar pattern does not align cleanly with $\mathrm{bs}$-sized blocks, the
 resulting Fbcsr can have many sparsely-populated blocks; profile before
 relying on the block format in that case.
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — when to pick Fbcsr vs alternatives.
-- [CSR](csr.md) — the scalar workhorse; the natural fallback when block
+- [Matrix formats](../matrix-formats.md): when to pick Fbcsr vs alternatives.
+- [CSR](csr.md): the scalar workhorse; the natural fallback when block
   structure is absent.
 - API reference: [`gko::matrix::Fbcsr`](../../../api-reference/matrix/fbcsr.md).
 :::

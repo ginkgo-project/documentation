@@ -38,8 +38,8 @@ Construction does three pieces of work:
 1. **Recv-side bookkeeping.** Reads `imap.get_remote_target_ids()` and the segment offsets in
    `imap.get_remote_global_idxs()` to fill in the per-neighbour `recv_sizes_` and the recv target
    id list.
-2. **Send-side discovery.** Performs a global `MPI_Alltoall` over a size vector — exactly once,
-   at construction — to discover which ranks need to receive *from* this rank, and how many values
+2. **Send-side discovery.** Performs a global `MPI_Alltoall` over a size vector (exactly once,
+   at construction) to discover which ranks need to receive *from* this rank, and how many values
    each one wants. This is the unavoidable global step: every rank must learn its inverse
    communication envelope.
 3. **Graph topology creation.** Calls `MPI_Dist_graph_create_adjacent` with the recv-from list as
@@ -47,7 +47,7 @@ Construction does three pieces of work:
    subsequent `MPI_Ineighbor_alltoallv` calls run over.
 
 Once construction returns, every subsequent `i_all_to_all_v(...)` call only involves the actual
-neighbours — typically a small constant per rank, regardless of the total rank count.
+neighbours: typically a small constant per rank, regardless of the total rank count.
 
 A null-pattern constructor `NeighborhoodCommunicator(base_comm)` is also available; it builds an
 empty topology so the object is in a valid state before its pattern is set.
@@ -79,7 +79,7 @@ For $P$ ranks where each rank has on average $k$ neighbours:
 
 So the neighborhood communicator pays a higher **setup** cost (the topology graph creation) in
 exchange for a lower **per-exchange** cost. For matrices that are reused across many `apply` calls
-— which is the standard case in iterative solvers — the cross-over comes quickly.
+(which is the standard case in iterative solvers), the cross-over comes quickly.
 
 ## Inverse patterns
 
@@ -88,10 +88,10 @@ roles. This is what `RowGatherer` uses internally to derive the *send* index pat
 *receive* indices stored in the matrix's `index_map`.
 
 :::{seealso}
-- [Collective communicators](collective-communicator.md) — the abstract interface and picker
+- [Collective communicators](collective-communicator.md): the abstract interface and picker
   guidance.
-- [Dense communicator](dense-communicator.md) — the portable alternative, and the default on Open MPI older than 4.1.
-- [RowGatherer](row-gather-scatter.md) — the helper that uses the inverse
+- [Dense communicator](dense-communicator.md): the portable alternative, and the default on Open MPI older than 4.1.
+- [RowGatherer](row-gather-scatter.md): the helper that uses the inverse
   pattern derived above.
 - API reference: [`gko::experimental::mpi::NeighborhoodCommunicator`](../../../api-reference/mpi/neighborhood-communicator.md)
 :::

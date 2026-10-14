@@ -81,7 +81,7 @@ master_doc = "index"
 maximum_signature_line_length = 70
 exclude_patterns = [
     "_build", ".venv", "Thumbs.db", ".DS_Store",
-    "docs/superpowers", "README.md", "feedback.md",
+    "README.md", "feedback.md",
     "_doxygen/xml", "_doxygen/Doxyfile",
     # `code-samples/<name>/` directories hold runnable companions to
     # how-to pages — C++ sources, CMakeLists, and a README. Sphinx

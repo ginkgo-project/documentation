@@ -11,9 +11,9 @@ The distributed `Matrix` gathers, through its `RowGatherer`, the halo values
 that the non-local SpMV consumes; the `RowGatherer` holds a `CollectiveCommunicator`
 and invokes `i_all_to_all_v`. The exchange is issued before the local SpMV and
 completes before the non-local SpMV starts. Two
-concrete implementations ship with Ginkgo —
+concrete implementations ship with Ginkgo:
 [`DenseCommunicator`](dense-communicator.md) and
-[`NeighborhoodCommunicator`](neighborhood-communicator.md) — and
+[`NeighborhoodCommunicator`](neighborhood-communicator.md);
 applications can supply their own by deriving from this interface.
 
 ```{doxygenclass} gko::experimental::mpi::CollectiveCommunicator

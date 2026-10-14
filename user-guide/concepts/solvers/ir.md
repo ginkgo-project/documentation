@@ -97,7 +97,7 @@ See [Mixed-precision design](../mixed-precision.md) for the full picture.
 
 ### Multigrid smoother
 
-A common use of the Richardson form is as a multigrid smoother — a fixed
+A common use of the Richardson form is as a multigrid smoother: a fixed
 number of iterations of `inner_solver` with a relaxation factor below 1 to damp
 high-frequency error. The header provides a `build_smoother` shortcut:
 
@@ -124,9 +124,9 @@ relaxation factor, and the supplied inner solver factory.
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | Outer-loop stopping criteria — see [Stopping criteria](../stopping-criteria.md). Required. |
+| `criteria` | vector of `stop::CriterionFactory` | Outer-loop stopping criteria; see [Stopping criteria](../stopping-criteria.md). Required. |
 | `solver` | `LinOpFactory` | Inner solver factory. Generated against the system matrix at IR's `generate()` time. Default identity. |
-| `generated_solver` | `LinOp` | Pre-built inner solver. Bypasses `solver` if set — useful when the inner solver is shared across IR instances or has external state. Default `nullptr`. |
+| `generated_solver` | `LinOp` | Pre-built inner solver. Bypasses `solver` if set, which is useful when the inner solver is shared across IR instances or has external state. Default `nullptr`. |
 | `relaxation_factor` | `ValueType` | Update damping. `1.0` ⇒ pure IR; other values ⇒ Richardson. Default `1.0`. |
 | `default_initial_guess` | `initial_guess_mode` | What to assume about the input `x` when `apply` is called. `provided` (use `x` as initial guess), `zero` (treat `x` as zero), or `rhs` (start from `x = b`). Default `provided`. |
 
@@ -145,7 +145,7 @@ x_{k+1} = x_k + \omega (b - A x_k).
 $$
 
 This converges for every initial guess if and only if every eigenvalue $\lambda$ of $A$ satisfies
-$|\omega \lambda - 1| < 1$ — a strict spectral condition that most realistic
+$|\omega \lambda - 1| < 1$, a strict spectral condition that most realistic
 matrices do not meet. The default-identity configuration is rarely useful on
 its own; treat it as the "you forgot to set an inner solver" sentinel rather
 than a recommended path.
@@ -172,28 +172,28 @@ The `zero` mode is worth knowing about:
 
 ## When to use IR
 
-- **Mixed-precision refinement** — run the inner solve in `float` (or `bfloat16`),
+- **Mixed-precision refinement**: run the inner solve in `float` (or `bfloat16`),
   drive convergence in `double`. The dominant motivation for IR on accelerators.
-- **Cheap-inner / tight-outer** — a fast inner solver with a strong
+- **Cheap-inner / tight-outer**: a fast inner solver with a strong
   preconditioner produces a low-accuracy correction; IR's outer loop pushes the
   accuracy down further without rebuilding the inner solver.
-- **Multigrid smoother** — the Richardson form, configured via `build_smoother`,
+- **Multigrid smoother**: the Richardson form, configured via `build_smoother`,
   is the canonical way to use a preconditioner as a multigrid smoother.
-- **Wrapping an external solver** — if you have a non-Ginkgo solver as a
+- **Wrapping an external solver**: if you have a non-Ginkgo solver as a
   `LinOp` (for example a class derived from `gko::EnableLinOp`), IR provides the residual-correct outer
   loop without modifying the solver itself.
 
 Avoid IR when:
 
-- The inner solver is already accurate enough — IR adds an extra residual SpMV
+- The inner solver is already accurate enough; IR adds an extra residual SpMV
   per outer step that pure CG/GMRES would not need.
-- You want a stand-alone Krylov method — IR is a wrapper, not an algorithm of
+- You want a stand-alone Krylov method; IR is a wrapper, not an algorithm of
   its own.
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where IR fits among the families.
-- [Mixed-precision design](../mixed-precision.md) — the dominant IR use case.
-- [Multigrid](multigrid.md) — IR as a smoother (`build_smoother`).
-- [Stopping criteria](../stopping-criteria.md) — required configuration.
+- [Solver taxonomy](../solvers.md): where IR fits among the families.
+- [Mixed-precision design](../mixed-precision.md): the dominant IR use case.
+- [Multigrid](multigrid.md): IR as a smoother (`build_smoother`).
+- [Stopping criteria](../stopping-criteria.md): required configuration.
 - API reference: [`gko::solver::Ir`](../../../api-reference/solver/ir.md)
 :::

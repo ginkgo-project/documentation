@@ -9,7 +9,7 @@ $$
 $$
 
 discretised with the 5-point stencil on an $N \times N$ grid and stepped
-forward with **implicit Euler** — so every time step is a linear-system
+forward with **implicit Euler**, so every time step is a linear-system
 solve with the matrix $A = I + \tau\,\alpha\,(-\Delta_h)$.
 
 We'll partition the grid by horizontal stripes, one stripe per rank,
@@ -24,7 +24,7 @@ into a GIF by a short Python post-processor.
 What you'll produce: two Gaussian hot spots diffusing under a thin annular
 heat source, simulated with implicit Euler + CG on a $96\times 96$ grid
 across **4 MPI ranks**. The dashed horizontal lines mark the per-rank
-boundaries — half the value at a boundary row lives on one rank, half on
+boundaries: half the value at a boundary row lives on one rank, half on
 the next, and the Ginkgo distributed-matrix machinery handles the halo
 exchange under the hood.
 ```
@@ -40,7 +40,7 @@ exchange under the hood.
 - A complete, runnable, MPI-parallel time-stepping mini-app.
 
 If you haven't built anything with Ginkgo before, work through
-[Poisson on CPU](poisson-cpu.md) first — that tutorial covers the basic
+[Poisson on CPU](poisson-cpu.md) first: that tutorial covers the basic
 solver and matrix-assembly idioms, which we'll re-use here without
 re-explaining.
 
@@ -48,7 +48,7 @@ re-explaining.
 
 You need Ginkgo built with **MPI support** (`-DGINKGO_BUILD_MPI=ON`) and a
 working MPI installation (for example Open MPI). The walk-through below
-uses the `ReferenceExecutor`, so no GPU backend is required — but the same
+uses the `ReferenceExecutor`, so no GPU backend is required, but the same
 code runs on `OmpExecutor` / `CudaExecutor` / `HipExecutor` / `DpcppExecutor`
 by changing one line. See [Install Ginkgo](../../getting-started/install.md)
 for build instructions and [Concepts: Distributed computing](../concepts/distributed.md)
@@ -82,7 +82,7 @@ per step.
 We flatten the 2D grid in row-major order: cell $(I, j)$ becomes row index
 $r = I \cdot N + j$, so the resulting vector has $N^2$ entries.
 `Partition::build_from_global_size_uniform` gives each rank a contiguous
-chunk of those rows — i.e. a horizontal stripe of the grid. The 5-point
+chunk of those rows, i.e. a horizontal stripe of the grid. The 5-point
 stencil row $r$ has couplings to rows $r \pm 1$ (same stripe) and $r \pm N$
 (possibly on the neighbouring rank), and the
 [`distributed::Matrix`](../concepts/distributed.md#a-worked-example) splits
@@ -215,9 +215,9 @@ for (GlobalIdx r = row_start; r < row_end; ++r) {
 }
 ```
 
-The `idx` helper is just `I*N + j` — row-major linearisation of the 2D
+The `idx` helper is just `I*N + j`: row-major linearisation of the 2D
 grid. Every entry's row index `r` lies in this rank's range, but the
-column indices can land in another rank's range — that happens at the
+column indices can land in another rank's range: that happens at the
 top and bottom of the stripe, when `I-1` or `I+1` crosses a partition
 boundary. Those entries become non-local-block entries on this rank
 and drive the halo exchange during SpMV.
@@ -249,8 +249,8 @@ auto src_at = [N, h](int I, int j) {
 };
 ```
 
-Each rank only fills the `matrix_data` entries for its own rows — there is
-no global IC vector ever materialised:
+Each rank only fills the `matrix_data` entries for its own rows, so the global IC vector
+only ever exists in distributed form:
 
 ```cpp
 gko::matrix_data<ValueType, GlobalIdx> u_data{gko::dim<2>(num_rows, 1)};
@@ -293,7 +293,7 @@ u_out->copy_from(u_host);   // first apply will overwrite this; the initial-gues
 
 This is the heart of the distributed-solver pattern. Wrap a single-rank
 block-Jacobi inside `Schwarz` and you get an *additive Schwarz*
-preconditioner that applies the local solve on each rank independently —
+preconditioner that applies the local solve on each rank independently:
 no MPI communication during the preconditioner itself. The CG iteration
 runs across all ranks, with MPI happening only in the SpMV halo exchange
 and in the dot-product / norm reductions:
@@ -314,7 +314,7 @@ auto solver =
 ```
 
 See [Distributed solvers and preconditioners](../concepts/distributed/solvers-and-preconditioners.md)
-for the broader story — including the two-level Schwarz variant and the
+for the broader story, including the two-level Schwarz variant and the
 restrictions on which solvers are validated for distributed runs.
 
 ### The time loop
@@ -332,13 +332,13 @@ for (int step = 0; step < n_steps; ++step) {
 }
 ```
 
-`add_scaled` is the distributed-vector version of AXPY — it acts on each
+`add_scaled` is the distributed-vector version of AXPY: it acts on each
 rank's local slice with no MPI traffic. The actual cross-rank communication
 happens inside `solver->apply`, where the SpMV launches the halo exchange.
 
 ### Dumping frames to disk
 
-Each rank writes its own stripe per frame — no MPI gather. The Python
+Each rank writes its own stripe per frame: no MPI gather. The Python
 script reassembles by reading every rank's file and concatenating in rank
 order:
 
@@ -357,7 +357,7 @@ auto dump_frame = [&](int frame, const dist_vec* v) {
 
 `v->get_local_vector()` returns a pointer to a `matrix::Dense<ValueType>`
 holding this rank's slice of the distributed vector. On a GPU executor,
-the pointer is to device memory — wrap in `gko::clone(host, ...)` before
+the pointer is to device memory: wrap in `gko::clone(host, ...)` before
 dereferencing, as the
 [Cross-executor data movement how-to](../how-to/using/move-data-between-executors.md)
 explains.
@@ -552,7 +552,7 @@ grid: 96x96,  ranks: 4,  rows/rank ~ 2304
 wrote 80 frames to frames/
 ```
 
-(`mpirun` syntax is implementation-dependent — on some clusters you'll
+(`mpirun` syntax is implementation-dependent: on some clusters you'll
 launch through `srun` instead. The arguments to the binary are `[N] [n_steps] [n_frames]`,
 defaulting to `96 1800 80`.)
 
@@ -628,7 +628,7 @@ The output is the animation embedded at the top of this page. Four-up
 stills from the same run:
 
 ```{figure} _figures/heat-distributed-snapshots.png
-:alt: Four snapshots showing the heat distribution at steps 0, 25, 50, and 79 — the two hot spots diffuse and an annular pattern from the source term emerges.
+:alt: Four snapshots showing the heat distribution at steps 0, 25, 50, and 79: the two hot spots diffuse and an annular pattern from the source term emerges.
 :width: 100%
 
 The same run frozen at four steps. The initial hot spots diffuse outward;
@@ -638,7 +638,7 @@ pattern.
 
 ## Things to try
 
-- **More ranks.** `mpirun -np 8` works as-is — the partition resizes
+- **More ranks.** `mpirun -np 8` works as-is: the partition resizes
   automatically; the dashed rank-boundary lines in the GIF will tighten.
 - **A bigger grid.** `mpirun -np 4 ./build/heat_distributed 192` doubles
   the grid resolution. With $N = 192$ the system is $36{,}864 \times
@@ -650,19 +650,19 @@ pattern.
   The rest of the code, including the MPI communication, is unchanged.
 - **Two-level Schwarz.** Add a coarse correction by setting
   `with_coarse_level(...)` and `with_coarse_solver(...)` on the Schwarz
-  factory — see [Distributed solvers and preconditioners — two-level
+  factory; see [Distributed solvers and preconditioners: two-level
   Schwarz](../concepts/distributed/solvers-and-preconditioners.md#two-level-schwarz).
 
 ## Pitfalls
 
 - **Read on the host, compute on the device.** `read_distributed` runs
   on the executor the matrix was created on. Build with `host`, then
-  `copy_from` onto the compute executor — exactly the pattern shown
+  `copy_from` onto the compute executor, exactly the pattern shown
   above.
 - **Per-rank file output races.** With 4 ranks and 80 frames per rank
   that's only a few hundred small files; with thousands of ranks the
   filesystem will object. Production codes batch into shared
-  collective-write formats (HDF5, ADIOS) — for tutorials the simple
+  collective-write formats (HDF5, ADIOS); for tutorials the simple
   pattern is fine.
 - **Don't dereference a device pointer on the host.** If you switch
   `exec` to a GPU executor, the local vector returned by
@@ -678,22 +678,22 @@ pattern.
 
 ## Next steps
 
-- [Concepts: Distributed computing](../concepts/distributed.md) — the
-  global picture, including assembly, partition, and index maps.
+- [Concepts: Distributed computing](../concepts/distributed.md) (the
+  global picture, including assembly, partition, and index maps).
 - [Concepts: Distributed solvers and preconditioners](../concepts/distributed/solvers-and-preconditioners.md)
-  — which Krylov methods are distributed-ready, plus one- and two-level
-  Schwarz in detail.
+  (which Krylov methods are distributed-ready, plus one- and two-level
+  Schwarz in detail).
 - [Concepts: Communication primitives](../concepts/distributed/communication-primitives.md)
-  — what's happening under the hood during `solver->apply`.
+  (what's happening under the hood during `solver->apply`).
 - [Poisson on CPU](poisson-cpu.md) and [Poisson on GPU](poisson-gpu.md)
-  — the single-rank tutorials that introduce the matrix-assembly and
-  executor patterns used here.
+  (the single-rank tutorials that introduce the matrix-assembly and
+  executor patterns used here).
 
 :::{seealso}
-- [`gko::experimental::distributed::Matrix`](../../api-reference/distributed/matrix.md)
-  — full API reference.
-- [`gko::experimental::distributed::preconditioner::Schwarz`](../../api-reference/distributed/schwarz.md)
-  — the one- and two-level Schwarz preconditioner reference.
-- Upstream `examples/heat-equation` and `examples/distributed-solver` —
+- [`gko::experimental::distributed::Matrix`](../../api-reference/distributed/matrix.md):
+  full API reference.
+- [`gko::experimental::distributed::preconditioner::Schwarz`](../../api-reference/distributed/schwarz.md):
+  the one- and two-level Schwarz preconditioner reference.
+- Upstream `examples/heat-equation` and `examples/distributed-solver`:
   the source examples this tutorial is derived from.
 :::

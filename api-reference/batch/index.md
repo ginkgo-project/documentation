@@ -3,7 +3,7 @@
 Batched linear algebra: solve many small independent systems at once
 on the same executor, sharing kernel launches and data movement to
 keep accelerators saturated. Every type in this namespace has the
-uniform-batch constraint — all items share the same dimensions and
+uniform-batch constraint: all items share the same dimensions and
 the same sparsity pattern (CSR/ELL store the column indices and row
 pointers **once**, common across the whole batch).
 
@@ -12,30 +12,30 @@ For background on when batched solvers help, see the
 
 ## Right-hand sides and matrices
 
-- [`MultiVector`](multi-vector.md) — the right-hand-side container:
+- [`MultiVector`](multi-vector.md): the right-hand-side container with
   one dense block per batch item, all sharing the same shape.
-- [`matrix::Csr`](matrix-csr.md) — batched compressed sparse row.
-- [`matrix::Dense`](matrix-dense.md) — batched row-major dense.
-- [`matrix::Ell`](matrix-ell.md) — batched equal-length-rows.
-- [`matrix::Identity`](matrix-identity.md) — batched identity LinOp.
+- [`matrix::Csr`](matrix-csr.md): batched compressed sparse row.
+- [`matrix::Dense`](matrix-dense.md): batched row-major dense.
+- [`matrix::Ell`](matrix-ell.md): batched equal-length-rows.
+- [`matrix::Identity`](matrix-identity.md): batched identity LinOp.
 
 ## Solvers
 
-- [`solver::Cg`](solver-cg.md) — batched conjugate gradient (SPD).
-- [`solver::Bicgstab`](solver-bicgstab.md) — batched stabilised
+- [`solver::Cg`](solver-cg.md): batched conjugate gradient (SPD).
+- [`solver::Bicgstab`](solver-bicgstab.md): batched stabilised
   biconjugate gradient (non-symmetric).
-- [`solver::BatchSolver`](solver-batch-solver.md) — common runtime
+- [`solver::BatchSolver`](solver-batch-solver.md): common runtime
   setters (tolerance, max-iterations, tolerance type) and getters
   (system matrix, preconditioner) shared by every batched solver.
 
 ## Preconditioners
 
-- [`preconditioner::Jacobi`](preconditioner-jacobi.md) — batched
+- [`preconditioner::Jacobi`](preconditioner-jacobi.md): batched
   block-Jacobi.
 
 ## Loggers
 
-- [`log::BatchConvergence`](log-batch-convergence.md) — per-batch-item
+- [`log::BatchConvergence`](log-batch-convergence.md): per-batch-item
   iteration count and residual norm; the batched equivalent of
   `gko::log::Convergence`.
 

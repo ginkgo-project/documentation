@@ -3,7 +3,7 @@
 The `include/ginkgo/extensions/` tree (with its tests under
 `extensions/`) holds user-facing headers that depend on third-party
 packages and bridge them with Ginkgo. They are not "backends" in the
-kernel-dispatch sense — those live under `cuda/`, `hip/`, `omp/`,
+kernel-dispatch sense; those live under `cuda/`, `hip/`, `omp/`,
 `dpcpp/`.
 
 Shipped extensions:
@@ -49,7 +49,7 @@ Umbrella header:
 
 The two substantive sub-headers do the bridging:
 
-- `kokkos/spaces.hpp` — defines `detail::compatible_space<MemorySpace,
+- `kokkos/spaces.hpp`: defines `detail::compatible_space<MemorySpace,
   ExecType>`, a `std::integral_constant<bool, ...>` that answers "can
   this Kokkos memory space be safely accessed from this Ginkgo
   executor?". `map_data` checks it through `assert_compatibility`, which
@@ -57,7 +57,7 @@ The two substantive sub-headers do the bridging:
   `create_executor`, `create_default_executor` and
   `create_default_host_executor`, which build a Ginkgo executor
   matching a Kokkos execution space.
-- `kokkos/types.hpp` — defines `detail::value_type<T>::type`
+- `kokkos/types.hpp`: defines `detail::value_type<T>::type`
   (`Kokkos::complex<T>` for `std::complex<T>`, identity otherwise)
   and `map_data`, which wraps a `gko::array<T>` or `matrix::Dense<T>`
   storage region as a non-owning Kokkos `View`.
@@ -82,9 +82,9 @@ The two config extensions turn a parsed file into a
 `gko::config::pnode` property tree, which the runtime registry then
 turns into solver and preconditioner factories.
 
-- `config/json_config.hpp` — `gko::ext::config::parse_json`,
+- `config/json_config.hpp`: `gko::ext::config::parse_json`,
   `parse_json_file` and `parse_json_string`, built on `nlohmann::json`.
-- `config/yaml_config.hpp` — `gko::ext::config::parse_yaml` and
+- `config/yaml_config.hpp`: `gko::ext::config::parse_yaml` and
   `parse_yaml_file`, built on yaml-cpp, including YAML anchors and
   `<<` merge keys.
 
@@ -162,7 +162,7 @@ other `LinOp` (see [Add a new solver](add-a-solver.md) or [Add a new
 preconditioner](add-a-preconditioner.md) for the factory / parse
 scaffolding) and choose its home by what it wraps:
 
-- **In `core/`** — when the vendor path is one implementation among
+- **In `core/`**: when the vendor path is one implementation among
   several for a type that Ginkgo already exposes. Example:
   `solver::LowerTrs` / `solver::UpperTrs` take an `algorithm`
   parameter. `trisolve_algorithm::sparselib` (the default) uses the
@@ -170,15 +170,15 @@ scaffolding) and choose its home by what it wraps:
   `trisolve_algorithm::syncfree` runs Ginkgo's own kernel on CUDA. The
   vendor calls live in `cuda/solver/lower_trs_kernels.cu` etc., gated by
   the executor type.
-- **In `extensions/`** — when the integration is a bridge to a
+- **In `extensions/`**: when the integration is a bridge to a
   third-party library and not a Ginkgo type, as for the Kokkos and
   JSON/YAML config headers.
 
 :::{seealso}
-- [Add a new solver](add-a-solver.md) — LinOp + Factory + parse
+- [Add a new solver](add-a-solver.md): LinOp + Factory + parse
   scaffolding that any vendor-backed solver also needs.
-- [Add a new preconditioner](add-a-preconditioner.md) — same
+- [Add a new preconditioner](add-a-preconditioner.md): same
   scaffolding, no workspace.
-- [Configure via JSON](../using/configure-via-json.md) — what the JSON
+- [Configure via JSON](../using/configure-via-json.md): what the JSON
   config extension unlocks for the runtime registry.
 :::

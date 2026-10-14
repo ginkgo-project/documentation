@@ -14,11 +14,11 @@ Ginkgo executors map onto Kokkos execution spaces. The free helpers
 in `<ginkgo/extensions/kokkos/spaces.hpp>` create a Ginkgo `Executor`
 whose memory and stream are backed by a Kokkos space:
 
-- `create_default_host_executor()` — returns a `ReferenceExecutor` or
+- `create_default_host_executor()`: returns a `ReferenceExecutor` or
   `OmpExecutor` matching the active Kokkos default-host space.
-- `create_executor(ExecSpace, MemorySpace = {})` — explicit pairing of
+- `create_executor(ExecSpace, MemorySpace = {})`: explicit pairing of
   a Kokkos execution space with a memory space.
-- `create_default_executor()` — returns an executor matching Kokkos's
+- `create_default_executor()`: returns an executor matching Kokkos's
   current default execution space.
 
 `check_compatibility(exec)` returns `true` iff a Ginkgo executor's
@@ -40,5 +40,5 @@ auto view = gko::ext::kokkos::map_data(arr);  // Kokkos::View<double*>
 ```
 
 The underlying `mapper<Container, MemorySpace>` template
-(`gko::ext::kokkos::detail::mapper`) is the extension point —
+(`gko::ext::kokkos::detail::mapper`) is the extension point:
 specialise it to map a non-Ginkgo container into a Kokkos view.

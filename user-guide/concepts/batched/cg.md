@@ -2,7 +2,7 @@
 
 `gko::batch::solver::Cg<ValueType>` is the batched conjugate-gradient solver. Each batch item is
 solved with a short-recurrence CG iteration inside its own workgroup, and items run
-independently — so a batch of $N$ symmetric positive-definite systems converges in parallel
+independently, so a batch of $N$ symmetric positive-definite systems converges in parallel
 without inter-item synchronisation.
 
 ## When to use
@@ -11,7 +11,7 @@ Batched CG is the right choice when **every** system in the batch is symmetric p
 and the uniform-batch constraint
 ([same dimensions and sparsity pattern](../batched.md#the-uniform-batch-constraint))
 holds. If even a few items in the batch are non-SPD, prefer
-[Batched BiCGSTAB](bicgstab.md) — its convergence is more robust at the cost of two SpMVs and
+[Batched BiCGSTAB](bicgstab.md); its convergence is more robust at the cost of two SpMVs and
 two preconditioner applies per iteration.
 
 ## Construction
@@ -50,7 +50,7 @@ The `tolerance_type` enum lives in `<ginkgo/core/stop/batch_stop_enum.hpp>` and 
 ## Stopping rule and the implicit residual
 
 CG checks convergence per-item against the **implicit** residual computed during the iteration
-(the $\rho_k$ that drops out of the orthogonality recurrence) — *not* a freshly recomputed
+(the $\rho_k$ that drops out of the orthogonality recurrence), *not* a freshly recomputed
 $\lVert b - A x_k \rVert$. The implicit residual can drift from the true residual on
 ill-conditioned problems; if your batch contains items with widely varying conditioning, run an
 a-posteriori check on the returned solution and re-solve the items that did not converge to
@@ -84,10 +84,10 @@ iteration counts and final residual norms after the solve. Without a logger the 
 convergence information is discarded.
 
 :::{seealso}
-- [Batched solvers — overview](../batched.md) — the uniform-batch constraint and storage layout.
-- [Batched BiCGSTAB](bicgstab.md) — the alternative for non-symmetric batches.
-- [Batched convergence logger](convergence.md) — extracting per-item iteration counts and
+- [Batched solvers](../batched.md): the uniform-batch constraint and storage layout.
+- [Batched BiCGSTAB](bicgstab.md): the alternative for non-symmetric batches.
+- [Batched convergence logger](convergence.md): extracting per-item iteration counts and
   residuals.
-- [Single-system CG](../solvers/cg.md) — the same algorithm without the batch dimension.
+- [Single-system CG](../solvers/cg.md): the same algorithm without the batch dimension.
 - API reference: [`gko::batch::solver::Cg`](../../../api-reference/batch/solver-cg.md)
 :::

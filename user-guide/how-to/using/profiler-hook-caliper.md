@@ -1,7 +1,7 @@
 # Integrate `ProfilerHook` with Caliper
 
 [Caliper](https://software.llnl.gov/Caliper/) is a portable performance
-instrumentation library — it lets you annotate code regions and then
+instrumentation library: it lets you annotate code regions and then
 switch the back-end (timing report, NVTX, ITT, Adiak, file dump, ...)
 at runtime via a config string, with no recompilation. Ginkgo's
 `gko::log::ProfilerHook` can feed its built-in region annotations
@@ -42,7 +42,7 @@ entirely in your application.
 
 ## The integration in one snippet
 
-`ProfilerHook::create_custom` takes two callables — begin and end —
+`ProfilerHook::create_custom` takes two callables (begin and end),
 each of type `void(const char* name, profile_event_category)`.
 Caliper's runtime API exposes `cali_begin_region(name)` /
 `cali_end_region(name)` with exactly the matching shape, so the
@@ -203,14 +203,14 @@ Three small rules keep the resulting profile readable:
 - **Use `user_range` for one-off annotations from inside a callback.**
   If you already hold a `ProfilerHook` and want to drop a region
   inside, say, a custom stopping criterion, call
-  `caliper_hook->user_range("my_check")` — it returns a scope guard
+  `caliper_hook->user_range("my_check")`: it returns a scope guard
   that begins on construction and ends on destruction, so the region
   is exception-safe.
 
 :::{seealso}
-- [Logging and observability](../../concepts/logging.md) — the
+- [Logging and observability](../../concepts/logging.md): the
   conceptual reference for the `ProfilerHook` API and the available
   preset back-ends.
-- [Caliper documentation](https://software.llnl.gov/Caliper/) — the
+- [Caliper documentation](https://software.llnl.gov/Caliper/): the
   authoritative guide to `CALI_CONFIG` strings and `cali-query`.
 :::

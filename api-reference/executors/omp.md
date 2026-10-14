@@ -3,7 +3,7 @@
 Multi-threaded host executor backed by OpenMP. Kernels fan out across
 the OpenMP thread pool; thread count, scheduling, and affinity are
 controlled by the usual OpenMP environment variables (`OMP_NUM_THREADS`,
-`OMP_PROC_BIND`, `OMP_PLACES`). Memory comes from the system allocator —
+`OMP_PROC_BIND`, `OMP_PLACES`). Memory comes from the system allocator:
 on NUMA hosts, first-touch placement determines the locality, so
 allocate close to where you'll use the data.
 

@@ -10,18 +10,18 @@ The separator-last property bounds the fill-in to the union of fills inside each
 sub-graph plus a contribution from the separator. For meshes with a regular
 structure this gives asymptotically optimal complexity: for the 2-D 5-point stencil
 on an $n$-row grid the factorisation has $O(n^{3/2})$ nonzeros and costs $O(n^2)$
-work to compute — beating AMD's worst case by a polynomial factor.
+work to compute, beating AMD's worst case by a polynomial factor.
 
 ## When to use nested dissection
 
 - **Large mesh-based matrices** from finite-element, finite-difference, or
   finite-volume discretisations, where the underlying geometry produces good
   separators.
-- **Parallel sparse direct factorisation** — the dissection tree exposes
+- **Parallel sparse direct factorisation**: the dissection tree exposes
   independent sub-problems that can be factorised concurrently, which AMD's flat
   ordering cannot.
 - For **moderate-sized matrices** without obvious geometric structure, AMD often
-  wins on both runtime and final fill — ND's setup cost is dominated by the
+  wins on both runtime and final fill, since ND's setup cost is dominated by the
   partitioner.
 
 ## Using nested dissection
@@ -49,8 +49,8 @@ enabled automatically.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::NestedDissection`](../../../api-reference/reorder/nested-dissection.md).
-- [Direct (LU / Cholesky)](../solvers/direct.md) — the primary consumer of an ND ordering on large problems.
-- [Reordering and permutations](../reordering.md) — overview and comparison table.
+- [Direct (LU / Cholesky)](../solvers/direct.md): the primary consumer of an ND ordering on large problems.
+- [Reordering and permutations](../reordering.md): overview and comparison table.
 
 Reference:
 Karypis, G., Kumar, V. *A Fast and Highly Quality Multilevel Scheme for Partitioning

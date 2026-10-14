@@ -3,7 +3,7 @@
 Approximate Minimum Degree (AMD) is a fill-reducing reordering for symmetric
 positive-definite and structurally-symmetric matrices. Given the adjacency graph of
 the matrix's nonzero pattern, AMD greedily eliminates vertices of approximately
-minimum degree at each step — the *minimum-degree* heuristic chooses, at every
+minimum degree at each step: the *minimum-degree* heuristic chooses, at every
 elimination step, a row whose elimination introduces few new edges, while the
 *approximate* qualifier replaces an expensive exact degree update with a cheap upper
 bound. The result closely tracks the optimal minimum-degree ordering at a fraction
@@ -17,7 +17,7 @@ of the cost.
 - AMD scales well into the millions-of-rows range and beats nested dissection on
   problems without strong locality (graph-style matrices, irregular meshes).
 - For very large matrices arising from regular meshes, [**nested
-  dissection**](nested-dissection.md) can produce a better ordering — AMD is greedy
+  dissection**](nested-dissection.md) can produce a better ordering: AMD is greedy
   and local, ND is global. A common pipeline is "ND outside, AMD inside" for the
   smallest sub-graphs of a recursive dissection.
 
@@ -48,8 +48,8 @@ be applied on any executor.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::Amd`](../../../api-reference/reorder/amd.md).
-- [Direct (LU / Cholesky)](../solvers/direct.md) — the typical consumer of an AMD permutation.
-- [Reordering and permutations](../reordering.md) — overview and comparison table.
+- [Direct (LU / Cholesky)](../solvers/direct.md): the typical consumer of an AMD permutation.
+- [Reordering and permutations](../reordering.md): overview and comparison table.
 
 Reference:
 Amestoy, P. R., Davis, T. A., Duff, I. S. *Algorithm 837: AMD, an Approximate

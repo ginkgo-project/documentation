@@ -10,11 +10,11 @@ conversion behaviour.
 
 CSR uses three arrays:
 
-- **`row_ptrs`** — length `n_rows + 1`. `row_ptrs[i]` is the starting index (into
+- **`row_ptrs`**: length `n_rows + 1`. `row_ptrs[i]` is the starting index (into
   `col_idxs` and `values`) of row `i`. `row_ptrs[n_rows]` equals `nnz`, the total
   non-zero count.
-- **`col_idxs`** — length `nnz`. The column index of each non-zero, ordered row by row.
-- **`values`** — length `nnz`. The numerical value of each non-zero, in the same order.
+- **`col_idxs`**: length `nnz`. The column index of each non-zero, ordered row by row.
+- **`values`**: length `nnz`. The numerical value of each non-zero, in the same order.
 
 ```text
 Matrix:                CSR storage:
@@ -76,7 +76,7 @@ csr->set_strategy(
     std::make_shared<gko::matrix::Csr<double, int>::merge_path>());
 ```
 
-Most users should leave the strategy unset — `automatical` picks a reasonable default
+Most users should leave the strategy unset; `automatical` picks a reasonable default
 for the executor. Tune only if profiling identifies SpMV as a bottleneck.
 
 :::{note}
@@ -90,7 +90,7 @@ either of these holds, and `classical` otherwise:
   (`1024` columns for NVIDIA, `768` for AMD, `25600` for Intel).
 
 These limits are reproduced verbatim from `csr.hpp` and may change between Ginkgo
-releases — treat them as a rough guide, not a contract.
+releases; treat them as a rough guide, not a contract.
 :::
 
 ## Performance characteristics
@@ -109,7 +109,7 @@ work across non-zeros rather than rows.
 ## Sorted column indices
 
 Within each row, the order of entries in `col_idxs` and `values` is not enforced by
-the CSR data structure itself — but many higher-level algorithms expect the columns to
+the CSR data structure itself, but many higher-level algorithms expect the columns to
 be sorted in ascending order per row. Triangular solves, ILU/IC factorisations, and
 some `Isai` paths in particular assume sorted indices and may produce incorrect
 results, hit assertion failures, or perform poorly on unsorted input.
@@ -168,7 +168,7 @@ pre-converting to CSR yourself avoids repeated silent conversions.
 - [Compression and Load Balancing for Efficient Sparse Matrix-Vector Product on Multicore Processors and Graphics Processing Units](https://doi.org/10/gnsv46)
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — when to pick CSR vs alternatives.
-- [COO](coo.md) — the assembly-friendly format that often feeds into CSR.
+- [Matrix formats](../matrix-formats.md): when to pick CSR vs alternatives.
+- [COO](coo.md): the assembly-friendly format that often feeds into CSR.
 - API reference: [`gko::matrix::Csr`](../../../api-reference/matrix/csr.md)
 :::

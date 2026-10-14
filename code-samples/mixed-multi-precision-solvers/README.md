@@ -52,13 +52,13 @@ Expected output (exact iteration counts depend on the backend and build):
 
 The output makes three points concrete:
 
-- **Case (1)** reaches `double`-level accuracy — the matrix, solver, and
+- **Case (1)** reaches `double`-level accuracy: the matrix, solver, and
   preconditioner all agree at `double`.
 - **Case (2)** plateaus near the *solver's* `float` accuracy floor
   (~1e-6), even though the matrix and preconditioner are `double`. The
   Krylov iteration runs in `float`, so that sets the achievable accuracy
   regardless of how accurate the surrounding operators are.
-- **Case (3)** does **not** converge — it runs to the 200-iteration cap.
+- **Case (3)** does **not** converge: it runs to the 200-iteration cap.
   The `half` preconditioner rounds the residual to roughly three digits on
   every apply, which stops CG from driving the residual below the `float`
   tolerance, *even on this well-conditioned system*. This is the headline
@@ -67,17 +67,17 @@ The output makes three points concrete:
 
 ## Files in this archive
 
-- `main.cpp` — the three-case driver.
-- `CMakeLists.txt` — standalone build via `find_package(Ginkgo)`.
-- `README.md` — this file.
+- `main.cpp`: the three-case driver.
+- `CMakeLists.txt`: standalone build via `find_package(Ginkgo)`.
+- `README.md`: this file.
 
 ## A word of caution
 
 Even on this SPD, well-conditioned system, case (3) already fails to
-converge — and on an ill-conditioned or badly scaled matrix the failure
+converge, and on an ill-conditioned or badly scaled matrix the failure
 modes are worse: dropping the solver or preconditioner precision can stall
 or outright diverge a solve that worked in full precision. Ginkgo cannot
 verify that a chosen precision combination is numerically sound for your
-system — always validate convergence and accuracy against a full-precision
+system: always validate convergence and accuracy against a full-precision
 reference run for your own problems before relying on a mixed-precision
 setup.

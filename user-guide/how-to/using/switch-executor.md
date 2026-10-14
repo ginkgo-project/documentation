@@ -1,14 +1,14 @@
 # Switch executor
 
 You have a working Ginkgo program on one executor and want to run the same
-program on a different one — typically CPU → GPU. In Ginkgo, the executor
+program on a different one, typically CPU → GPU. In Ginkgo, the executor
 is a runtime argument: switch the constructor and everything downstream
 follows.
 
 ## The change
 
 The only line that differs between backends is the executor constructor.
-The rest of the program — matrix construction, solver factory, `apply` —
+The rest of the program (matrix construction, solver factory, `apply`)
 is identical.
 
 ```cpp
@@ -48,7 +48,7 @@ device id based on its node-local rank.
 
 ## What happens to existing data
 
-Switching the executor in `main()` is enough — every `LinOp`, `Dense`,
+Switching the executor in `main()` is enough: every `LinOp`, `Dense`,
 and `array` constructed afterwards lives on the new executor. If you
 already have host-resident matrices and want to copy them across, use
 `gko::clone(target_exec, obj)` or the type's own `clone(target_exec)`:
@@ -67,7 +67,7 @@ For zero-copy from application-owned buffers see
 
 - **Operands on different executors.** `apply(b, x)` requires `b`, `x`,
   and the operator to share the same executor. If they don't, the call
-  silently clones to align them — which is correct but copies data each
+  silently clones to align them, which is correct but copies data each
   call. Construct everything on the target executor from the start.
 - **`at(i, j)` is host-only.** Dereferencing `Dense::at` on a vector
   whose executor is a GPU is undefined behaviour. `clone` to the host
@@ -80,6 +80,6 @@ For zero-copy from application-owned buffers see
   GPU-executor construction site.
 
 :::{seealso}
-- [Move data between executors](move-data-between-executors.md) — `clone` vs `copy_from`.
-- [Executor model](../../concepts/executor-model.md) — the conceptual reference.
+- [Move data between executors](move-data-between-executors.md): `clone` vs `copy_from`.
+- [Executor model](../../concepts/executor-model.md): the conceptual reference.
 :::

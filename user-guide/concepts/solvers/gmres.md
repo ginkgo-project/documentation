@@ -51,7 +51,7 @@ solver->apply(b, x);
   - Purpose
 * - `criteria`
   - vector of `stop::CriterionFactory`
-  - **Required.** Stopping criteria — see [Stopping criteria](../stopping-criteria.md).
+  - **Required.** Stopping criteria; see [Stopping criteria](../stopping-criteria.md).
 * - `preconditioner`
   - `LinOpFactory`
   - Preconditioner factory; rebuilt on each `generate()`. Defaults to identity (no preconditioning).
@@ -60,13 +60,13 @@ solver->apply(b, x);
   - Pre-built preconditioner that bypasses `preconditioner` when set. Defaults to `nullptr`.
 * - `krylov_dim`
   - `size_type`
-  - Restart length — the size of the Krylov subspace before a restart; controls memory and convergence. Defaults to `0`, which resolves to `gmres_default_krylov_dim = 100`.
+  - Restart length: the size of the Krylov subspace before a restart; controls memory and convergence. Defaults to `0`, which resolves to `gmres_default_krylov_dim = 100`.
 * - `flexible`
   - `bool`
   - Activates [FGMRES](#flexible-gmres-fgmres) for variable preconditioners. Defaults to `false`.
 * - `ortho_method`
   - `gmres::ortho_method`
-  - Orthogonalisation strategy — see below. Defaults to `mgs`.
+  - Orthogonalisation strategy; see below. Defaults to `mgs`.
 ```
 
 ## Restart length (`krylov_dim`)
@@ -81,7 +81,7 @@ built from the new residual.
 Tuning `krylov_dim` is the main GMRES knob:
 
 - **Small `krylov_dim`** (≤ 30): low memory, low per-iteration work, but
-  potentially slow convergence — restarts discard information about the operator
+  potentially slow convergence; restarts discard information about the operator
   spectrum.
 - **Large `krylov_dim`** (≥ 100): closer to true GMRES; faster convergence per
   outer iteration, but memory and orthogonalisation cost grow.
@@ -99,9 +99,9 @@ exposed as the `ortho_method` factory parameter (`gko::solver::gmres::ortho_meth
 
 | Mode | Algorithm | Cost per Arnoldi step | Numerical stability | Collective / kernel-launch structure |
 |---|---|---|---|---|
-| `mgs` *(default)* | Modified Gram-Schmidt | $k$ dot products + $k$ AXPYs | Best of the three for finite-precision arithmetic. | $k$ separate rounds in a critical chain — each round's dot product depends on the previous round's AXPY. Each round is itself a fully parallel reduction over $n$ elements; the chain just cannot be batched. |
+| `mgs` *(default)* | Modified Gram-Schmidt | $k$ dot products + $k$ AXPYs | Best of the three for finite-precision arithmetic. | $k$ separate rounds in a critical chain: each round's dot product depends on the previous round's AXPY. Each round is itself a fully parallel reduction over $n$ elements; the chain just cannot be batched. |
 | `cgs` | Classical Gram-Schmidt | $k$ dot products + $k$ AXPYs | Worst of the three; loss of orthogonality grows quickly when the basis vectors are near-collinear. | All $k$ dot products fuse into one batched reduction (one $V^T w$ gemv); the AXPYs likewise fuse into one batched update. |
-| `cgs2` | Classical Gram-Schmidt with one re-orthogonalisation pass | $2k$ dot products + $2k$ AXPYs | Comparable to MGS in practice. | Two batched reductions back-to-back — same per-pass structure as CGS, twice. |
+| `cgs2` | Classical Gram-Schmidt with one re-orthogonalisation pass | $2k$ dot products + $2k$ AXPYs | Comparable to MGS in practice. | Two batched reductions back-to-back; same per-pass structure as CGS, twice. |
 
 Selection guidance:
 
@@ -121,7 +121,7 @@ Selection guidance:
 ## Flexible GMRES (FGMRES)
 
 Setting `with_flexible(true)` activates the **flexible** variant. FGMRES tolerates
-preconditioners that change between Krylov iterations — for example, an inner
+preconditioners that change between Krylov iterations, for example, an inner
 Krylov solver run to a loose tolerance, or a multigrid cycle with adaptively
 chosen smoothers. Standard GMRES would silently produce a corrupted Krylov
 subspace in that case because it implicitly assumes $M^{-1}$ is the same operator
@@ -146,7 +146,7 @@ The same `Gmres` template implements both modes, switched by the `flexible`
 flag. The trade-off is memory: FGMRES has to
 store $M^{-1} v_j$ for every Krylov basis vector (not just $v_j$), so the
 basis-storage footprint roughly doubles compared to standard GMRES at the same
-`krylov_dim`. The orthogonalisation cost is unchanged — the second basis still
+`krylov_dim`. The orthogonalisation cost is unchanged; the second basis still
 has $k$ vectors per Arnoldi iteration.
 
 ## Right preconditioning
@@ -155,7 +155,7 @@ Ginkgo's GMRES applies the preconditioner on the right: the Arnoldi step builds
 $K_m(A M^{-1}, r_0)$ rather than $K_m(M^{-1} A, M^{-1} r_0)$, and the solution
 recovery on restart applies $M^{-1}$ to the projected coefficients. The
 practical consequence is that the convergence test sees the **unpreconditioned**
-residual $r = b - A x$, not $M^{-1} r$. See [Preconditioners — left, right, and
+residual $r = b - A x$, not $M^{-1} r$. See [Preconditioners: left, right, and
 split](../preconditioners.md#left-right-and-split-preconditioning) for the
 mathematical detail and the contrast with CG/BiCGSTAB.
 
@@ -165,11 +165,11 @@ Per right-hand side, GMRES stores the Krylov basis (`krylov_dim + 1` vectors of
 length $n$), the upper-Hessenberg matrix (`(krylov_dim + 1) × krylov_dim`
 scalars), the Givens-rotation arrays (`2 * krylov_dim` scalars), and a handful of
 auxiliary vectors. With `krylov_dim = 100` this is about 100 full-length vectors
-of overhead — substantial, and the dominant memory cost on top of the system
+of overhead: substantial, and the dominant memory cost on top of the system
 matrix and preconditioner. FGMRES roughly doubles the basis storage.
 
 For very large systems where this overhead is prohibitive, switch to BiCGSTAB or
-IDR(s) — both have bounded per-iteration memory.
+IDR(s): both have bounded per-iteration memory.
 
 ## Publications
 
@@ -177,11 +177,11 @@ IDR(s) — both have bounded per-iteration memory.
 - [FRSZ2 for In-Register Block Compression Inside GMRES on GPUs](https://doi.org/10.1109/SCW63240.2024.00038)
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where GMRES fits among the families.
-- [BiCGSTAB](bicgstab.md), [IDR(s)](idr.md) — bounded-memory alternatives for
+- [Solver taxonomy](../solvers.md): where GMRES fits among the families.
+- [BiCGSTAB](bicgstab.md), [IDR(s)](idr.md): bounded-memory alternatives for
   non-symmetric systems.
-- [Preconditioners — taxonomy](../preconditioners.md) — what to pair with GMRES,
+- [Preconditioner taxonomy](../preconditioners.md): what to pair with GMRES,
   including the right-preconditioning placement.
-- [Stopping criteria](../stopping-criteria.md) — required configuration.
+- [Stopping criteria](../stopping-criteria.md): required configuration.
 - API reference: [`gko::solver::Gmres`](../../../api-reference/solver/gmres.md)
 :::

@@ -1,7 +1,7 @@
 # Citing Ginkgo
 
 If you use Ginkgo in academic work or in any publication, please cite it.
-Citations are the most direct way to support continued development —
+Citations are the most direct way to support continued development:
 funding agencies look at them, and they help us justify the time we
 spend making the library faster and more capable.
 
@@ -25,7 +25,7 @@ The canonical Ginkgo reference is the
 }
 ```
 
-If you can only fit one citation in your paper, use that one — it covers
+If you can only fit one citation in your paper, use that one; it covers
 the library's overall design and serves as the default attribution.
 
 ## Software citation (JOSS)
@@ -60,16 +60,16 @@ attribution.
 The relevant publications are listed at the bottom of the corresponding
 concept page in the user guide:
 
-- **Distributed solvers** —
+- **Distributed solvers**:
   [Distributed computing → Publications](../user-guide/concepts/distributed.md)
   (also covers Schwarz, distributed Pgm).
-- **Batched solvers** —
+- **Batched solvers**:
   [Batched functionality → Publications](../user-guide/concepts/batched.md).
-- **Mixed-precision techniques** —
+- **Mixed-precision techniques**:
   [Mixed precision → Publications](../user-guide/concepts/mixed-precision.md).
-- **Preconditioners** (block Jacobi, ParILU, ParILUT, AMG) —
+- **Preconditioners** (block Jacobi, ParILU, ParILUT, AMG):
   [Preconditioners → Publications](../user-guide/concepts/preconditioners.md).
-- **Hardware-portable kernels and the executor model** — the TOMS paper
+- **Hardware-portable kernels and the executor model**: the TOMS paper
   above covers this comprehensively.
 
 Each page links the BibTeX entries directly, so you can copy them from
@@ -88,7 +88,7 @@ Ginkgo X.Y.Z, https://github.com/ginkgo-project/ginkgo, tag vX.Y.Z, accessed YYY
 
 If you need a DOI for a specific release for archival purposes,
 maintainers can mint one on
-[Zenodo](https://zenodo.org/) on request — ask in
+[Zenodo](https://zenodo.org/) on request: ask in
 [Discussions](https://github.com/ginkgo-project/ginkgo/discussions) or by
 email.
 
@@ -98,13 +98,13 @@ The full list of authors who have contributed to Ginkgo is in the
 [`contributors.txt`](https://github.com/ginkgo-project/ginkgo/blob/develop/contributors.txt)
 file. If you are writing a software-focused paper (rather than a method
 paper) and want to credit specific contributors beyond the citation
-list, the maintainer team is happy to advise — open a discussion or send
+list, the maintainer team is happy to advise: open a discussion or send
 an email.
 
 ## Telling us about your work
 
 If you publish a paper or thesis that uses Ginkgo, we'd love to hear
-about it — it helps us understand which features are landing in
+about it; it helps us understand which features are landing in
 practice, and it directly supports funding renewals. Drop a line in
 [Discussions](https://github.com/ginkgo-project/ginkgo/discussions) or
 email

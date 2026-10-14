@@ -3,7 +3,7 @@
 The simplest possible level generator: select coarse-level rows by a
 user-supplied index list. Restriction selects those rows and
 prolongation injects by transposition ($R$ holds the selected rows of
-the identity, $P = R^T$). No interpolation, no weighting — coarse value
+the identity, $P = R^T$). No interpolation, no weighting; coarse value
 $k$ equals fine value at index $i_k$, and prolongation places it back.
 
 Use `FixedCoarsening` when the application already knows which rows

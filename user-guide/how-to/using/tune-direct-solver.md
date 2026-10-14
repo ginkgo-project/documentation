@@ -117,6 +117,6 @@ same ordering (the permuted matrix, when you reorder first).
   (or use `Lu`).
 
 :::{seealso}
-- [Direct (LU / Cholesky)](../../concepts/solvers/direct.md) — the conceptual reference.
-- [Reordering and permutations](../../concepts/reordering.md) — taxonomy of the available reorderings.
+- [Direct (LU / Cholesky)](../../concepts/solvers/direct.md): the conceptual reference.
+- [Reordering and permutations](../../concepts/reordering.md): taxonomy of the available reorderings.
 :::

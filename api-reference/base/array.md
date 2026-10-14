@@ -1,10 +1,10 @@
 # `gko::array`
 
 Owning, executor-aware contiguous buffer of elements of type `T`. The
-storage unit that backs every Ginkgo data structure — `Csr::values`,
+storage unit that backs every Ginkgo data structure (`Csr::values`,
 `Dense::values`, the row pointers and column indices inside any sparse
 matrix, the workspace vectors solvers allocate, the stopping-status
-arrays — is a `gko::array<T>`.
+arrays) is a `gko::array<T>`.
 
 The class differs from `std::vector` in two ways that matter for HPC
 workloads. First, **each instance carries a `shared_ptr<const Executor>`**:

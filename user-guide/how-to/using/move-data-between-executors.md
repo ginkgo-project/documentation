@@ -1,7 +1,7 @@
 # Move data between executors
 
-When you need to copy a Ginkgo object from one executor to another —
-typically host ↔ GPU — there are three idioms. They look similar but
+When you need to copy a Ginkgo object from one executor to another,
+typically host ↔ GPU, there are three idioms. They look similar but
 they don't all do the same thing.
 
 ## The three options
@@ -20,7 +20,7 @@ B->copy_from(A);
 
 | Idiom | What it does | When to use |
 |---|---|---|
-| `gko::clone(exec, obj)` | Allocates a new object on `exec` and deep-copies contents into it. **Preserves the static type** of `obj` — a `shared_ptr<Csr<>>` clones to a `unique_ptr<Csr<>>`. | You want a fresh, *typed* copy on the target executor and don't want to `as<>`-cast afterwards. |
+| `gko::clone(exec, obj)` | Allocates a new object on `exec` and deep-copies contents into it. **Preserves the static type** of `obj`: a `shared_ptr<Csr<>>` clones to a `unique_ptr<Csr<>>`. | You want a fresh, *typed* copy on the target executor and don't want to `as<>`-cast afterwards. |
 | `obj->clone(exec)` | Same deep copy. The return type follows the static type of `obj`: a concrete `Csr` clones to `unique_ptr<Csr>`, while a `LinOp*` clones to `unique_ptr<LinOp>`. | You hold the object by its concrete type, or you'll downcast with `gko::as<>` after cloning through a base pointer. |
 | `dst->copy_from(src)` | Copies `src`'s contents into the existing `dst`. Requires `src` to be `ConvertibleTo<DstType>`. | You want to reuse an existing buffer (e.g. inside an iteration loop) without reallocating. |
 
@@ -32,7 +32,7 @@ want to keep using its concrete type without an intermediate cast.
 
 ## Plain `gko::array`
 
-`array` copies across executors through its constructor — pass the
+`array` copies across executors through its constructor; pass the
 target executor and the source array:
 
 ```cpp
@@ -55,8 +55,8 @@ Two situations keep a copy cheap:
   CPU device). Ginkgo uses it to skip the clone when it needs an object
   on a different executor.
 
-For non-owning views — where you want to *wrap* an existing buffer
-without copying at all — see
+For non-owning views, where you want to *wrap* an existing buffer
+without copying at all, see
 [Zero-copy from application memory](zero-copy-application-memory.md).
 
 ## Common pitfalls
@@ -73,6 +73,6 @@ without copying at all — see
   operator's executor.
 
 :::{seealso}
-- [Switch executor](switch-executor.md) — set up the target executor in the first place.
-- [Executor model](../../concepts/executor-model.md) — the conceptual reference.
+- [Switch executor](switch-executor.md): set up the target executor in the first place.
+- [Executor model](../../concepts/executor-model.md): the conceptual reference.
 :::

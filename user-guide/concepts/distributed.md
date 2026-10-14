@@ -1,4 +1,4 @@
-# Distributed computing — overview
+# Distributed computing: overview
 
 For multi-GPU and multi-node systems, Ginkgo provides distributed `Matrix` and `Vector` types under
 `gko::experimental::distributed`. This page introduces the abstraction, the host-first assembly
@@ -22,13 +22,13 @@ multi-node MPI job demands a single matrix view spanning ranks:
 
 Two primary types live under `gko::experimental::distributed`:
 
-- `Matrix<V, L, G>` — a distributed sparse matrix. `V` is the value type, `L` is the local index
+- `Matrix<V, L, G>`: a distributed sparse matrix. `V` is the value type, `L` is the local index
   type (typically `gko::int32`), and `G` is the global index type (typically `gko::int64`).
-- `Vector<V>` — a distributed dense vector or multi-vector.
+- `Vector<V>`: a distributed dense vector or multi-vector.
 
 Both inherit from `LinOp`, so they compose with solvers and preconditioners using exactly the same
 patterns as single-device objects. A CG solver doesn't know whether the matrix it operates on is
-distributed — it just calls `apply`.
+distributed; it just calls `apply`.
 
 ## The host-first assembly pattern
 
@@ -85,7 +85,7 @@ int size  = comm.size();
 MPI_Comm raw = comm.get();   // for direct MPI use if needed
 ```
 
-Rank 0 is the leader by convention. No rank holds global state — each rank owns only its local
+Rank 0 is the leader by convention. No rank holds global state; each rank owns only its local
 part of the matrix and vector data. Global operations (dot products, norms) reduce across ranks
 internally using `MPI_Allreduce`.
 
@@ -93,21 +93,21 @@ internally using `MPI_Allreduce`.
 
 Conceptually, the global matrix is permuted by the row partition so that the rows owned by each
 rank form a contiguous block. Within that block-row, the columns split by ownership (per the
-column partition — by default the same as the row partition). This gives every rank two pieces
+column partition, by default the same as the row partition). This gives every rank two pieces
 of the matrix:
 
-- **Local matrix** (the diagonal block) — entries whose row is owned by this rank **and** whose column is also
+- **Local matrix** (the diagonal block): entries whose row is owned by this rank **and** whose column is also
   owned by this rank. Across all ranks, these pieces sit on the block-diagonal of the permuted
   global matrix; hence the name. Both row and column indices are local (0..*n_local* − 1) and
   the dimensions are $n_\text{local rows} \times n_\text{local cols}$. This is the bulk of the
   work for well-partitioned matrices.
-- **Non-local matrix** (the off-diagonal blocks) — entries whose row is owned by this rank but whose column is *not*
+- **Non-local matrix** (the off-diagonal blocks): entries whose row is owned by this rank but whose column is *not*
   owned by this rank. These sit on the off-diagonal blocks of the permuted global matrix and
   drive the halo exchange during `apply`. The storage is **compressed**: only the remote
   columns that this rank's local rows actually reference are kept, and those columns are
   renumbered into a compact $0..K-1$ local indexing via the matrix's `index_map`. So its
   dimensions are $n_\text{local rows} \times K$, where $K$ is the number of **distinct** remote
-  global columns this rank touches — **not** the total number of remote columns. The original
+  global columns this rank touches, **not** the total number of remote columns. The original
   global column IDs are tracked separately in `index_map::get_remote_global_idxs()` and used
   to unpack the values received in the halo exchange.
 
@@ -122,14 +122,14 @@ matrix, not anything about its values.
 ### A worked example
 
 Take a 4 × 4 matrix on 2 ranks. Two partitions are involved, and they can be different
-functions — though by default Ginkgo uses the row partition for both:
+functions, though by default Ginkgo uses the row partition for both:
 
-- **Row partition** — assigns each global row index to one rank.
-- **Column partition** — assigns each global column index to one rank.
+- **Row partition**: assigns each global row index to one rank.
+- **Column partition**: assigns each global column index to one rank.
 
 Saying "rank $R$ owns row $i$" means the row partition maps $i$ to $R$; saying "rank $R$ owns
 column $j$" means the column partition maps $j$ to $R$. Ownership is a property of the
-partition, not of which rank physically stores something — those are related but distinct
+partition, not of which rank physically stores something; those are related but distinct
 questions, and we will see how, below.
 
 For this example, let both partitions assign indices {0, 1} to rank 0 and {2, 3} to rank 1.
@@ -180,7 +180,7 @@ two blocks of the global matrix that lie in its own row range. So:
 
 - **Rank 0** stores its top-left quadrant (its local matrix) and its top-right quadrant
   (its non-local matrix). The cols 2, 3 block lives on rank 0 because rows 0, 1 live on
-  rank 0 — even though rank 1 is the one that *owns* those columns.
+  rank 0, even though rank 1 is the one that *owns* those columns.
 - **Rank 1** stores the bottom-left quadrant (its non-local matrix) and the bottom-right
   quadrant (its local matrix). Symmetric story.
 
@@ -243,17 +243,17 @@ and non-distributed inputs alike.
 
 The sub-pages cover the distributed machinery in depth:
 
-- [Partitions and index maps](distributed/partition-and-index-map.md) — how rows are assigned to
+- [Partitions and index maps](distributed/partition-and-index-map.md): how rows are assigned to
   ranks and how local/global indexing is reconciled.
-- [Communication primitives](distributed/communication-primitives.md) — halo exchange, stream-MPI
+- [Communication primitives](distributed/communication-primitives.md): halo exchange, stream-MPI
   ordering, and the local / non-local decomposition of SpMV.
-- [The MPI layer](distributed/mpi-layer.md) — the communicator object, supported MPI calls, and the
+- [The MPI layer](distributed/mpi-layer.md): the communicator object, supported MPI calls, and the
   collective communicator that backs the all-to-all exchange.
-- [Collective communicators](distributed/collective-communicator.md) — the
+- [Collective communicators](distributed/collective-communicator.md): the
   `CollectiveCommunicator` interface and its dense / neighborhood implementations.
-- [RowGatherer](distributed/row-gather-scatter.md) — the helper that drives the
+- [RowGatherer](distributed/row-gather-scatter.md): the helper that drives the
   halo exchange on top of a collective communicator.
-- [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md) — which
+- [Distributed solvers and preconditioners](distributed/solvers-and-preconditioners.md): which
   solvers work automatically and how to configure the Schwarz preconditioner.
 
 ## Distributed sub-pages
@@ -271,7 +271,7 @@ distributed/solvers-and-preconditioners
 ```
 
 :::{seealso}
-- [The Executor model](executor-model.md) — distributed objects still bind to an executor per rank.
-- [Matrix data and assembly](matrix-data.md) — `matrix_data` for host-side assembly.
+- [The Executor model](executor-model.md): distributed objects still bind to an executor per rank.
+- [Matrix data and assembly](matrix-data.md): `matrix_data` for host-side assembly.
 - API reference: [`gko::experimental::distributed`](../../api-reference/distributed/index.md)
 :::

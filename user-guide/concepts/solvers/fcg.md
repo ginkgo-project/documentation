@@ -1,7 +1,7 @@
 # FCG (Flexible Conjugate Gradient)
 
 `gko::solver::Fcg<ValueType>` is [CG](cg.md) with a Polak-Ribière coefficient
-in place of CG's Fletcher-Reeves coefficient — the change that lets the
+in place of CG's Fletcher-Reeves coefficient, the change that lets the
 preconditioner *vary* between iterations. Use FCG whenever your
 preconditioner is itself an inexact iterative solve, a randomised smoother,
 or anything else whose action depends on something other than the input
@@ -40,7 +40,7 @@ directions.
   preconditioner an effectively non-stationary operator.
 
 For a **constant** SPD preconditioner, plain [CG](cg.md) is the right
-choice — FCG pays one extra inner product per iteration for no benefit.
+choice: FCG pays one extra inner product per iteration for no benefit.
 
 ## Construction
 
@@ -73,14 +73,14 @@ FCG inherits its factory-parameter surface from
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
+| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required; see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()` call. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner. Bypasses the factory and is used directly. |
 
 ## Memory footprint
 
-FCG stores one extra vector compared with CG — the "difference" vector $t =
-r_k - r_{k-1}$ — needed to compute the Polak-Ribière numerator. Beyond that
+FCG stores one extra vector compared with CG (the "difference" vector $t =
+r_k - r_{k-1}$), needed to compute the Polak-Ribière numerator. Beyond that
 the layout is the same: bounded workspace, reused across `apply()` calls on
 the same solver instance.
 
@@ -94,8 +94,8 @@ $t = r_k - r_{k-1}$ as a fused side-output of the residual update step
 arithmetic blends into the residual write.
 
 :::{seealso}
-- [CG](cg.md) — the constant-preconditioner cousin.
-- [Solvers — taxonomy](../solvers.md) — where FCG fits among the families.
-- [Preconditioners — taxonomy](../preconditioners.md) — what to pair with FCG.
+- [CG](cg.md): the constant-preconditioner cousin.
+- [Solver taxonomy](../solvers.md): where FCG fits among the families.
+- [Preconditioner taxonomy](../preconditioners.md): what to pair with FCG.
 - API reference: [`gko::solver::Fcg`](../../../api-reference/solver/fcg.md).
 :::
