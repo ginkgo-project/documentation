@@ -21,16 +21,16 @@ auto gpu   = gko::HipExecutor::create(0, host, alloc, stream.get());
 
 The HIP allocator family mirrors the CUDA family:
 
-- `HipAllocator` — `hipMalloc` (**default**).
-- `HipAsyncAllocator` — `hipMallocAsync` (stream-ordered).
-- `HipUnifiedAllocator` — `hipMallocManaged` (unified shared memory).
-- `HipHostAllocator` — `hipHostAlloc` (pinned host memory).
+- `HipAllocator`: `hipMalloc` (**default**).
+- `HipAsyncAllocator`: `hipMallocAsync` (stream-ordered).
+- `HipUnifiedAllocator`: `hipMallocManaged` (unified shared memory).
+- `HipHostAllocator`: `hipHostAlloc` (pinned host memory).
 
 See [Allocators](../executor-model.md#allocators) for guidance on picking one. If you don't pass an allocator argument, `HipExecutor::create(id, host)` constructs a `HipAllocator` (synchronous `hipMalloc`).
 
 ## Streams
 
-By default `HipExecutor` uses the default HIP stream. The stream parameter type is `GKO_HIP_STREAM_STRUCT*` — this is the same type HIP defines as `hipStream_t`. The RAII wrapper `gko::hip_stream{device_id}` creates a stream on the given device, destroys it on scope exit, and returns the handle through `get()`; a handle from `hipStreamCreate()` works as well. Use an explicit stream for overlap or multi-stream pipelines.
+By default `HipExecutor` uses the default HIP stream. The stream parameter type is `GKO_HIP_STREAM_STRUCT*`, the same type HIP defines as `hipStream_t`. The RAII wrapper `gko::hip_stream{device_id}` creates a stream on the given device, destroys it on scope exit, and returns the handle through `get()`; a handle from `hipStreamCreate()` works as well. Use an explicit stream for overlap or multi-stream pipelines.
 
 ## Memory model
 

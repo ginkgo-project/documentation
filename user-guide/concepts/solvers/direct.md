@@ -2,8 +2,8 @@
 
 `gko::experimental::solver::Direct` is Ginkgo's sparse direct solver. It computes a
 sparse LU or Cholesky factorisation once at `generate()` time and reuses the
-factors across `apply()` calls. The factorisation lives in two `LinOp`s — a lower
-and an upper triangular solver — so the cost of a solve is two triangular sweeps,
+factors across `apply()` calls. The factorisation lives in two `LinOp`s (a lower
+and an upper triangular solver), so the cost of a solve is two triangular sweeps,
 not a re-factorisation.
 
 ## Construction
@@ -22,8 +22,8 @@ solver->apply(b, x);
 The `with_factorization` parameter accepts any factorisation factory whose output is
 a `gko::experimental::factorization::Factorization`. In practice that means:
 
-- `gko::experimental::factorization::Lu` — general unsymmetric matrices.
-- `gko::experimental::factorization::Cholesky` — symmetric positive-definite matrices.
+- `gko::experimental::factorization::Lu`: general unsymmetric matrices.
+- `gko::experimental::factorization::Cholesky`: symmetric positive-definite matrices.
 
 Both factories produce a sparse factorisation, not a dense one. The cost and memory
 footprint depend on the matrix's sparsity and the row/column ordering.
@@ -42,8 +42,8 @@ The recommended preprocessing recipe is:
    increase the numerical stability of the pivot-free `Lu` factorisation.
 2. **Reorder**: apply `Amd` (default for small / medium matrices) or
    `NestedDissection` (for large structured systems; requires METIS) to reduce
-   fill-in. As an alternative — particularly when the triangular solves are
-   bandwidth-bound on CPU — `Rcm` minimises bandwidth/profile instead of fill;
+   fill-in. As an alternative (particularly when the triangular solves are
+   bandwidth-bound on CPU), `Rcm` minimises bandwidth/profile instead of fill;
    it can produce different (sometimes better) cache behaviour than the
    fill-reducers but is not a fill-reducing reordering itself. Apply the
    permutation with `Csr::permute`.
@@ -77,8 +77,8 @@ construct `LowerTrs` and `UpperTrs` directly from the CSR matrices.
 On the CUDA backend, both triangular solvers expose two algorithm choices via
 `with_algorithm`:
 
-- `trisolve_algorithm::sparselib` — cuSPARSE's triangular solve (default).
-- `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation.
+- `trisolve_algorithm::sparselib`: cuSPARSE's triangular solve (default).
+- `trisolve_algorithm::syncfree`: Ginkgo's own sync-free implementation.
 
 The Reference, OpenMP and HIP backends each run a single triangular-solve
 implementation (HIP uses hipSPARSE), selected regardless of `algorithm`.
@@ -86,13 +86,13 @@ implementation (HIP uses hipSPARSE), selected regardless of `algorithm`.
 ## When sparse direct is (and is not) appropriate
 
 Sparse direct solvers can handle large systems when paired with a fill-reducing
-reordering — that is exactly what production sparse-direct packages (SuperLU, MUMPS)
+reordering; that is exactly what production sparse-direct packages (SuperLU, MUMPS)
 do for million-degree-of-freedom problems. They are particularly attractive
 when:
 
-- The same matrix is used for many right-hand sides — the factorisation is amortised.
+- The same matrix is used for many right-hand sides: the factorisation is amortised.
 - Numerical robustness matters more than peak iteration speed.
-- The sparsity pattern is fixed across many solves with changing values — passing
+- The sparsity pattern is fixed across many solves with changing values: passing
   a precomputed `symbolic_factorization` to the `Lu` / `Cholesky` factory lets
   subsequent `generate()` calls skip the symbolic step.
 
@@ -112,7 +112,7 @@ The classical caveats:
   number of right-hand sides throws.
 
 When the system is too large for a direct factorisation, switch to a Krylov solver
-with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.md).
+with an ILU/IC or AMG preconditioner; see [Solver taxonomy](../solvers.md).
 
 ## Publications
 
@@ -120,7 +120,7 @@ with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.m
 - [Parallel Symbolic Cholesky Factorization](https://doi.org/10.1145/3624062.3624253)
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where direct fits among the families.
-- [Reordering and permutations](../reordering.md) — fill-reducing preprocessing.
+- [Solver taxonomy](../solvers.md): where direct fits among the families.
+- [Reordering and permutations](../reordering.md): fill-reducing preprocessing.
 - API reference: [`gko::experimental::solver::Direct`](../../../api-reference/solver/direct.md), [`gko::solver::LowerTrs`](../../../api-reference/solver/lower-trs.md), [`gko::solver::UpperTrs`](../../../api-reference/solver/upper-trs.md)
 :::

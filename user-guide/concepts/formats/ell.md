@@ -4,16 +4,16 @@ ELL stores every row in a slot of equal width $k$, where $k$ is the longest row'
 non-zero count. Short rows are padded with structural zeros, but the storage is
 laid out **column-major** so that the $i$-th non-zero of every row is contiguous
 in memory. SpMV becomes a regular two-loop kernel with perfectly coalesced
-accesses — ideal on GPUs whenever the rows are close in length.
+accesses, ideal on GPUs whenever the rows are close in length.
 
 ## Storage layout
 
 ELL holds two 2-D arrays of shape `n_rows × max_nnz_per_row`, both stored
 **column-major** (stride = `n_rows`):
 
-- **`values`** — the non-zero entries.  Position `(row, slot)` is the
+- **`values`**: the non-zero entries.  Position `(row, slot)` is the
   `slot`-th non-zero of `row`.
-- **`col_idxs`** — the column index of every entry.  Padding slots hold
+- **`col_idxs`**: the column index of every entry.  Padding slots hold
   `invalid_index<IndexType>()` and a zero value; the kernels test for that
   index and skip those slots.
 
@@ -25,7 +25,7 @@ Matrix:                ELL storage (max_nnz_per_row = 2, column-major):
 ```
 
 Column-major layout means thread $r$ in a warp reads `values[r, 0]`, `values[r,
-1]`, … from consecutive memory addresses across the warp — one coalesced
+1]`, … from consecutive memory addresses across the warp: one coalesced
 transaction per slot.
 
 ## When to use ELL
@@ -36,7 +36,7 @@ transaction per slot.
 - **GPU SpMV when row lengths are uniform.**  ELL's coalesced access typically
   matches or beats CSR's `classical` strategy on such matrices, with a simpler
   inner loop.
-- **Avoid** when even a few rows have many more entries than the rest — the
+- **Avoid** when even a few rows have many more entries than the rest; the
   padding inflates memory and wasted FLOPs proportionally to
   $n_\text{rows} \times (k_\text{max} - \bar n)$.  For that case use
   [Sellp](sellp.md) (per-slice padding) or [Hybrid](hybrid.md) (ELL part + COO
@@ -72,7 +72,7 @@ Bytes-per-output-element ≈ $(\mathrm{sizeof}(\mathrm{ValueType}) +
 The padding overhead is $n_\text{rows} \times (k - \bar n)$ stored zeros,
 where $\bar n$ is the average non-zero count per row.  For tightly-uniform
 matrices this is negligible; for matrices with one outlier row, ELL wastes
-$n_\text{rows} \times (k_\text{max} - \bar n)$ entries — quickly making ELL
+$n_\text{rows} \times (k_\text{max} - \bar n)$ entries, quickly making ELL
 worse than CSR or [Sellp](sellp.md) once the row-length distribution is
 heavy-tailed.
 
@@ -95,8 +95,8 @@ The conversion drops the padding slots when going to CSR, and computes
 reached through CSR (`coo->copy_from(csr)` after `csr->copy_from(ell)`).
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — when to pick ELL vs alternatives.
-- [Sellp](sellp.md) — per-slice padding for matrices with non-uniform but locally similar row lengths.
-- [Hybrid](hybrid.md) — ELL main part + COO overflow for heavy-tailed row lengths.
+- [Matrix formats](../matrix-formats.md): when to pick ELL vs alternatives.
+- [Sellp](sellp.md): per-slice padding for matrices with non-uniform but locally similar row lengths.
+- [Hybrid](hybrid.md): ELL main part + COO overflow for heavy-tailed row lengths.
 - API reference: [`gko::matrix::Ell`](../../../api-reference/matrix/ell.md).
 :::

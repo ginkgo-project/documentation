@@ -14,19 +14,19 @@ y_local = A_local     * x_local    ← purely local work
 ```
 
 - `A_local` is the *local matrix*: entries whose row is owned by this rank **and** whose column is also owned by this rank. Sized $n_\text{local rows} \times n_\text{local cols}$, both axes locally indexed.
-- `A_non_local` is the *non-local matrix*: entries whose row is owned by this rank but whose column is owned by some other rank. Stored compressed — only the remote columns this rank's local rows actually reference are kept, and those columns are renumbered $0..K-1$ via the matrix's `index_map`. Sized $n_\text{local rows} \times K$.
+- `A_non_local` is the *non-local matrix*: entries whose row is owned by this rank but whose column is owned by some other rank. Stored compressed: only the remote columns this rank's local rows actually reference are kept, and those columns are renumbered $0..K-1$ via the matrix's `index_map`. Sized $n_\text{local rows} \times K$.
 - `x_halo` is the value buffer this rank receives during the halo exchange: one entry per remote column the non-local matrix references, ordered to match the compressed column numbering of `A_non_local`.
 
 Both blocks are accessible through the public API: `mat->get_local_matrix()` returns the
 local (diagonal-block) matrix and `mat->get_non_local_matrix()` returns the non-local
 (off-diagonal-block) matrix. The "diagonal" and "off-diagonal" wording refers to the **block
-structure** of the partitioned global matrix — every rank's local piece sits on the
-block-diagonal of the permuted global matrix — not to a matrix that is literally diagonal.
+structure** of the partitioned global matrix (every rank's local piece sits on the
+block-diagonal of the permuted global matrix), not to a matrix that is literally diagonal.
 
 The halo pattern (which remote rows this rank needs) is derived from the `index_map` at construction
 time and is fixed for the lifetime of the matrix. It is not recomputed on every `apply` call.
 
-## Halo exchange — gather and scatter
+## Halo exchange: gather and scatter
 
 The communication protocol for a single distributed apply proceeds as follows:
 
@@ -43,8 +43,8 @@ The exchange is a single variable-sized all-to-all
 (`mpi::request i_all_to_all_v(...)` from the collective communicator; blocking with the default
 `DenseCommunicator`), not a sequence of
 point-to-point `MPI_Isend` / `MPI_Irecv` pairs. This lets MPI implementations pick the optimal
-underlying transport — including direct neighbour-to-neighbour sends when the communicator topology
-makes that natural — without Ginkgo having to enumerate the send/receive list manually.
+underlying transport, including direct neighbour-to-neighbour sends when the communicator topology
+makes that natural, without Ginkgo having to enumerate the send/receive list manually.
 
 In Ginkgo, the gather step is implemented by a `RowGatherer`. The receive side (step 5) uses a
 halo buffer cached inside the `Matrix` and resized on demand for the number of right-hand-side
@@ -88,8 +88,8 @@ exec->synchronize();
 ```
 
 This waits for everything queued on the executor's stream, not just the gather kernel. Internally
-Ginkgo's `RowGatherer` does something more granular — it records an event on the stream right
-after the gather kernel and waits on just that event before issuing the all-to-all — but the
+Ginkgo's `RowGatherer` does something more granular (it records an event on the stream right
+after the gather kernel and waits on just that event before issuing the all-to-all), but the
 event-recording machinery (`gko::detail::Event`, the `event::record_event` kernel registered in
 `core/distributed/row_gatherer.cpp`) is internal-by-convention and not a stable user-facing API.
 For an external distributed `LinOp`, the executor-level sync is the supported path.
@@ -122,20 +122,20 @@ A_non_local * x_halo (kernel)        A_non_local * x_halo (kernel)
       y_local                             y_local
 ```
 
-The local-matrix kernel can overlap with the MPI exchange in time — its result does not depend
+The local-matrix kernel can overlap with the MPI exchange in time; its result does not depend
 on halo data, so both sides can start immediately while the exchange is in flight. On the host executor with the
 default `DenseCommunicator`, the exchange has completed before the local kernel starts.
 
 :::{seealso}
-- [The MPI layer](mpi-layer.md) — the communicator, request handle, and collective surface backing
+- [The MPI layer](mpi-layer.md): the communicator, request handle, and collective surface backing
   the call sites above.
-- [Collective communicators](collective-communicator.md) — the interface that backs
+- [Collective communicators](collective-communicator.md): the interface that backs
   `i_all_to_all_v`, plus the dense and neighborhood implementations.
-- [RowGatherer](row-gather-scatter.md) — the helper that packs the send buffer
+- [RowGatherer](row-gather-scatter.md): the helper that packs the send buffer
   and issues the collective.
-- [Partitions and index maps](partition-and-index-map.md) — the indexing that drives the halo
+- [Partitions and index maps](partition-and-index-map.md): the indexing that drives the halo
   construction.
-- [Distributed solvers and preconditioners](solvers-and-preconditioners.md) — what consumes the
+- [Distributed solvers and preconditioners](solvers-and-preconditioners.md): what consumes the
   distributed apply.
 - API reference: [`gko::experimental::distributed::Matrix`](../../../api-reference/distributed/matrix.md)
 :::

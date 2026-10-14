@@ -1,8 +1,8 @@
 # Poisson on GPU
 
 This tutorial picks up from [Poisson on CPU](poisson-cpu.md) and ports the
-solver to a GPU executor. We're solving the same 1D Poisson problem —
-$-u''(x) = -6x$ on $(0, 1)$ with $u(0)=0,\ u(1)=1$ — but the matrix and
+solver to a GPU executor. We're solving the same 1D Poisson problem
+($-u''(x) = -6x$ on $(0, 1)$ with $u(0)=0,\ u(1)=1$), but the matrix and
 the iteration now live on the device.
 
 The whole port is **three line changes** plus one new accessor pattern. The
@@ -21,7 +21,7 @@ hardware:
 | Intel GPU | `-DGINKGO_BUILD_SYCL=ON`      | `gko::DpcppExecutor`  |
 
 The walk-through below uses `CudaExecutor`. To target AMD or Intel, swap the
-executor type — every other line of code stays the same.
+executor type: every other line of code stays the same.
 
 This tutorial also assumes you have the OpenMP backend (`GINKGO_BUILD_OMP=ON`)
 so the host side can use multi-threaded execution for data assembly. The
@@ -41,8 +41,8 @@ auto host_exec = gko::OmpExecutor::create();
 auto exec      = gko::CudaExecutor::create(/*device_id=*/0, host_exec);
 ```
 
-The CUDA executor needs a host executor as its second constructor argument
-— this is the executor used for fall-back operations and for asynchronous
+The CUDA executor needs a host executor as its second constructor argument;
+this is the executor used for fall-back operations and for asynchronous
 device-to-host transfers that the runtime issues internally. See
 [CudaExecutor](../concepts/executors/cuda.md) for the full constructor
 signatures (allocator and stream variants).
@@ -73,7 +73,7 @@ Take the CPU `poisson_cpu.cpp` and apply these edits:
    solver->apply(rhs, u);   // rhs and u are pulled onto the device
    ```
 
-   `gko::clone(exec, matrix)` is the canonical cross-executor copy — it
+   `gko::clone(exec, matrix)` is the canonical cross-executor copy: it
    returns a `unique_ptr<Csr>` whose storage lives on `exec`'s device
    memory. `gko::share` then hands ownership over to the factory.
 
@@ -88,14 +88,14 @@ Take the CPU `poisson_cpu.cpp` and apply these edits:
    ```
 
 That's it. The math, the CG iteration, the preconditioner, the stopping
-criteria — none of that needs to change. The kernels Ginkgo dispatches under
+criteria: none of that needs to change. The kernels Ginkgo dispatches under
 the hood swap automatically based on what `exec` is.
 
 ## Reading the result back
 
 The CPU tutorial reads `u` with `u->get_const_values()` directly. That's
 fine when `u` lives on the host. In our GPU version `u` was built on
-`host_exec`, but after `apply` *its values may live on the device* —
+`host_exec`, but after `apply` *its values may live on the device*:
 specifically, `apply` performs a cross-executor copy of the solution back
 into `u`'s host storage if `u` is on the host, so in this exact pattern the
 direct read works. Where the issue bites is if you build the result vector
@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 }
 ```
 
-`CMakeLists.txt` is unchanged from the CPU tutorial — Ginkgo's
+`CMakeLists.txt` is unchanged from the CPU tutorial; Ginkgo's
 `Ginkgo::ginkgo` target pulls in whichever backends were built:
 
 ```cmake
@@ -232,13 +232,13 @@ cmake --build build
 ```
 
 Expected output (the numerical answer is identical to the CPU version up to
-round-off — only the path differs):
+round-off; only the path differs):
 
 ```text
 K = 4096,  max |u_h - u_exact| = ~1e-13
 ```
 
-The exact final digit is hardware-, driver-, and library-dependent — but
+The exact final digit is hardware-, driver-, and library-dependent, but
 matching the CPU answer to within $10^{-13}$ confirms the GPU path is
 giving you the same solution.
 
@@ -260,7 +260,7 @@ std::cout << "solve time: "
           << " ms\n";
 ```
 
-The `exec->synchronize()` is important — device kernels launched by `apply`
+The `exec->synchronize()` is important: device kernels launched by `apply`
 are asynchronous, so without it you'd be timing the kernel-launch overhead
 rather than the actual work. See
 [CudaExecutor](../concepts/executors/cuda.md) for the synchronization model.
@@ -279,7 +279,7 @@ exact numbers will depend heavily on hardware):
 The crossover sits around $K \sim 10^4$–$10^5$ for a 1D problem because
 that's where the device's memory bandwidth advantage starts to dominate
 over kernel-launch overhead. For 2D / 3D problems the crossover shifts to
-larger total non-zeros — different problem shape, same principle.
+larger total non-zeros: different problem shape, same principle.
 
 If you want to dig into where the time goes, attach a
 `ProfilerHook::create_summary` logger to the executor for a per-operation
@@ -298,7 +298,7 @@ Both are described under
 - **Building the factory on the wrong executor.** The factory's `.on(...)`
   call binds *every* component (CG iterates, the preconditioner) to a
   single executor. If you accidentally call `.on(host_exec)`, the solve
-  will run on the CPU even though your matrix is on the GPU — Ginkgo
+  will run on the CPU even though your matrix is on the GPU: Ginkgo
   will copy data back across to make it work, silently and slowly.
 - **Re-cloning across solves.** If you solve repeatedly with the same
   matrix (e.g. inside a Newton iteration), clone *once* outside the loop
@@ -322,19 +322,19 @@ the per-executor pages.
 
 ## Next steps
 
-- [Poisson on CPU](poisson-cpu.md) — the matching CPU walk-through if you
-  arrived here first.
-- [Concepts: Executor model](../concepts/executor-model.md) — the bigger
-  picture of how executors fit together.
+- [Poisson on CPU](poisson-cpu.md) (the matching CPU walk-through if you
+  arrived here first).
+- [Concepts: Executor model](../concepts/executor-model.md) (the bigger
+  picture of how executors fit together).
 - [How-To: Move data between executors](../how-to/using/move-data-between-executors.md)
-  — clone, copy_from, `make_temporary_clone` patterns.
-- [How-To: Switch executor](../how-to/using/switch-executor.md) — for
-  applications that want to pick a backend at runtime.
+  (clone, copy_from, `make_temporary_clone` patterns).
+- [How-To: Switch executor](../how-to/using/switch-executor.md) (for
+  applications that want to pick a backend at runtime).
 
 :::{seealso}
-- [CudaExecutor](../concepts/executors/cuda.md) — stream, allocator, and
+- [CudaExecutor](../concepts/executors/cuda.md): stream, allocator, and
   device-id options.
-- [HipExecutor](../concepts/executors/hip.md) — the AMD equivalent.
-- [DpcppExecutor](../concepts/executors/dpcpp.md) — the Intel / SYCL
+- [HipExecutor](../concepts/executors/hip.md): the AMD equivalent.
+- [DpcppExecutor](../concepts/executors/dpcpp.md): the Intel / SYCL
   equivalent.
 :::

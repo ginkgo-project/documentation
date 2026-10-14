@@ -10,7 +10,7 @@ computation; on device executors the local-matrix kernel is queued before the
 blocking exchange is issued, so that kernel does overlap (work issued after the
 call does not).
 
-Pick `DenseCommunicator` when in doubt — it works on every
+Pick `DenseCommunicator` when in doubt; it works on every
 communicator topology and performs well at small-to-moderate process
 counts. Switch to [`NeighborhoodCommunicator`](neighborhood-communicator.md)
 at large rank counts where each rank only communicates with a few

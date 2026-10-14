@@ -12,9 +12,9 @@ SpMV consumes; the `RowGatherer` holds a `CollectiveCommunicator` and invokes `i
 The exchange completes before the non-local SpMV starts. The default `DenseCommunicator` is blocking, so
 on the host executor the exchange has already completed when the local SpMV starts; on device
 executors the local kernel is queued ahead of the exchange and the two overlap. Two
-concrete implementations ship with Ginkgo —
+concrete implementations ship with Ginkgo:
 [`DenseCommunicator`](dense-communicator.md) and
-[`NeighborhoodCommunicator`](neighborhood-communicator.md) — and
+[`NeighborhoodCommunicator`](neighborhood-communicator.md);
 applications can supply their own by deriving from this interface.
 
 ```{doxygenclass} gko::experimental::mpi::CollectiveCommunicator

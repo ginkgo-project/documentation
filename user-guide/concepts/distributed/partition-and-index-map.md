@@ -68,7 +68,7 @@ non-contiguous.
 
 `index_map<L, G>` is the per-rank mapping between local indices and global indices. It lives
 alongside a `Partition` and a communicator. The distributed `Matrix`, and the communicators and `RowGatherer` built from its index map, use it
-to translate between indexing schemes for the halo exchange — determining which remote global indices
+to translate between indexing schemes for the halo exchange, determining which remote global indices
 this rank's non-local matrix references, and which remote ranks need values from this rank.
 
 For most user code, `index_map` is an implementation detail: `read_distributed` derives the map
@@ -94,14 +94,14 @@ volume. Practical guidelines:
 
 :::{tip}
 For a quick start or a test, `build_from_global_size_uniform` is the least code. For production
-runs on unstructured meshes, invest in a graph-partitioner-based mapping — the convergence benefit
+runs on unstructured meshes, invest in a graph-partitioner-based mapping; the convergence benefit
 from a smaller non-local matrix typically outweighs the setup cost.
 :::
 
 :::{seealso}
-- [Distributed computing — overview](../distributed.md) — the assembly pattern that uses a
+- [Distributed computing](../distributed.md): the assembly pattern that uses a
   `Partition`.
-- [Communication primitives](communication-primitives.md) — what the index map drives during
+- [Communication primitives](communication-primitives.md): what the index map drives during
   the distributed apply.
 - API reference: [`gko::experimental::distributed::Partition`](../../../api-reference/distributed/partition.md)
 :::

@@ -1,6 +1,6 @@
 # Views and zero-copy wrapping
 
-An `array` can wrap memory you already own — a buffer from deal.II, MFEM, Kokkos, or a raw user pointer — without copying it. This is essential when integrating Ginkgo as a solver backend inside a larger simulation code: you can hand Ginkgo a view of your existing data, run a solve, and read the result back in place, all without a single extra allocation. This page explains the lifetime contract, the differences between owned and viewed arrays, and the patterns for the most common integration scenarios.
+An `array` can wrap memory you already own (a buffer from deal.II, MFEM, Kokkos, or a raw user pointer) without copying it. This is essential when integrating Ginkgo as a solver backend inside a larger simulation code: you can hand Ginkgo a view of your existing data, run a solve, and read the result back in place, all without a single extra allocation. This page explains the lifetime contract, the differences between owned and viewed arrays, and the patterns for the most common integration scenarios.
 
 ## Constructing a view
 
@@ -58,11 +58,11 @@ The executor compatibility rule also applies: `user_data` must be accessible by 
 | Copy (`array b = a;`)       | Allocates new memory and copies             | Allocates new memory and copies                |
 | Move                        | Transfers ownership                         | Transfers the view (still non-owning)          |
 | `gko::array<T>{exec, a}`    | Cross-executor copy (new allocation)        | Cross-executor copy (new allocation)           |
-| `resize_and_reset(n)`       | Reallocates to new size                     | **Not supported** — throws unless `n` matches the current size (a no-op) |
+| `resize_and_reset(n)`       | Reallocates to new size                     | **Not supported**: throws unless `n` matches the current size (a no-op) |
 | `fill(value)`               | Sets all elements                           | Sets all elements (writes through to buffer)   |
 
 :::{note}
-Resizing a view is not supported — Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with the cross-executor constructor `gko::array<T>{exec, a}`.
+Resizing a view is not supported, since Ginkgo does not own the underlying buffer and cannot grow it. If your computation needs more space than the user provided, copy into a new owned array with the cross-executor constructor `gko::array<T>{exec, a}`.
 :::
 
 ## Integration patterns
@@ -122,7 +122,7 @@ As with all views, the Kokkos view must outlive the Ginkgo array view.
 
 ### Constructing a CSR matrix from non-owned views
 
-Most matrix formats — including CSR — can be constructed directly from `array<T>` arguments. The relevant `create` overload takes the arrays *by value*:
+Most matrix formats (including CSR) can be constructed directly from `array<T>` arguments. The relevant `create` overload takes the arrays *by value*:
 
 ```cpp
 static std::unique_ptr<Csr> create(
@@ -132,7 +132,7 @@ static std::unique_ptr<Csr> create(
     std::shared_ptr<strategy_type> strategy = nullptr);
 ```
 
-If you pass **rvalue** arrays (via `std::move` or freshly-constructed temporaries), Ginkgo moves them into the matrix directly — no copy. When the moved-in array is a view, the resulting matrix simply references the same user memory:
+If you pass **rvalue** arrays (via `std::move` or freshly-constructed temporaries), Ginkgo moves them into the matrix directly, with no copy. When the moved-in array is a view, the resulting matrix simply references the same user memory:
 
 ```cpp
 // User owns these buffers — Ginkgo will not free them.
@@ -167,7 +167,7 @@ auto mat = gko::matrix::Csr<double, int>::create_const(
                gko::make_const_array_view(exec, n_rows + 1, const_row_ptrs));
 ```
 
-The resulting matrix can be applied (`mat->apply(b, x)`), used as a system matrix in a solver factory, etc., but cannot be modified — enforced at the type level.
+The resulting matrix can be applied (`mat->apply(b, x)`), used as a system matrix in a solver factory, etc., but cannot be modified, which is enforced at the type level.
 
 The same pattern works for `Coo`, `Ell`, `Dense`, and the other matrix formats: each provides a `create(exec, size, ...arrays)` overload that moves rvalue arrays in directly, plus a `create_const(...)` for immutable wrapping.
 
@@ -175,13 +175,13 @@ The same pattern works for `Coo`, `Ell`, `Dense`, and the other matrix formats: 
 
 Views eliminate allocation overhead, but they are not always the right choice:
 
-- **Short-lived operations** — if the view lives for a single `apply` call and the source buffer is known to be valid throughout, a view is safe and efficient.
-- **Cross-executor mismatch** — if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::array<double>{gpu_exec, host_array}`, which allocates on `gpu_exec` and copies the data across.
-- **Uncertain buffer lifetime** — if you cannot guarantee that the source buffer outlives all uses of the view, copy into an owned array first.
-- **Need to resize** — views cannot be resized. If the algorithm needs a scratch buffer of unknown size, allocate an owned array.
+- **Short-lived operations**: if the view lives for a single `apply` call and the source buffer is known to be valid throughout, a view is safe and efficient.
+- **Cross-executor mismatch**: if the source buffer is on the host but the computation runs on a GPU, a view cannot bridge that gap. Copy explicitly with `gko::array<double>{gpu_exec, host_array}`, which allocates on `gpu_exec` and copies the data across.
+- **Uncertain buffer lifetime**: if you cannot guarantee that the source buffer outlives all uses of the view, copy into an owned array first.
+- **Need to resize**: views cannot be resized. If the algorithm needs a scratch buffer of unknown size, allocate an owned array.
 
 :::{seealso}
-- [Memory ownership and `gko::array`](memory-ownership.md) — owned-array semantics.
-- [The Executor model](executor-model.md) — memory space compatibility.
+- [Memory ownership and `gko::array`](memory-ownership.md): owned-array semantics.
+- [The Executor model](executor-model.md): memory space compatibility.
 - API reference: [`gko::make_array_view`](../../api-reference/base/array.md)
 :::

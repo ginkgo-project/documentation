@@ -6,10 +6,10 @@ In Ginkgo, every operator that maps an input vector to an output vector implemen
 
 A `LinOp` (linear operator) is any object with an `apply(b, x)` operation that maps an input `b` to an output `x`. The Ginkgo class hierarchy uses `LinOp` as a polymorphic base for:
 
-- **Matrices** — `gko::matrix::Csr`, `gko::matrix::Coo`, `gko::matrix::Dense`, `gko::matrix::Ell`, `gko::matrix::Sellp`, `gko::matrix::Hybrid`, `gko::matrix::Fbcsr`, `gko::matrix::Identity`, `gko::matrix::Diagonal`
-- **Solvers** — `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, `gko::solver::Idr`, `gko::solver::Multigrid`, and direct solvers
-- **Preconditioners** — `gko::preconditioner::Jacobi`, `gko::preconditioner::Ilu`, `gko::preconditioner::Ic`, `gko::preconditioner::Isai`
-- **Composite operators** — `gko::Composition`, `gko::BlockOperator`, `gko::Combination`
+- **Matrices**: `gko::matrix::Csr`, `gko::matrix::Coo`, `gko::matrix::Dense`, `gko::matrix::Ell`, `gko::matrix::Sellp`, `gko::matrix::Hybrid`, `gko::matrix::Fbcsr`, `gko::matrix::Identity`, `gko::matrix::Diagonal`
+- **Solvers**: `gko::solver::Cg`, `gko::solver::Gmres`, `gko::solver::Bicgstab`, `gko::solver::Fcg`, `gko::solver::Ir`, `gko::solver::Gcr`, `gko::solver::Cgs`, `gko::solver::Idr`, `gko::solver::Multigrid`, and direct solvers
+- **Preconditioners**: `gko::preconditioner::Jacobi`, `gko::preconditioner::Ilu`, `gko::preconditioner::Ic`, `gko::preconditioner::Isai`
+- **Composite operators**: `gko::Composition`, `gko::BlockOperator`, `gko::Combination`
 
 Because they all share the same interface, you pass a `LinOp` wherever an operator is expected. That is how preconditioners plug into solvers and how multi-stage operators compose.
 
@@ -25,7 +25,7 @@ op->apply(b, x);
 op->apply(alpha, b, beta, x);
 ```
 
-`b` and `x` are `LinOp` instances — in practice, `gko::matrix::Dense` objects used as multi-vectors, with one column per right-hand side. `alpha` and `beta` are 1×1 `Dense` scalars on the same executor as `op`.
+`b` and `x` are `LinOp` instances: in practice, `gko::matrix::Dense` objects used as multi-vectors, with one column per right-hand side. `alpha` and `beta` are 1×1 `Dense` scalars on the same executor as `op`.
 
 The operator's dimensions are available without applying it:
 
@@ -59,11 +59,11 @@ protected:
 };
 ```
 
-Down-casting uses the free function `gko::as<Derived>(ptr)`, which throws `gko::NotSupported` for a mismatching type. `EnableLinOp` ensures that every operator satisfies the `LinOp` contract — dimension consistency checks, executor checks — without requiring boilerplate in every derived class.
+Down-casting uses the free function `gko::as<Derived>(ptr)`, which throws `gko::NotSupported` for a mismatching type. `EnableLinOp` ensures that every operator satisfies the `LinOp` contract (dimension consistency checks, executor checks) without requiring boilerplate in every derived class.
 
 ## The factory pattern
 
-Most user-facing operators — especially solvers and preconditioners — are configured via *factories* rather than constructed directly. This separates parameter selection from system binding:
+Most user-facing operators (especially solvers and preconditioners) are configured via *factories* rather than constructed directly. This separates parameter selection from system binding:
 
 ```cpp
 // Configure the factory (executor-independent parameters).
@@ -91,7 +91,7 @@ solver->apply(b, x);
 - `.on(exec)` is a const member of the parameter object: it returns a `LinOpFactory` bound to `exec` and leaves the parameters intact, so one parameter object can create factories on several executors.
 - `generate(matrix)` is a const member of the factory: it returns a fully configured `LinOp` and leaves the factory reusable. The solver performs any necessary setup (for example, ILU factorization for an ILU preconditioner) during this call.
 
-The two-step design is intentional. The same factory can generate solvers for many different matrices without recreating the parameter object. It also makes it possible to serialize factory configurations to and from JSON or YAML — see [Configuration from JSON files](config-files.md).
+The two-step design is intentional. The same factory can generate solvers for many different matrices without recreating the parameter object. It also makes it possible to serialize factory configurations to and from JSON or YAML; see [Configuration from JSON files](config-files.md).
 
 ## Composing operators
 
@@ -107,7 +107,7 @@ auto combined = gko::Combination<double>::create(alpha, A, beta, B);
 combined->apply(x, y);
 ```
 
-`Composition` and `Combination` are themselves `LinOp` instances, so they compose recursively into arbitrarily deep operator trees. Iterative refinement (`gko::solver::Ir`) is another composable `LinOp` — it wraps an inner solver and applies it as a `LinOp`, making it straightforward to chain with other operators.
+`Composition` and `Combination` are themselves `LinOp` instances, so they compose recursively into arbitrarily deep operator trees. Iterative refinement (`gko::solver::Ir`) is another composable `LinOp`: it wraps an inner solver and applies it as a `LinOp`, making it straightforward to chain with other operators.
 
 ## The LinOp inheritance tree
 
@@ -137,6 +137,6 @@ Every entry in this tree follows the same `apply` contract, carries its executor
 - [Ginkgo — A Math Library Designed to Accelerate Exascale Computing Project Science Applications](https://doi.org/10.1177/10943420241268323)
 
 :::{seealso}
-- [The Executor model](executor-model.md) — where the LinOp lives.
+- [The Executor model](executor-model.md): where the LinOp lives.
 - API reference: [`gko::LinOp`](../../api-reference/base/lin-op.md)
 :::

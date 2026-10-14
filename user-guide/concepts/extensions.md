@@ -1,4 +1,4 @@
-# Extensions — taxonomy
+# Extension taxonomy
 
 Ginkgo's `extensions/` tree holds optional integrations with third-party libraries. Each
 extension is a set of headers that you include where needed, and lives in its own namespace
@@ -42,6 +42,6 @@ extensions/kokkos
 ```
 
 :::{seealso}
-- [Configuration from JSON files](config-files.md) — the user-facing wrapper around the config extension.
+- [Configuration from JSON files](config-files.md): the user-facing wrapper around the config extension.
 - API reference: [`gko::ext`](../../api-reference/extensions/index.md)
 :::

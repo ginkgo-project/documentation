@@ -10,7 +10,7 @@ CMake and run from the shell. By the end you will have:
 - A small mesh-refinement loop so you can watch the error behave as the
   grid is refined.
 
-A companion tutorial — [Poisson on GPU](poisson-gpu.md) — re-uses the same
+A companion tutorial, [Poisson on GPU](poisson-gpu.md), re-uses the same
 code, swapping only the executor.
 
 ## What we're solving
@@ -46,7 +46,7 @@ iteration counts low.
 
 You need a working Ginkgo installation that includes at least the
 **Reference** backend. Any of the standard install paths from
-[Install Ginkgo](../../getting-started/install.md) works — for this tutorial nothing
+[Install Ginkgo](../../getting-started/install.md) works; for this tutorial nothing
 else is required. If you also have the **OMP** backend compiled in, you can
 swap the executor in one line to get multi-threaded execution; we'll point
 this out below.
@@ -102,7 +102,7 @@ using Jacobi = gko::preconditioner::Jacobi<ValueType, IndexType>;
 ```
 
 `Csr` is the standard sparse matrix format for SPD problems like this one.
-`Dense` is Ginkgo's dense-vector / dense-matrix class — we'll use it for the
+`Dense` is Ginkgo's dense-vector / dense-matrix class; we'll use it for the
 right-hand side and the solution vector. `Jacobi` with the default block
 size 1 is diagonal preconditioning.
 
@@ -116,7 +116,7 @@ auto exec = gko::ReferenceExecutor::create();
 The `ReferenceExecutor` is the single-threaded, fully portable CPU backend
 that ships with every Ginkgo build. If you compiled Ginkgo with
 `-DGINKGO_BUILD_OMP=ON`, swap the line for `gko::OmpExecutor::create()` and
-the rest of the program stays identical — that's the point of the
+the rest of the program stays identical; that's the point of the
 executor abstraction. See [Execution backends](../concepts/executor-model.md)
 for the broader picture.
 
@@ -130,7 +130,7 @@ $$
 
 with the $-u_{-1}$ and $-u_K$ neighbours moving to the right-hand side as
 boundary contributions. Multiplying through by $h^2$ keeps the matrix
-entries simple — the stencil becomes $\{-1, 2, -1\}$ and the RHS picks up an
+entries simple: the stencil becomes $\{-1, 2, -1\}$ and the RHS picks up an
 $h^2$ factor (we handle that in the next section). The matrix has at most
 three non-zeros per row, with $3K - 2$ entries in total:
 
@@ -157,7 +157,7 @@ std::unique_ptr<Csr> build_matrix(std::shared_ptr<const gko::Executor> exec,
 
 A small subtlety: we allocate the CSR with `Csr::create(exec, size, nnz)`,
 which gives us read/write access to `row_ptrs`, `col_idxs`, and `values`
-directly. We're free to do this because `exec` is a CPU executor here — on a
+directly. We're free to do this because `exec` is a CPU executor here; on a
 device executor we'd build on the host and then `clone` to the device, which
 is exactly what the [GPU tutorial](poisson-gpu.md) does.
 
@@ -199,7 +199,7 @@ auto solver_factory =
 Two stopping criteria are combined: an iteration cap so a divergent run
 can't loop forever, and a residual-norm criterion that stops as soon as the
 relative residual drops below $10^{-12}$. With Jacobi preconditioning and an
-SPD tridiagonal of this size CG converges in tens of iterations — well below
+SPD tridiagonal of this size CG converges in tens of iterations, well below
 the cap. For a tour of the available criteria, see
 [Stopping criteria](../concepts/stopping-criteria.md).
 
@@ -215,7 +215,7 @@ auto solver = solver_factory->generate(gko::share(std::move(matrix)));
 solver->apply(rhs, u);
 ```
 
-`generate(...)` performs solver setup — for CG that means binding the
+`generate(...)` performs solver setup: for CG that means binding the
 operator and constructing the preconditioner. The factory wants a
 `shared_ptr<const LinOp>`, and `gko::share(std::move(matrix))` is the
 standard one-liner that hands ownership over. `solver->apply(rhs, u)` runs
@@ -390,7 +390,7 @@ K = 256,  max |u_h - u_exact| = 2.05391e-15
 ```
 
 (The exact last digit varies slightly with compiler, BLAS, and the iterative
-tolerance — anything in the $10^{-15}$ – $10^{-13}$ range is the same answer
+tolerance: anything in the $10^{-15}$ – $10^{-13}$ range is the same answer
 modulo round-off.)
 
 ## Refining the grid
@@ -398,7 +398,7 @@ modulo round-off.)
 Why does the error stay near machine precision rather than shrinking with
 $h^2$? Because the manufactured solution $u(x) = x^3$ has $u^{(4)} \equiv 0$,
 which kills the leading $\mathcal{O}(h^2)$ truncation term of the 3-point
-stencil — the only thing left is the iterative residual and round-off. Pick
+stencil: the only thing left is the iterative residual and round-off. Pick
 a more challenging exact solution and the textbook $\mathcal{O}(h^2)$ rate
 returns immediately. Swap the `build_rhs` and the post-solve loop to use,
 say, $u(x) = \sin(\pi x)$ (so $f(x) = \pi^2 \sin(\pi x)$, $u_0 = u_1 = 0$):
@@ -421,7 +421,7 @@ Running for $K = 16, 32, 64, 128, 256$ produces:
 | 256 | $3.89 \times 10^{-3}$ | $1.25 \times 10^{-5}$                     | $3.97\times$        |
 
 Halving $h$ shrinks the error by ~4×, which is exactly the $\mathcal{O}(h^2)$
-behaviour you'd expect from a second-order stencil — and the ratio converges
+behaviour you'd expect from a second-order stencil, and the ratio converges
 to 4 as the mesh resolves the smooth $\sin(\pi x)$ shape more faithfully.
 
 ```{figure} _figures/poisson-convergence.svg
@@ -435,19 +435,19 @@ The dashed reference line is $\mathcal{O}(h^2)$.
 
 ## Next steps
 
-- [Poisson on GPU](poisson-gpu.md) — same code, a different executor, and a
+- [Poisson on GPU](poisson-gpu.md): same code, a different executor, and a
   CPU-vs-GPU performance sweep.
 - Try replacing CG with [GMRES](../concepts/solvers/gmres.md) and see what
-  changes (it shouldn't — both converge for SPD problems, GMRES just does
+  changes (it shouldn't: both converge for SPD problems, GMRES just does
   more work).
-- Try a stronger preconditioner — e.g.,
-  [ILU](../concepts/preconditioners.md#ilu-and-variants) — and watch the
+- Try a stronger preconditioner (e.g.,
+  [ILU](../concepts/preconditioners.md#ilu-and-variants)) and watch the
   iteration count drop.
 - For a 2D version of the same problem, see the upstream
   `nine-pt-stencil-solver` example.
 
 :::{seealso}
-- [Concepts: Solvers — taxonomy](../concepts/solvers.md) — when to pick what.
-- [Concepts: Preconditioners — taxonomy](../concepts/preconditioners.md)
+- [Concepts: Solver taxonomy](../concepts/solvers.md) (when to pick what).
+- [Concepts: Preconditioner taxonomy](../concepts/preconditioners.md)
 - [How-To: Configure stopping criteria](../how-to/using/configure-stopping-criteria.md)
 :::

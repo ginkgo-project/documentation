@@ -18,12 +18,12 @@ how-to.
 
 ## Types
 
-- [`pnode`](pnode.md) — the property-tree node that holds a parsed
+- [`pnode`](pnode.md): the property-tree node that holds a parsed
   configuration value (scalar, array, or map).
-- [`type_descriptor`](type-descriptor.md) — pins the value, local-
+- [`type_descriptor`](type-descriptor.md): pins the value, local-
   index and global-index types used when materialising a factory from
   a configuration.
-- [`registry`](registry.md) — lookup table for externally-supplied
+- [`registry`](registry.md): lookup table for externally-supplied
   named objects (e.g. a system matrix passed in by name from the
   application) that the configuration document can refer to.
 

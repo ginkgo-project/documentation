@@ -1,10 +1,10 @@
 # `gko::multigrid::Pgm`
 
-Parallel Graph Matching aggregation — Ginkgo's default algebraic
+Parallel Graph Matching aggregation: Ginkgo's default algebraic
 coarsening. Pgm builds the coarse level by aggregating fine-level rows
 in two phases:
 
-1. For every unaggregated row $i$, find the *strongest neighbour* —
+1. For every unaggregated row $i$, find the *strongest neighbour*:
    the column $j$ in $i$'s row with the largest symmetric weight
    $(|a_{ij}| + |a_{ji}|)/2$, divided by the larger of the diagonal
    entries $|a_{ii}|$ and $|a_{jj}|$.
@@ -19,7 +19,7 @@ aggregates of size 2 (one-phase handshaking); the resulting coarse
 operator is built by Galerkin projection $A_c = R\, A\, P$.
 
 Pgm is the natural default coarsening for non-geometric problems
-where no separator information is available — graph matching captures
+where no separator information is available; graph matching captures
 the strongest couplings using the matrix values themselves.
 
 ```{doxygenclass} gko::multigrid::Pgm

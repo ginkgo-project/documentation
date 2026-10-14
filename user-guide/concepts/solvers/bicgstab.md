@@ -4,8 +4,8 @@
 method for **general non-symmetric** linear systems. It is a stabilised
 variant of BiCG that avoids the irregular convergence of the original by
 introducing an extra minimisation step at each iteration. Compared to GMRES,
-BiCGSTAB's memory footprint is bounded — it does not grow with the iteration
-count — at the cost of two SpMVs and two preconditioner applications per
+BiCGSTAB's memory footprint is bounded (it does not grow with the iteration
+count), at the cost of two SpMVs and two preconditioner applications per
 outer iteration.
 
 ## When to use BiCGSTAB
@@ -48,7 +48,7 @@ solver->apply(b, x);
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
+| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required; see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()`. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner; bypasses `preconditioner` if set. |
 
@@ -74,7 +74,7 @@ GMRES, BiCGSTAB usually wins on memory-bandwidth-bound hardware.
 Ginkgo applies the preconditioner on the right: `y = M⁻¹ p` followed by `v = A y`
 builds the Krylov subspace of $A M^{-1}$, the same structure GMRES uses. The
 practical consequence is that the convergence test sees the unpreconditioned
-residual $r = b - A x$, not $M^{-1} r$. See [Preconditioners — left, right,
+residual $r = b - A x$, not $M^{-1} r$. See [Preconditioners: left, right,
 and split](../preconditioners.md#left-right-and-split-preconditioning) for the
 mathematical detail.
 
@@ -97,7 +97,7 @@ BiCGSTAB has two well-known failure modes:
   and can stall convergence.
 - **Oscillatory residual history**: even when the residual norm trends
   downward, BiCGSTAB's per-iteration norm can oscillate substantially. This is
-  intrinsic to the method, not a bug — but it means a tight `ResidualNorm`
+  intrinsic to the method, not a bug, but it means a tight `ResidualNorm`
   stopping criterion can fire on a transient dip rather than on actual
   convergence.
 
@@ -106,9 +106,9 @@ but more memory) or IDR(s) (similar bounded memory, often better convergence on
 stiff problems).
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where BiCGSTAB fits among the families.
-- [GMRES](gmres.md), [IDR(s)](idr.md) — alternative non-symmetric solvers.
-- [Preconditioners — taxonomy](../preconditioners.md) — what to pair with BiCGSTAB.
-- [Stopping criteria](../stopping-criteria.md) — required configuration.
+- [Solver taxonomy](../solvers.md): where BiCGSTAB fits among the families.
+- [GMRES](gmres.md), [IDR(s)](idr.md): alternative non-symmetric solvers.
+- [Preconditioner taxonomy](../preconditioners.md): what to pair with BiCGSTAB.
+- [Stopping criteria](../stopping-criteria.md): required configuration.
 - API reference: [`gko::solver::Bicgstab`](../../../api-reference/solver/bicgstab.md)
 :::

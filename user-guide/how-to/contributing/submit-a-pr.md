@@ -11,7 +11,7 @@ the `develop` branch.
   from `develop` at release time and is tagged for each release. Do
   not open PRs against `main`.
 - Rebase onto `develop` before requesting the final review. Ginkgo's
-  history is linear by policy — merges are produced via rebase, not via
+  history is linear by policy; merges are produced via rebase, not via
   merge commits.
 - Push your branch to your fork (or to a branch on the public mirror if
   you have write access). The full CI matrix runs when you open the PR.
@@ -31,7 +31,7 @@ Related PR: https://github.com/ginkgo-project/ginkgo/pull/<PR-number>
 ```
 
 The first line is a verb-led summary at most 50 characters. Empty line.
-Then a description that walks through what changed and why — not how;
+Then a description that walks through what changed and why, not how;
 the diff already shows that.
 
 If you took an idea from a reviewer comment, it is suggested to attribute
@@ -76,7 +76,7 @@ build/test matrix. Stages are:
 
 A PR has to be green across both pipelines. Treat a red GitHub Actions
 build (formatting, MacOS, Windows, ARM, Intel) the same way as a red
-GitLab build — re-push, don't merge over a failure.
+GitLab build: re-push, don't merge over a failure.
 
 ## Labels
 
@@ -89,7 +89,7 @@ the missing semantic labels yourself:
 - `1:ST:no-changelog-entry` if your change genuinely doesn't belong in
   the wiki changelog (formatting-only PRs, internal refactors with no
   user-visible effect). Without this label, the CI requires a wiki
-  changelog entry pointing back to the PR — see the next section.
+  changelog entry pointing back to the PR; see the next section.
 
 The full label vocabulary is visible in
 [`.github/label.sh`](https://github.com/ginkgo-project/ginkgo/blob/v1.11.0/.github/label.sh).
@@ -110,7 +110,7 @@ Two ways to satisfy the check:
 1. Add the entry to the wiki Changelog yourself. The wiki is
    editable by anyone with a GitHub account.
 2. Apply the `1:ST:no-changelog-entry` label and the check is skipped.
-   Use this sparingly — formatting-only PRs, internal refactors with
+   Use this sparingly: formatting-only PRs, internal refactors with
    no user-visible API or behaviour change.
 
 Release branches (`release-*`) skip the check automatically.
@@ -118,7 +118,7 @@ Release branches (`release-*`) skip the check automatically.
 ## Review and merge
 
 - **At least two approvals** are required before merge.
-- The assignee is the person responsible for the merge — currently this
+- The assignee is the person responsible for the merge; currently this
   must be a member of the `ginkgo-project` organisation, because GitHub
   doesn't allow assigning users outside the org.
 - Once the PR has the required approvals and the CI is green, a project
@@ -139,7 +139,7 @@ Release branches (`release-*`) skip the check automatically.
    adds path labels; you add `1:ST:ready-for-review` (or `1:ST:WIP`)
    and the changelog-skip label if appropriate.
 6. Add a wiki-changelog entry if the change is user-visible.
-7. CI runs. Iterate on failures by pushing fixes — don't amend the
+7. CI runs. Iterate on failures by pushing fixes; don't amend the
    review-history commits, push new commits.
 8. Address review comments. Reviewers can suggest changes through
    GitHub's suggestion blocks; accept them or reply.
@@ -147,12 +147,12 @@ Release branches (`release-*`) skip the check automatically.
    and one of the assignees performs the rebase-merge.
 
 :::{seealso}
-- `CONTRIBUTING.md` in the Ginkgo source tree — coding style,
+- `CONTRIBUTING.md` in the Ginkgo source tree: coding style,
   whitespace conventions, naming.
-- [Set up a development environment](setup-dev-environment.md) — get
+- [Set up a development environment](setup-dev-environment.md): get
   the pre-commit hook running before your first commit.
-- [Write tests](write-tests.md) — what reviewers expect to see for any
+- [Write tests](write-tests.md): what reviewers expect to see for any
   behavioural change.
-- [Run the benchmark suite](run-benchmark-suite.md) — relevant when a
+- [Run the benchmark suite](run-benchmark-suite.md): relevant when a
   PR can affect performance.
 :::

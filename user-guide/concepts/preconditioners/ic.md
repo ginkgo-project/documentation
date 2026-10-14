@@ -2,19 +2,19 @@
 
 The Incomplete Cholesky family preconditions a **symmetric
 positive-definite** system $A$ by computing an approximation $L L^H \approx
-A$ and using its action as the preconditioner — at apply time, the
+A$ and using its action as the preconditioner: at apply time, the
 preconditioner solves $L L^H z = r$ by chaining a forward triangular solve
 with its conjugate-transpose backward solve.
 
 Three pieces work together:
 
-- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md) — exact
-  IC(0): incomplete Cholesky with the input matrix's own sparsity pattern; its
+- [`gko::factorization::Ic`](../../../api-reference/factorization/ic.md): exact
+  IC(0), incomplete Cholesky with the input matrix's own sparsity pattern; its
   `algorithm` parameter selects the `sparselib` or `syncfree` implementation.
-- [`gko::factorization::ParIc`](../../../api-reference/factorization/par-ic.md) —
+- [`gko::factorization::ParIc`](../../../api-reference/factorization/par-ic.md):
   fine-grained parallel IC(0); asynchronous fixed-point iteration of
   Chow & Patel.
-- [`gko::factorization::ParIct`](../../../api-reference/factorization/par-ict.md) —
+- [`gko::factorization::ParIct`](../../../api-reference/factorization/par-ict.md):
   threshold-based IC; refines the sparsity pattern of $L$ iteratively
   alongside the numerical values.
 
@@ -31,7 +31,7 @@ substituted for cases where the triangular solve is the bottleneck.
   not fit in memory. IC's storage is bounded by the sparsity pattern of
   $A$ (for IC(0)) or by a tunable budget (for ParICT).
 - **As the preconditioner inside [CG](../solvers/cg.md), [FCG](../solvers/fcg.md),
-  or [Minres](../solvers.md)** — IC preserves symmetry, so the
+  or [Minres](../solvers.md)**: IC preserves symmetry, so the
   preconditioned operator stays SPD.
 - **Pair with a fill-reducing reordering** ([AMD](../reordering/amd.md),
   [nested dissection](../reordering/nested-dissection.md)) for higher
@@ -46,7 +46,7 @@ For non-symmetric matrices, use the [ILU family](ilu.md) instead.
 |---|---|---|
 | `factorization::Ic` | Exact IC(0); `algorithm` selects `sparselib` (default) or `syncfree` | Small to moderate matrices; the canonical correctness baseline. |
 | `factorization::ParIc` | Asynchronous fixed-point IC(0) | Larger matrices on GPU or many-core CPU; same sparsity pattern as `Ic`. |
-| `factorization::ParIct` | Threshold-based IC with sparsity-pattern refinement | When IC(0) is too sparse to be effective — ParICT improves the pattern at the cost of more storage and longer generation. |
+| `factorization::ParIct` | Threshold-based IC with sparsity-pattern refinement | When IC(0) is too sparse to be effective; ParICT improves the pattern at the cost of more storage and longer generation. |
 
 ## Construction
 
@@ -101,16 +101,16 @@ level and the problem (a single sweep is enough for sequential
 execution; 3 sweeps on OpenMP and 10+ on GPU are typical).
 
 :::{seealso}
-- [ILU family](ilu.md) — the same approach for non-symmetric matrices.
-- [Solvers — taxonomy](../solvers.md) — Krylov methods that pair naturally with IC.
-- [Reordering and permutations](../reordering.md) — AMD or ND to improve the IC(0) sparsity pattern.
+- [ILU family](ilu.md): the same approach for non-symmetric matrices.
+- [Solver taxonomy](../solvers.md): Krylov methods that pair naturally with IC.
+- [Reordering and permutations](../reordering.md): AMD or ND to improve the IC(0) sparsity pattern.
 - API reference: [`gko::preconditioner::Ic`](../../../api-reference/preconditioner/ic.md).
 
 References:
 - Chow, E., Patel, A. *Fine-Grained Parallel Incomplete LU Factorization.*
   SIAM Journal on Scientific Computing, 37 (2), C169–C193, 2015.
   <https://doi.org/10.1137/140968896>
-- Anzt, H., Chow, E., Dongarra, J. *ParILUT — A Parallel Threshold ILU
+- Anzt, H., Chow, E., Dongarra, J. *ParILUT: A Parallel Threshold ILU
   for GPUs.* IEEE IPDPS 2019, pp. 231–241.
   <https://doi.org/10.1109/IPDPS.2019.00033>
 :::

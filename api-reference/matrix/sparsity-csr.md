@@ -1,6 +1,6 @@
 # `gko::matrix::SparsityCsr`
 
-Sparsity pattern only — CSR row pointers and column indices, plus one
+Sparsity pattern only: CSR row pointers and column indices, plus one
 shared value (a value array of length 1) that stands in for every entry.
 Used wherever an algorithm needs the structure of a matrix but not its
 numerical entries: reordering, the symbolic pattern of LU and Cholesky

@@ -442,8 +442,8 @@ def main(argv=None):
             "full program is included at the bottom so you can copy it "
             "verbatim.\n"),
            ("## Navigation graph\n"),
-           ("Edges flow from each example to the ones that build on it — "
-            "follow the arrows to go from the simplest setups toward more "
+           ("Edges flow from each example to the ones that build on it. "
+            "Follow the arrows to go from the simplest setups toward more "
             "advanced material. Click any node to jump to its page.\n"),
            "\n".join(mermaid) + "\n",
            ("## Browse by category\n")]
@@ -453,7 +453,7 @@ def main(argv=None):
             continue
         idx.append(f"### {kind_titles[kind]}\n")
         for name, intro in sorted(by_kind[kind]):
-            tail = f" — {intro}" if intro else ""
+            tail = f": {intro}" if intro else ""
             idx.append(f"- [{name}]({name}.md){tail}")
         idx.append("")
 

@@ -6,7 +6,7 @@ the `apply` dispatcher (which calls into the derived class's
 polymorphic-object machinery, and the logging hooks. Concrete
 operators (every solver, preconditioner, and matrix in Ginkgo)
 derive from `EnableLinOp<MyOperator>` rather than from `LinOp`
-directly — the mixin's CRTP cast lets these defaults work on the
+directly: the mixin's CRTP cast lets these defaults work on the
 derived type without virtual-dispatch overhead.
 
 ```{doxygenclass} gko::EnableLinOp

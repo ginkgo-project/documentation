@@ -18,13 +18,13 @@ auto solver_factory = gko::solver::Cg<ValueType>::build()
     .on(exec);
 ```
 
-- `stop::Iteration` — hard cap on iterations. Always include one; it
+- `stop::Iteration`: hard cap on iterations. Always include one; it
   guards against runaway loops if convergence never triggers.
-- `stop::ResidualNorm` — relative residual reduction. Stops when
+- `stop::ResidualNorm`: relative residual reduction. Stops when
   $\lVert r_k \rVert \le \tau \, \lVert b \rVert$ where $\tau$ is
   `reduction_factor` (the default `baseline` is `rhs_norm`).
 
-These two together — a max-iter cap and a relative residual target —
+These two together (a max-iter cap and a relative residual target)
 cover most use cases.
 
 ## Relative vs absolute residual
@@ -61,7 +61,7 @@ initial guess. The `initial_resnorm` baseline is fixed once per solve
 to $\lVert b - A x_0 \rVert$, so when you chain warm-started solves
 and feed each previous solution back as $x_0$, $\lVert r_0 \rVert$
 shrinks and the implied stopping target $\tau \, \lVert r_0 \rVert$
-shrinks with it — sometimes well below what the solver can actually
+shrinks with it, sometimes well below what the solver can actually
 reach in finite precision. `rhs_norm` keeps the baseline at
 $\lVert b \rVert$, which stays constant across the chain.
 
@@ -116,7 +116,7 @@ auto solver_factory = gko::solver::Cg<double>::build()
     .on(exec);
 ```
 
-`stop::Time` ends the solve after a wall-clock budget — useful for
+`stop::Time` ends the solve after a wall-clock budget, useful for
 real-time / latency-bounded applications.
 
 ## Custom criteria
@@ -139,6 +139,6 @@ for the interface.
   $M^{-1}$-weighted for CG-type solvers.
 
 :::{seealso}
-- [Stopping criteria](../../concepts/stopping-criteria.md) — the conceptual reference.
-- [Log convergence](log-convergence.md) — collect per-iteration data while solving.
+- [Stopping criteria](../../concepts/stopping-criteria.md): the conceptual reference.
+- [Log convergence](log-convergence.md): collect per-iteration data while solving.
 :::

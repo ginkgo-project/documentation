@@ -117,11 +117,11 @@ the SpMV kernel's signature:
 
 - **`mixed_precision_dispatch_real_complex<ValueType>(fn, b, x)`** if the
   kernel is templated on three independent value types
-  (`InputValueType, MatrixValueType, OutputValueType`) — CSR, ELL,
+  (`InputValueType, MatrixValueType, OutputValueType`), as in CSR, ELL,
   SparsityCsr. Only the 3-arg form exists, so the advanced apply
   captures `alpha`/`beta` into the lambda.
 - **`precision_dispatch_real_complex<ValueType>(fn, ...)`** if the kernel
-  is templated on a single `ValueType` — COO, SELL-P, FBCSR, Diagonal,
+  is templated on a single `ValueType`, as in COO, SELL-P, FBCSR, Diagonal,
   Hybrid, Dense, ScaledPermutation. Has both 3-arg and 5-arg forms.
 
 The example below shows the mixed-precision pattern; for a
@@ -180,7 +180,7 @@ Notes on the snippet:
   kernel, read raw arrays through `get_const_values()`,
   `get_const_col_idxs()` and the other accessors.
 
-## read / write — host-side assembly
+## read / write: host-side assembly
 
 The mandatory `read(matrix_data)` ingests Ginkgo's host-side
 incremental-assembly type. The conventional shape: count nonzeros to size
@@ -239,16 +239,16 @@ void MyFormat<ValueType, IndexType>::write(mat_data& data) const
 `ConvertibleTo<...>` bases are not strictly required by anything in
 `LinOp`, but the conventions across shipped formats are clear:
 
-- **`Csr<V, I>`** — provide it. CSR is the canonical sparse interop
+- **`Csr<V, I>`**: provide it. CSR is the canonical sparse interop
   target; every sparse format in the tree converts to/from CSR. Many
   algorithms and the benchmark suite rely on this path. Typically
   implemented as a kernel (`my_format::make_convert_to_csr`) because
   it's a parallel storage-layout transformation.
-- **`Dense<V>`** — provide it unless your storage cannot be densified
+- **`Dense<V>`**: provide it unless your storage cannot be densified
   meaningfully (the only shipped exception is `Diagonal`, which omits
   `Dense`). The implementation can route through CSR or fill the dense
   buffer directly.
-- **`MyFormat<next_precision<V>, I>`** — needed for cross-precision
+- **`MyFormat<next_precision<V>, I>`**: needed for cross-precision
   interop. The body is a member-wise assignment plus `set_size`. Add
   the `next_precision<V, 2>` / `next_precision<V, 3>` strands under
   `#if GINKGO_ENABLE_HALF || GINKGO_ENABLE_BFLOAT16` guards if you
@@ -274,20 +274,20 @@ described in [Add a new kernel](add-a-kernel.md). For a new format
 A new format **does** require CMake edits, unlike a new kernel on an
 existing format. Add the file to each backend's source list:
 
-- `core/CMakeLists.txt` — add `matrix/my_format.cpp` next to
+- `core/CMakeLists.txt`: add `matrix/my_format.cpp` next to
   `matrix/ell.cpp`.
 - `reference/CMakeLists.txt`, `omp/CMakeLists.txt`,
-  `dpcpp/CMakeLists.txt` — add `matrix/my_format_kernels.cpp`
+  `dpcpp/CMakeLists.txt`: add `matrix/my_format_kernels.cpp`
   (`.dp.cpp` for DPC++) next to `matrix/ell_kernels.cpp`.
-- `common/unified/CMakeLists.txt` — add
+- `common/unified/CMakeLists.txt`: add
   `matrix/my_format_kernels.cpp` if you have a portable kernel.
-- `common/cuda_hip/CMakeLists.txt` — add
+- `common/cuda_hip/CMakeLists.txt`: add
   `matrix/my_format_kernels.cpp` only if you wrote a hand-tuned CUDA/HIP
   variant.
 
 The public header `include/ginkgo/core/matrix/my_format.hpp` becomes
 discoverable through the standard install layout once the file exists in
-the tree — no CMake list to update for the include.
+the tree, with no CMake list to update for the include.
 
 ## Matrix formats are constructed directly
 
@@ -305,12 +305,12 @@ the tree — no CMake list to update for the include.
 The full test plan is covered in [Write tests](write-tests.md). For a
 new format you write two files:
 
-- `reference/test/matrix/my_format_kernels.cpp` — small,
+- `reference/test/matrix/my_format_kernels.cpp`: small,
   hand-checkable inputs run only on the Reference executor. Covers
   the SpMV kernels, the conversions, and the `read`/`write`
   round-trip. Register with `ginkgo_create_test(my_format_kernels)`
   in `reference/test/matrix/CMakeLists.txt`.
-- `test/matrix/my_format_kernels.cpp` — the **cross-backend parity
+- `test/matrix/my_format_kernels.cpp`: the **cross-backend parity
   tests**. Same source file compiled once per enabled backend
   (`omp`, `cuda`, `hip`, `dpcpp`) by `ginkgo_create_common_test`,
   using `CommonTestFixture` (from `test/utils/common_fixture.hpp`)
@@ -327,8 +327,8 @@ few tests that need a backend-specific path. Put new tests in
 `test/matrix/`.
 
 :::{seealso}
-- [Add a new kernel](add-a-kernel.md) — the kernel files that back `apply_impl`.
-- [Write tests](write-tests.md) — the reference-parity pattern.
-- [Run the benchmark suite](run-benchmark-suite.md) — extend the SpMV
+- [Add a new kernel](add-a-kernel.md): the kernel files that back `apply_impl`.
+- [Write tests](write-tests.md): the reference-parity pattern.
+- [Run the benchmark suite](run-benchmark-suite.md): extend the SpMV
   benchmark to include your new format.
 :::

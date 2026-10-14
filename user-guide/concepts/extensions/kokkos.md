@@ -17,7 +17,7 @@ with Ginkgo; in your own CMake project, call `find_package(Kokkos)` and link bot
 | `create_default_executor(ExecSpace)` | `kokkos/spaces.hpp` | Convenience overload using the execution space's default memory space. |
 | `map_data<MemorySpace>(container)` | `kokkos/types.hpp` | Wrap a Ginkgo `array<T>` or `matrix::Dense<T>` as a Kokkos `View` without copying. |
 
-The mapping is bidirectional: the helpers preserve memory ownership semantics — a
+The mapping is bidirectional: the helpers preserve memory ownership semantics. A
 non-owning Kokkos `View` over a Ginkgo container leaves the buffer's lifetime tied to
 the Ginkgo container.
 
@@ -38,7 +38,7 @@ Kokkos::finalize();
 ```
 
 The returned executor maps to whichever Ginkgo backend matches the Kokkos
-execution space — `CudaExecutor` for `Kokkos::Cuda`, `HipExecutor` for `Kokkos::HIP`,
+execution space: `CudaExecutor` for `Kokkos::Cuda`, `HipExecutor` for `Kokkos::HIP`,
 `DpcppExecutor` for `Kokkos::SYCL`, `OmpExecutor` for `Kokkos::OpenMP`,
 `ReferenceExecutor` for `Kokkos::Serial`.
 
@@ -61,7 +61,7 @@ Ginkgo container and vice versa.
 ## Lifetime and accessibility
 
 The extension enforces (via `static_assert` and runtime checks) that the Kokkos
-memory space being mapped is accessible from the Ginkgo executor's backend — for
+memory space being mapped is accessible from the Ginkgo executor's backend; for
 instance, you cannot map a `Kokkos::HostSpace` view onto a `CudaExecutor`-resident
 array. Mismatches surface as compile-time errors when possible, runtime exceptions
 otherwise.
@@ -71,7 +71,7 @@ or is reassigned, the view becomes dangling. Treat it as a borrow that must not
 outlive the Ginkgo container.
 
 :::{seealso}
-- [Views and zero-copy wrapping](../views-zero-copy.md) — the same mechanic, but going from external memory *into* Ginkgo. Together with `map_data` this gives both directions of the bridge.
-- [The Executor model](../executor-model.md) — how a Ginkgo executor relates to its memory space.
+- [Views and zero-copy wrapping](../views-zero-copy.md): the same mechanic, but going from external memory *into* Ginkgo. Together with `map_data` this gives both directions of the bridge.
+- [The Executor model](../executor-model.md): how a Ginkgo executor relates to its memory space.
 - API reference: [`gko::ext::kokkos`](../../../api-reference/extensions/kokkos.md)
 :::

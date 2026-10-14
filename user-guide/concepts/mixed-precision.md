@@ -38,7 +38,7 @@ auto solver_factory = gko::solver::Cg<double>::build()
                           .on(exec);
 ```
 
-See [Preconditioners — taxonomy](preconditioners.md) for block Jacobi configuration details.
+See [Preconditioner taxonomy](preconditioners.md) for block Jacobi configuration details.
 
 ## Iterative refinement with a low-precision inner solver
 
@@ -74,7 +74,7 @@ solver->apply(b, x);
 The outer IR computes the correction residual `r = b − A x` in `double` (using `system_matrix`). The inner CG solves the correction equation approximately in `float` (using `matrix_float`). IR accumulates these corrections until the `double` residual converges to the tight tolerance.
 
 :::{note}
-IR requires the user to manage two representations of the matrix: one in `double` for the outer residual computation and one in `float` for the inner solve. If storage is at a premium, `gko::solver::Ir` can also accept an inner solver that converts internally — check the API reference for the `with_default_initial_guess` and solver-conversion options.
+IR requires the user to manage two representations of the matrix: one in `double` for the outer residual computation and one in `float` for the inner solve. If storage is at a premium, `gko::solver::Ir` can also accept an inner solver that converts internally; check the API reference for the `with_default_initial_guess` and solver-conversion options.
 :::
 
 ## LinOp and precision conversion
@@ -97,7 +97,7 @@ Ginkgo's templated types (matrices, vectors, solvers, preconditioners) accept th
 
 | Value type | Aliases | Built unconditionally |
 |---|---|---|
-| `double` | FP64 | Always — the default for most types. |
+| `double` | FP64 | Always (the default for most types). |
 | `float` | FP32 | Always. |
 | `gko::float16` | FP16, half | Yes by default, gated by `-DGINKGO_ENABLE_HALF=ON`. |
 | `gko::bfloat16` | BF16, bfloat | Yes by default, gated by `-DGINKGO_ENABLE_BFLOAT16=ON`. |
@@ -116,7 +116,7 @@ Half precision (`float16`, `bfloat16`) is controlled by build options (both defa
 | DPC++ (Intel SYCL) | `-DGINKGO_ENABLE_HALF=ON` | `-DGINKGO_ENABLE_BFLOAT16=ON` |
 | MSVC / MINGW (Windows) | **Forced OFF** regardless of the flag | **Forced OFF** regardless of the flag |
 
-Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures — Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros in `include/ginkgo/core/base/types.hpp` skip those template instantiations rather than emitting code that would fail to compile.
+Both flags default to `ON` in standard CMake invocations on Linux and macOS. On Windows toolchains (MSVC, MINGW) the build system forces them off because the host compiler does not provide the necessary half-precision intrinsics. On CUDA, kernels that touch half precision are simply not instantiated for older architectures: Ginkgo's `GKO_ADAPT_HF` and `GKO_ADAPT_BF` macros in `include/ginkgo/core/base/types.hpp` skip those template instantiations rather than emitting code that would fail to compile.
 
 The practical implication: on CUDA, the kernels that rely on 16-bit atomics check the device's compute capability at run time. On a CUDA device below compute capability 7.0 the `float16` paths of `Coo`, and of `Idr` with several right-hand sides or complex values, throw `gko::NotSupported`, and below compute capability 8.0 the same holds for `bfloat16`. `Ell` with several threads per row throws `gko::KernelNotFound` below compute capability 8.0 for both 16-bit types, and `Csr` skips its atomic-based kernels below compute capability 7.0 for `float16` and below 8.0 for `bfloat16` and selects another path. On HIP and DPC++ the 16-bit atomic paths are unavailable for both 16-bit types, and the same errors apply without a compute-capability test: `Coo` throws `gko::NotSupported`, as does `Idr` (on HIP with several right-hand sides or complex values, on DPC++ always), and `Ell` with several threads per row throws `gko::KernelNotFound`. On HIP and DPC++, `Csr` also skips its atomic-based kernels; on HIP, the `ParIlu`, `ParIlut`, `ParIc` and `ParIct` kernels throw `gko::NotSupported`. Operations without a 16-bit atomic requirement are unaffected by these checks.
 
@@ -134,21 +134,21 @@ The native path is gated by the build-time CMake option `GINKGO_MIXED_PRECISION`
 | `OFF` *(default)* | All formats convert. The cross-precision call is correct, but always pays the conversion cost. |
 | `ON` | `gko::matrix::Csr`, `gko::matrix::Ell`, and `gko::matrix::SparsityCsr` instantiate native cross-precision kernels at compile time and dispatch dynamically based on the runtime value types. The other formats (COO, Sellp, Hybrid, Fbcsr, Dense) still fall through to the conversion path. |
 
-So the "skip the conversion step" optimisation requires both (1) building Ginkgo with `-DGINKGO_MIXED_PRECISION=ON` and (2) using one of the three formats that opt into it. Turning the option on does not affect correctness — it only changes how many kernels are instantiated and which dispatch path runs at apply time. Build times grow because every supported `(matrix, vector)` value-type pair has to be compiled.
+So the "skip the conversion step" optimisation requires both (1) building Ginkgo with `-DGINKGO_MIXED_PRECISION=ON` and (2) using one of the three formats that opt into it. Turning the option on does not affect correctness; it only changes how many kernels are instantiated and which dispatch path runs at apply time. Build times grow because every supported `(matrix, vector)` value-type pair has to be compiled.
 
 The internal mechanism is `gko::mixed_precision_dispatch` in `include/ginkgo/core/base/precision_dispatch.hpp`; with the option off, that helper falls back to the single-precision `precision_dispatch` and the conversion path runs unconditionally.
 
 ## When mixed precision pays off
 
-- **Memory-bound SpMV at large scale** — the bandwidth reduction is the primary payoff.
-- **Well-conditioned or smoothly converging problems** — the FP32 work in the inner solve does not accumulate error fast enough to compromise the outer correction.
-- **GPU FP32 acceleration** — hardware where FP32 is materially faster than FP64 and the algorithm allows it.
+- **Memory-bound SpMV at large scale**: the bandwidth reduction is the primary payoff.
+- **Well-conditioned or smoothly converging problems**: the FP32 work in the inner solve does not accumulate error fast enough to compromise the outer correction.
+- **GPU FP32 acceleration**: hardware where FP32 is materially faster than FP64 and the algorithm allows it.
 
 ## When it doesn't
 
-- **Pathologically ill-conditioned problems** — precision loss in inner work can overwhelm the outer correction, requiring many more IR cycles or failing to converge at all.
-- **Hardware where FP32 and FP64 throughput are similar** — some CPU SKUs have comparable throughput for both precisions; the bandwidth saving remains, but the compute saving disappears.
-- **Final results that require full FP64 accuracy and converge slowly** — the outer IR correction may not recover what accumulated rounding error destroyed in the inner iterations.
+- **Pathologically ill-conditioned problems**: precision loss in inner work can overwhelm the outer correction, requiring many more IR cycles or failing to converge at all.
+- **Hardware where FP32 and FP64 throughput are similar**: some CPU SKUs have comparable throughput for both precisions; the bandwidth saving remains, but the compute saving disappears.
+- **Final results that require full FP64 accuracy and converge slowly**: the outer IR correction may not recover what accumulated rounding error destroyed in the inner iterations.
 
 When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-precision machinery is low, but the benefit depends entirely on the problem.
 
@@ -164,7 +164,7 @@ When in doubt, benchmark against a pure FP64 run. The overhead of the mixed-prec
 - [FRSZ2 for In-Register Block Compression Inside GMRES on GPUs](https://doi.org/10.1109/SCW63240.2024.00038)
 
 :::{seealso}
-- [Solvers — taxonomy](solvers.md) — IR is one of the Krylov solvers.
-- [Preconditioners — taxonomy](preconditioners.md) — block Jacobi and its `storage_optimization` parameter, described on the [Jacobi](preconditioners/jacobi.md) page.
+- [Solver taxonomy](solvers.md): IR is one of the Krylov solvers.
+- [Preconditioner taxonomy](preconditioners.md): block Jacobi and its `storage_optimization` parameter, described on the [Jacobi](preconditioners/jacobi.md) page.
 - API reference: [`gko::solver::Ir`](../../api-reference/solver/ir.md)
 :::

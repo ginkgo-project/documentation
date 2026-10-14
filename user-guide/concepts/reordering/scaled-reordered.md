@@ -1,7 +1,7 @@
 # ScaledReordered
 
-`ScaledReordered` is a `LinOp` wrapper that bundles up to three transforms — a row
-scaling, a column scaling, and a reordering — together with an inner operator, so the
+`ScaledReordered` is a `LinOp` wrapper that bundles up to three transforms (a row
+scaling, a column scaling, and a reordering) together with an inner operator, so the
 whole pipeline looks like one operator to the caller. The user passes the **original**
 system matrix and right-hand side; the wrapper applies the transforms internally,
 runs the inner operator on the transformed system, and maps the solution back to the
@@ -18,7 +18,7 @@ $$
 
 The system matrix passed to the factory is cloned, so the original matrix is left
 unchanged. All of the row scaling, the column scaling, and the reordering are
-**optional** — omit any of them and the corresponding transform is the identity. When
+**optional**: omit any of them and the corresponding transform is the identity. When
 no inner operator is set, the inner operator is the identity.
 
 ## When to use it
@@ -99,8 +99,8 @@ small compared to the inner solve.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::ScaledReordered`](../../../api-reference/reorder/scaled-reordered.md).
-- [Direct (LU / Cholesky)](../solvers/direct.md) — a typical inner operator.
-- [RCM](rcm.md) — the algorithm behind the `reordering` parameter (via the deprecated `gko::reorder::Rcm`).
-- [MC64](mc64.md), [AMD](amd.md), [Nested dissection](nested-dissection.md) — transforms applied directly with `Csr::scale_permute` / `Csr::permute`.
-- [Reordering and permutations](../reordering.md) — overview and comparison table.
+- [Direct (LU / Cholesky)](../solvers/direct.md): a typical inner operator.
+- [RCM](rcm.md): the algorithm behind the `reordering` parameter (via the deprecated `gko::reorder::Rcm`).
+- [MC64](mc64.md), [AMD](amd.md), [Nested dissection](nested-dissection.md): transforms applied directly with `Csr::scale_permute` / `Csr::permute`.
+- [Reordering and permutations](../reordering.md): overview and comparison table.
 :::
