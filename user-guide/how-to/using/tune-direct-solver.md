@@ -111,7 +111,7 @@ solver->refactorize(updated_matrix);   // same sparsity, new values
 solver->apply(b, x);                    // cheaper than redoing generate
 ```
 
-cuDSS requires a CUDA executor and a cuDSS install — see
+cuDSS requires a CUDA executor and a cuDSS install; see
 [cuDSS direct solver](../../concepts/extensions/cudss.md).
 
 ## Common pitfalls
@@ -130,7 +130,7 @@ cuDSS requires a CUDA executor and a cuDSS install — see
   cuDSS with one of the symmetric modes.
 
 :::{seealso}
-- [Direct (LU / Cholesky)](../../concepts/solvers/direct.md) — the conceptual reference.
-- [Reordering and permutations](../../concepts/reordering.md) — taxonomy of the available reorderings.
-- [cuDSS direct solver](../../concepts/extensions/cudss.md) — the CUDA-specific alternative.
+- [Direct (LU / Cholesky)](../../concepts/solvers/direct.md): the conceptual reference.
+- [Reordering and permutations](../../concepts/reordering.md): taxonomy of the available reorderings.
+- [cuDSS direct solver](../../concepts/extensions/cudss.md): the CUDA-specific alternative.
 :::

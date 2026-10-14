@@ -1,7 +1,7 @@
 # Move data between executors
 
-When you need to copy a Ginkgo object from one executor to another —
-typically host ↔ GPU — there are three idioms. They look similar but
+When you need to copy a Ginkgo object from one executor to another,
+typically host ↔ GPU, there are three idioms. They look similar but
 they don't all do the same thing.
 
 ## The three options
@@ -56,8 +56,8 @@ a_dev = a_host;                                    // assignment also copies acr
   host executor and a device executor that uses unified memory. Data in
   shared memory is directly usable from both executors.
 
-For non-owning views — where you want to *wrap* an existing buffer
-without copying at all — see
+For non-owning views, where you want to *wrap* an existing buffer
+without copying at all, see
 [Zero-copy from application memory](zero-copy-application-memory.md).
 
 ## Common pitfalls
@@ -68,10 +68,10 @@ without copying at all — see
   COO to CSR via `copy_from` runs the format conversion kernel, not a
   pure memcpy.
 - **`apply(b, x)` with operands on another executor.** Ginkgo clones
-  them to the operator's executor internally — correct, but wasteful
+  them to the operator's executor internally, which is correct but wasteful
   inside loops. Move the operands once, before the loop.
 
 :::{seealso}
-- [Switch executor](switch-executor.md) — set up the target executor in the first place.
-- [Executor model](../../concepts/executor-model.md) — the conceptual reference.
+- [Switch executor](switch-executor.md): set up the target executor in the first place.
+- [Executor model](../../concepts/executor-model.md): the conceptual reference.
 :::

@@ -23,10 +23,10 @@ auto gpu   = gko::CudaExecutor::create(0, host, alloc, stream.get());
 
 `CudaExecutor` supports several allocators (see [Allocators](../executor-model.md#allocators) for the full table):
 
-- `CudaAllocator` — `cudaMalloc` (**default**, synchronous).
-- `CudaAsyncAllocator` — `cudaMallocAsync` (stream-ordered, lower overhead in hot loops).
-- `CudaUnifiedAllocator` — `cudaMallocManaged` (unified shared memory).
-- `CudaHostAllocator` — `cudaHostAlloc` (pinned host memory).
+- `CudaAllocator`: `cudaMalloc` (**default**, synchronous).
+- `CudaAsyncAllocator`: `cudaMallocAsync` (stream-ordered, lower overhead in hot loops).
+- `CudaUnifiedAllocator`: `cudaMallocManaged` (unified shared memory).
+- `CudaHostAllocator`: `cudaHostAlloc` (pinned host memory).
 
 If you don't pass an allocator argument, `CudaExecutor::create(id, host)` constructs a `CudaAllocator` (synchronous `cudaMalloc`).
 

@@ -39,6 +39,6 @@ The view types live in `<ginkgo/core/matrix/device_views.hpp>`. `get_device_view
 ```
 
 :::{seealso}
-- [Matrix formats](../../user-guide/concepts/matrix-formats.md) — the storage each view describes.
-- [`gko::matrix`](index.md) — the matrix classes that hand out views.
+- [Matrix formats](../../user-guide/concepts/matrix-formats.md): the storage each view describes.
+- [`gko::matrix`](index.md): the matrix classes that hand out views.
 :::

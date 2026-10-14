@@ -1,7 +1,7 @@
 # Pick a solver / preconditioner pair
 
 Use this page as a decision tree. The conceptual page
-[Solvers — taxonomy](../../concepts/solvers.md) explains the *why*; this
+[Solver taxonomy](../../concepts/solvers.md) explains the *why*; this
 page just says *what to build*.
 
 ## Decide by matrix property
@@ -64,7 +64,7 @@ gmres->apply(b, x);
 - **Start simple.** Jacobi preconditioner first; upgrade only if
   convergence is too slow.
 - **Direct solvers scale further than you might expect** when paired
-  with a fill-reducing reordering — see
+  with a fill-reducing reordering; see
   [Tune a sparse direct solve](tune-direct-solver.md).
 - **GMRES restart length** (`krylov_dim`) is usually the most
   impactful knob on non-symmetric problems. Default is 100; smaller
@@ -84,8 +84,8 @@ The `generate_reuse` interface is experimental and may change.
 :::
 
 :::{seealso}
-- [Solvers — taxonomy](../../concepts/solvers.md) — the design rationale.
-- [Preconditioners — taxonomy](../../concepts/preconditioners.md) — placement (left/right/split) and family details.
+- [Solver taxonomy](../../concepts/solvers.md): the design rationale.
+- [Preconditioner taxonomy](../../concepts/preconditioners.md): placement (left/right/split) and family details.
 - [Configure stopping criteria](configure-stopping-criteria.md).
 - [Tune a sparse direct solve](tune-direct-solver.md).
 :::

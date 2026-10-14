@@ -14,7 +14,7 @@ Three scenarios driven by a single templated `mixed_axpy` kernel:
 ## Prerequisites
 
 - A C++17 compiler (g++ ≥ 7, clang ≥ 5, …).
-- A Ginkgo source checkout — the build only needs the `accessor/`
+- A Ginkgo source checkout: the build only needs the `accessor/`
   subtree, *not* a compiled `libginkgo`. Grab Ginkgo from
   <https://github.com/ginkgo-project/ginkgo>.
 - *Optional:* nvcc 11+ to also build `kernel.cu`. The CUDA target is
@@ -43,16 +43,16 @@ not half of that. The measured error for `v = 1.5` is well below
 this bound because the truncated value happens to lie close to the
 midpoint of its quantisation interval.
 
-The CUDA object file does not include a `main` — it exists only to
+The CUDA object file does not include a `main`; it exists only to
 prove the kernel and launcher compile. Linking it into a runnable
 binary is left to the reader.
 
 ## Files in this archive
 
-- `main.cpp` — host driver.
-- `kernel.cu` — CUDA kernel + launcher.
-- `CMakeLists.txt` — build configuration.
-- `README.md` — this file.
+- `main.cpp`: host driver.
+- `kernel.cu`: CUDA kernel + launcher.
+- `CMakeLists.txt`: build configuration.
+- `README.md`: this file.
 
 For the conceptual background, see the
 [Accessors](https://gko-project.org/user-guide/concepts/accessors.html)

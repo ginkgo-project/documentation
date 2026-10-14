@@ -9,16 +9,16 @@ fires.
 
 ## Base machinery
 
-- [`Criterion`](criterion.md) — abstract base for all stopping
+- [`Criterion`](criterion.md): abstract base for all stopping
   criteria.
-- [`Combined`](combined.md) — meta-criterion that stops when any of a
+- [`Combined`](combined.md): meta-criterion that stops when any of a
   list of inner criteria fires.
 
 ## Built-in criteria
 
-- [`Iteration`](iteration.md) — fixed iteration cap.
-- [`Time`](time.md) — wall-clock cap.
-- [`ResidualNorm`](residual-norm.md) — explicit and implicit
+- [`Iteration`](iteration.md): fixed iteration cap.
+- [`Time`](time.md): wall-clock cap.
+- [`ResidualNorm`](residual-norm.md): explicit and implicit
   residual-norm criteria for solver tolerance tests, with three
   baseline modes (right-hand-side, initial-residual, absolute).
 
@@ -27,10 +27,10 @@ fires.
 The quickest way to configure stopping is to pass these functions to
 `with_criteria`; the value type is taken from the solver's vectors:
 
-- `max_iters(n)` — stop after `n` iterations ([`Iteration`](iteration.md)).
-- `min_iters(n, criteria...)` — check the given criteria only after `n`
+- `max_iters(n)`: stop after `n` iterations ([`Iteration`](iteration.md)).
+- `min_iters(n, criteria...)`: check the given criteria only after `n`
   iterations have finished ([`Iteration`](iteration.md)).
-- `time_limit(duration)` — wall-clock cap ([`Time`](time.md)).
+- `time_limit(duration)`: wall-clock cap ([`Time`](time.md)).
 - `relative_residual_norm(tol)`, `initial_residual_norm(tol)`,
   `absolute_residual_norm(tol)` and their `*_implicit_residual_norm`
   variants ([`ResidualNorm`](residual-norm.md)).

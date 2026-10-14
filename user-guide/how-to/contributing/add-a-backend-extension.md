@@ -3,7 +3,7 @@
 The `extensions/` tree (and the corresponding public headers under
 `include/ginkgo/extensions/`) holds user-facing libraries that depend
 on third-party packages and bridge them with Ginkgo. They are not
-"backends" in the kernel-dispatch sense — those live under `cuda/`,
+"backends" in the kernel-dispatch sense; those live under `cuda/`,
 `hip/`, `omp/`, `dpcpp/`.
 
 Shipped extensions:
@@ -15,9 +15,9 @@ Shipped extensions:
 | yaml-cpp YAML config | Header-only | `ginkgo/extensions/config/yaml_config.hpp` |
 | cuDSS direct solver | Compiled library (`ginkgo_cudss`) | `ginkgo/extensions/cuda/solver/cudss.hpp` |
 
-An extension can be **header-only** (Kokkos / JSON / YAML — pure
+An extension can be **header-only** (Kokkos / JSON / YAML: pure
 bridging headers that consumers `#include`) or a **compiled library
-target** (cuDSS — wraps a vendor library as a `LinOp`, distributed as
+target** (cuDSS: wraps a vendor library as a `LinOp`, distributed as
 its own `Ginkgo::<name>` library alongside `Ginkgo::ginkgo`). The
 right shape depends on what the extension does.
 
@@ -57,7 +57,7 @@ Umbrella header:
 
 The two substantive sub-headers do the bridging:
 
-- `kokkos/spaces.hpp` — defines `detail::compatible_space<MemorySpace,
+- `kokkos/spaces.hpp`: defines `detail::compatible_space<MemorySpace,
   ExecType>`, a `std::integral_constant<bool, ...>` that answers "can
   this Kokkos memory space be safely accessed from this Ginkgo
   executor?". `map_data` checks it through `assert_compatibility`,
@@ -65,7 +65,7 @@ The two substantive sub-headers do the bridging:
   pair. The header also provides `create_executor`,
   `create_default_executor` and `create_default_host_executor` to
   build Ginkgo executors from Kokkos execution spaces.
-- `kokkos/types.hpp` — defines `detail::value_type<T>::type`
+- `kokkos/types.hpp`: defines `detail::value_type<T>::type`
   (`Kokkos::complex<T>` for `std::complex<T>`, identity otherwise)
   plus `map_data`, which wraps a `gko::array<T>` or `matrix::Dense<T>`
   storage region as a non-owning Kokkos `View`.
@@ -87,7 +87,7 @@ type-alignment checks on or off.
 ## Anatomy of the cuDSS extension (compiled library)
 
 cuDSS wraps NVIDIA's sparse direct solver as
-`gko::ext::cuda::solver::Cudss<V, I>` — an ordinary `LinOp` with the
+`gko::ext::cuda::solver::Cudss<V, I>`: an ordinary `LinOp` with the
 standard factory/parse scaffolding. Layout:
 
 ```text
@@ -170,7 +170,7 @@ endif()
 
 What gets built depends on the extension:
 
-- **Header-only extensions** contribute nothing to the build —
+- **Header-only extensions** contribute nothing to the build:
   consumers just `#include` the header. Their tests live under
   `extensions/test/<name>/`. `extensions/test/CMakeLists.txt` guards the
   Kokkos tests with `find_package(Kokkos QUIET)`. The config tests
@@ -241,7 +241,7 @@ CMake wiring:
   ginkgo_<myext>)`, as `extensions/test/cuda/CMakeLists.txt` does for
   cuDSS.
 
-The class itself is built like any other `LinOp` — see [Add a new
+The class itself is built like any other `LinOp`; see [Add a new
 solver](add-a-solver.md) or [Add a new
 preconditioner](add-a-preconditioner.md) for the factory / parse
 scaffolding.
@@ -251,7 +251,7 @@ scaffolding.
 Vendor library wrappers can live in `core/` when they belong to a
 shipped Ginkgo type, or in `extensions/` when they stand alone:
 
-- **In `core/`** — when the vendor path is one implementation among
+- **In `core/`**: when the vendor path is one implementation among
   several for a type that Ginkgo already exposes. Example:
   `solver::LowerTrs` / `solver::UpperTrs` expose the choice through
   their `algorithm` parameter: `trisolve_algorithm::sparselib`
@@ -259,16 +259,16 @@ shipped Ginkgo type, or in `extensions/` when they stand alone:
   Ginkgo's own kernel on CUDA. The vendor calls live in
   `cuda/solver/lower_trs_kernels.cu` etc., gated by the executor
   type.
-- **In `extensions/`** — when the type is *only* the vendor wrapper
+- **In `extensions/`**: when the type is *only* the vendor wrapper
   and would not exist without it. Example: `gko::ext::cuda::solver::Cudss`
   is implemented only through cuDSS, so it is its own extension library
   that consumers opt into.
 
 :::{seealso}
-- [Add a new solver](add-a-solver.md) — LinOp + Factory + parse
+- [Add a new solver](add-a-solver.md): LinOp + Factory + parse
   scaffolding that any vendor-backed solver also needs.
-- [Add a new preconditioner](add-a-preconditioner.md) — same
+- [Add a new preconditioner](add-a-preconditioner.md): same
   scaffolding, no workspace.
-- [Configure via JSON](../using/configure-via-json.md) — what the JSON
+- [Configure via JSON](../using/configure-via-json.md): what the JSON
   config extension unlocks for the runtime registry.
 :::

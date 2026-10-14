@@ -15,7 +15,7 @@ the convention for MPI / distributed tests.
 | Directory | Tests on | Typical content |
 |---|---|---|
 | `core/test/` | Pure-C++ functionality | LinOp interface, factory composition, type traits, helpers |
-| `reference/test/` | `ReferenceExecutor` only | Hand-checkable inputs that exercise a kernel from end to end — the **correctness baseline** |
+| `reference/test/` | `ReferenceExecutor` only | Hand-checkable inputs that exercise a kernel from end to end, the **correctness baseline** |
 | `test/<area>/` | Cross-backend | Same test source compiled once per enabled backend, asserts parity against Reference |
 | `test/mpi/distributed/` | Cross-backend with MPI | Same idea, runs with a configurable number of ranks |
 | `extensions/test/<ext>/` | Per-extension | Tests for `extensions/<ext>` against the third-party dep |
@@ -24,10 +24,10 @@ The structure mirrors the source: e.g. `core/matrix/csr.cpp` is exercised
 by `reference/test/matrix/csr_kernels.cpp` (single-threaded baseline) and
 `test/matrix/csr_kernels.cpp` (compiled once per backend, asserts parity).
 
-## Reference tests — the correctness baseline
+## Reference tests: the correctness baseline
 
 A reference test runs on `ReferenceExecutor` only. Use **small,
-hand-checkable inputs** — reviewers verify the expected results against
+hand-checkable inputs**: reviewers verify the expected results against
 a few lines of MATLAB / NumPy. Anything bigger than a 5×5 matrix tends
 to be a smell.
 
@@ -135,21 +135,21 @@ TEST_F(Csr, ScaleIsEquivalentToRef)
 `CommonTestFixture` (defined in `test/utils/common_fixture.hpp`)
 provides two executors per test:
 
-- `ref` — the `ReferenceExecutor`, holding the reference inputs.
-- `exec` — the target backend executor, type `gko::EXEC_TYPE` which is
+- `ref`: the `ReferenceExecutor`, holding the reference inputs.
+- `exec`: the target backend executor, type `gko::EXEC_TYPE` which is
   set per backend at compile time via `target_compile_definitions`.
 
 The build stamps the same source into per-backend targets (e.g.
 `csr_kernels_cuda`, `csr_kernels_omp`), setting per-target macros:
 
-- `EXEC_TYPE` — `CudaExecutor`, `OmpExecutor`, ...
-- `GKO_COMPILING_<BACKEND>` — `GKO_COMPILING_CUDA`, ...
-- `GKO_DEVICE_NAMESPACE` — `cuda`, `omp`, ...
+- `EXEC_TYPE`: `CudaExecutor`, `OmpExecutor`, ...
+- `GKO_COMPILING_<BACKEND>`: `GKO_COMPILING_CUDA`, ...
+- `GKO_DEVICE_NAMESPACE`: `cuda`, `omp`, ...
 
 Tests assert the device result against the reference with
 `GKO_ASSERT_MTX_NEAR(dx, x, tol)`.
 
-Backend-parity tests should use **at least the warp size of the GPU** —
+Backend-parity tests should use **at least the warp size of the GPU**:
 small enough still to be tractable, large enough that warp-boundary
 corner cases get hit. A 100×100 or 256×256 matrix is typical.
 
@@ -168,7 +168,7 @@ From `core/test/utils/assertions.hpp`:
 | `GKO_ASSERT_DYNAMIC_TYPE(ptr, T)` | `ptr` has dynamic type `T` |
 | `GKO_ASSERT_DYNAMIC_TYPE_EQ(a, b)` | Two pointers share dynamic type |
 
-`EXPECT_` variants of each are available — same semantics, but the test
+`EXPECT_` variants of each are available: same semantics, but the test
 continues after failure rather than aborting.
 
 ## CMake helpers
@@ -191,7 +191,7 @@ ginkgo_create_common_test(ell_kernels)
 ginkgo_create_common_test(dense_kernels)
 ```
 
-`ginkgo_create_common_test` accepts a few keyword arguments — most
+`ginkgo_create_common_test` accepts a few keyword arguments: most
 commonly `DISABLE_EXECUTORS dpcpp hip` to skip backends that don't
 support a particular kernel yet.
 
@@ -212,20 +212,20 @@ tag lets you select the distributed subset with
 - The test source itself uses the same `CommonTestFixture` as the
   non-MPI tests.
 - `gko::experimental::mpi::environment` (RAII) brings up the MPI
-  environment in the test's `main()` shim — wired up automatically by
+  environment in the test's `main()` shim, wired up automatically by
   the build when `MPI_SIZE` is set.
 
 ## Style rules (from `CONTRIBUTING.md`)
 
-- Follow [AAA](http://wiki.c2.com/?ArrangeActAssert) — Arrange, Act, Assert.
+- Follow [AAA](http://wiki.c2.com/?ArrangeActAssert): Arrange, Act, Assert.
   Each section is separated by exactly one blank line. No other blank
   lines inside a test body.
 - Keep tests as small as the
   [KISS principle](https://en.wikipedia.org/wiki/KISS_principle) allows.
 - Reference inputs are tiny (≤ 5×5). Backend-parity inputs are ≥ warp
   size to exercise corner cases.
-- A test that tests one thing — one assertion (or one block of
-  assertions on the same output) — is the goal. Split tests, don't
+- A test that tests one thing (one assertion, or one block of
+  assertions on the same output) is the goal. Split tests, don't
   bundle.
 
 ## Running the test suite
@@ -253,10 +253,10 @@ This gives the raw GoogleTest output, including which sub-assertion
 failed and on which value.
 
 :::{seealso}
-- [Set up a development environment](setup-dev-environment.md) — enables
+- [Set up a development environment](setup-dev-environment.md): enables
   the test build and the `quick_test` target.
-- [Add a new kernel](add-a-kernel.md) — the kernel pattern these tests
+- [Add a new kernel](add-a-kernel.md): the kernel pattern these tests
   exercise.
-- [Submit a pull request](submit-a-pr.md) — which test pipelines must be
+- [Submit a pull request](submit-a-pr.md): which test pipelines must be
   green before a PR can merge.
 :::

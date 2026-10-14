@@ -68,8 +68,8 @@ auto factory = gko::config::parse(config, registry).on(exec);
 
 The simple recipe above shows the on-ramp, but the property-tree
 format scales to arbitrarily nested solver stacks. The configuration
-below — taken verbatim from `examples/file-config-solver/config/mixed-pgm-multigrid-cg.json`
-in the Ginkgo source — drives a double-precision CG whose
+below (taken verbatim from `examples/file-config-solver/config/mixed-pgm-multigrid-cg.json`
+in the Ginkgo source) drives a double-precision CG whose
 preconditioner is a multigrid V-cycle that drops to single precision
 on every level below the finest. The fine-level Pgm coarsening and IR
 smoother stay at `double`; the second level, coarsest solver, and
@@ -134,7 +134,7 @@ Things to notice:
 
 - **Per-level lists.** `pre_smoother` and `mg_level` are JSON arrays.
   The first entry applies to the finest level, the second applies to
-  every coarser level — that's the [vector-parameter selection rule
+  every coarser level; that's the [vector-parameter selection rule
   documented for `Multigrid`](../../concepts/solvers/multigrid.md).
 - **`value_type` overrides.** Setting `"value_type": "float32"` on any
   sub-object retypes that part of the hierarchy. The fine level stays
@@ -147,9 +147,9 @@ Things to notice:
   comes from the level-wise recursion, not from inner-loop counts.
 - **Coarsest solver budget.** `max_iters: 4` on the coarsest level
   means we accept an approximate coarse correction rather than solving
-  to convergence — typical for AMG as a Krylov preconditioner.
+  to convergence, typical for AMG as a Krylov preconditioner.
 
-A matching C++ driver — load the file, parse it, call `apply` — is
+A matching C++ driver (load the file, parse it, call `apply`) is
 shipped in `examples/file-config-solver/` and works without any
 recompilation when the JSON changes.
 
@@ -242,6 +242,6 @@ inner brace.
   recursively.
 
 :::{seealso}
-- [Configuration from JSON files](../../concepts/config-files.md) — the conceptual reference and full property-tree grammar.
-- [`registry`](../../../api-reference/config/registry.md) — the registry class and its type map.
+- [Configuration from JSON files](../../concepts/config-files.md): the conceptual reference and full property-tree grammar.
+- [`registry`](../../../api-reference/config/registry.md): the registry class and its type map.
 :::

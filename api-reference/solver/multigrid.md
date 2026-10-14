@@ -21,5 +21,5 @@ The reuse interface is experimental and may change.
 
 :::{seealso}
 - [Multigrid concept page](../../user-guide/concepts/solvers/multigrid.md)
-- [`LinOpFactory`](../base/lin-op-factory.md) — `generate_reuse()` and `ReuseData`.
+- [`LinOpFactory`](../base/lin-op-factory.md): `generate_reuse()` and `ReuseData`.
 :::

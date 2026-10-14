@@ -16,7 +16,7 @@ Most performance-critical host kernels (SpMV, vector operations, dense factorisa
 
 ## Memory model
 
-Plain host memory via `new[]`/`delete[]`. Memory is shared with `ReferenceExecutor` — the two are memory-accessible to each other.
+Plain host memory via `new[]`/`delete[]`. Memory is shared with `ReferenceExecutor`; the two are memory-accessible to each other.
 
 ## Using as a master executor
 

@@ -4,7 +4,7 @@ Sliced ELLPACK is ELL's answer to non-uniform row lengths. Instead of padding
 every row to the **globally** longest one, Sellp partitions the matrix into
 fixed-size **slices** of contiguous rows and pads each slice to its own longest
 row. A single outlier no longer inflates the storage of every other row in the
-matrix — only the slice it lives in. The default slice size is 64 rows, which keeps
+matrix, only the slice it lives in. The default slice size is 64 rows, which keeps
 memory access coalesced within a slice on both NVIDIA (32-wide warps) and AMD
 (64-wide wavefronts) GPUs while shrinking padding overall.
 
@@ -13,11 +13,11 @@ memory access coalesced within a slice on both NVIDIA (32-wide warps) and AMD
 The rows are grouped into slices of size $S$ (default 64). For slice $s$
 spanning rows $[sS,\, (s+1)S)$, let $k_s$ be the longest non-zero count in
 that slice. Sellp stores, per slice, two column-major arrays of size
-$S \times k_s$ — the values and column indices of every entry, padded so all
+$S \times k_s$: the values and column indices of every entry, padded so all
 rows in the slice present $k_s$ slots. A `slice_sets` prefix-sum array
-records each slice's offset in **slot-column** units — slice $s$ occupies the
+records each slice's offset in **slot-column** units (slice $s$ occupies the
 flat range $[\mathit{slice\_sets}[s] \cdot S,\, \mathit{slice\_sets}[s+1] \cdot S)$
-of the values / col-indices buffers — and a `slice_lengths` array records each
+of the values / col-indices buffers), and a `slice_lengths` array records each
 $k_s$.
 
 ```text
@@ -31,7 +31,7 @@ Matrix (n_rows = 4):       Two slices of S = 2:
 ```
 
 The `slice_sets` array would be `[0, 2, 4]` (slice 0 spans slot-columns 0..2,
-slice 1 spans 2..4 — multiplied by $S=2$ this gives flat extents 0..4 and
+slice 1 spans 2..4; multiplied by $S=2$ this gives flat extents 0..4 and
 4..8 in the values / col-indices buffers), and `slice_lengths` would be
 `[2, 2]`. (* = padding: value = 0, col_idx = invalid_index<IndexType>().)
 The matching device view is `gko::matrix::view::sellp` (see
@@ -39,7 +39,7 @@ The matching device view is `gko::matrix::view::sellp` (see
 
 ## When to use Sellp
 
-- **Non-uniform but locally similar row lengths** — typical of unstructured
+- **Non-uniform but locally similar row lengths**: typical of unstructured
   finite-element matrices where row degree varies across the mesh but is
   similar between adjacent rows after a band-reducing reordering (see
   [RCM](../reordering/rcm.md)).
@@ -79,7 +79,7 @@ per-slice maxima and thus the storage overhead.
 
 Sellp's per-output-row SpMV cost is $O(k_s)$ memory traffic for the slice that
 row belongs to.  Compared with ELL's globally-uniform $k$, the average traffic
-drops to roughly $\sum_s k_s / n_\text{slices} \times S$ — proportional to the
+drops to roughly $\sum_s k_s / n_\text{slices} \times S$, proportional to the
 **slice-wise** maximum rather than the global one.
 
 The break-even versus ELL is roughly: if the slice-wise maxima are within a
@@ -107,9 +107,9 @@ sellp2->copy_from(csr);
 factor; if those have not been set, the defaults are used.
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — when to pick Sellp vs alternatives.
-- [ELL](ell.md) — single-padding-width predecessor; faster but more wasteful when row lengths vary.
-- [Hybrid](hybrid.md) — ELL main part + COO overflow for heavy-tailed row lengths.
-- [RCM](../reordering/rcm.md) — band-reducing reordering that often improves Sellp's per-slice maxima.
+- [Matrix formats](../matrix-formats.md): when to pick Sellp vs alternatives.
+- [ELL](ell.md): single-padding-width predecessor; faster but more wasteful when row lengths vary.
+- [Hybrid](hybrid.md): ELL main part + COO overflow for heavy-tailed row lengths.
+- [RCM](../reordering/rcm.md): band-reducing reordering that often improves Sellp's per-slice maxima.
 - API reference: [`gko::matrix::Sellp`](../../../api-reference/matrix/sellp.md).
 :::

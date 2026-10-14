@@ -3,7 +3,7 @@
 Hybrid splits each row's non-zeros between a fixed-width [ELL](ell.md) section
 and an overflow [COO](coo.md) tail. The ELL part keeps the regular,
 coalesced-friendly layout for the *common* portion of every row, while the
-COO part absorbs any non-zeros that exceed the ELL width — typically a few
+COO part absorbs any non-zeros that exceed the ELL width, typically a few
 long rows in an otherwise short-row matrix. SpMV runs as the sum of an ELL
 SpMV and a COO SpMV; both kernels still touch the same input and output
 vectors, but each is well-tuned for the layout it operates on.
@@ -15,7 +15,7 @@ A Hybrid matrix owns two child matrices:
 - An internal **`gko::matrix::Ell`** of width $k_\text{ell}$ holding the
   first $k_\text{ell}$ non-zeros of every row (padded as usual when a row has
   fewer).
-- An internal **`gko::matrix::Coo`** holding the remaining non-zeros — only
+- An internal **`gko::matrix::Coo`** holding the remaining non-zeros, only
   populated for rows whose original non-zero count exceeded $k_\text{ell}$.
 
 ```text
@@ -70,7 +70,7 @@ hybrid->read(matrix_data);
   super-nodes alongside many low-degree regular nodes.
 
 For matrices with **uniform** row lengths, plain ELL or CSR is simpler and
-faster — Hybrid's two-kernel SpMV adds overhead that only pays off when the
+faster; Hybrid's two-kernel SpMV adds overhead that only pays off when the
 ELL alone would waste significant memory.
 
 ## Construction
@@ -99,9 +99,9 @@ The chosen strategy is sticky on the Hybrid instance: any `copy_from` or
 
 The total SpMV cost is the sum of:
 
-- An ELL SpMV over a fixed-width $k_\text{ell}$ block — typically the bulk
+- An ELL SpMV over a fixed-width $k_\text{ell}$ block, typically the bulk
   of the work, executing with full coalescing.
-- A COO SpMV over the overflow entries — partial sums of the same row are
+- A COO SpMV over the overflow entries: partial sums of the same row are
   combined with a segmented scan and added to the output vector with atomics.
 
 For matrices well-suited to Hybrid the COO part is a small fraction of the
@@ -128,9 +128,9 @@ Conversion preserves all numerical entries: the COO overflow re-merges with
 the ELL part to produce a flat CSR view.
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — when to pick Hybrid vs alternatives.
-- [ELL](ell.md) — the dense underlying format when row lengths are uniform.
-- [Sellp](sellp.md) — per-slice padding; the natural in-between choice when row lengths vary smoothly rather than in a heavy tail.
-- [COO](coo.md) — the overflow representation used internally.
+- [Matrix formats](../matrix-formats.md): when to pick Hybrid vs alternatives.
+- [ELL](ell.md): the dense underlying format when row lengths are uniform.
+- [Sellp](sellp.md): per-slice padding; the natural in-between choice when row lengths vary smoothly rather than in a heavy tail.
+- [COO](coo.md): the overflow representation used internally.
 - API reference: [`gko::matrix::Hybrid`](../../../api-reference/matrix/hybrid.md).
 :::

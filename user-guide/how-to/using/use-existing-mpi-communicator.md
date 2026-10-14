@@ -1,8 +1,8 @@
 # Use an existing MPI communicator
 
-When your application has already created an `MPI_Comm` — typically a
+When your application has already created an `MPI_Comm`, typically a
 sub-communicator from `MPI_Comm_split`, a duplicated comm from
-`MPI_Comm_dup`, or one inherited from a framework like PETSc — wrap
+`MPI_Comm_dup`, or one inherited from a framework like PETSc, wrap
 that handle in `gko::experimental::mpi::communicator` and Ginkgo will
 use it for every distributed object you build with it.
 
@@ -31,7 +31,7 @@ A->read_distributed(data, partition);
 
 ## When to take ownership
 
-The default constructor is **non-owning** — Ginkgo will not call
+The default constructor is **non-owning**: Ginkgo will not call
 `MPI_Comm_free` on the handle. If you want Ginkgo to manage the
 lifetime (rare; typically applications track their own comms), use
 the explicit factory:
@@ -43,7 +43,7 @@ auto owning = gko::experimental::mpi::communicator::create_owning(app_comm);
 
 ## Splitting communicators
 
-The wrapper also exposes `MPI_Comm_split` directly — useful when you
+The wrapper also exposes `MPI_Comm_split` directly, useful when you
 want to subdivide ranks for a nested solver without dropping into
 raw MPI:
 
@@ -103,6 +103,6 @@ devices.
   [Build options](../../../getting-started/build-options.md).
 
 :::{seealso}
-- [MPI layer](../../concepts/distributed/mpi-layer.md) — the conceptual reference for the wrapper, request, and collective layer.
-- [Assemble a distributed matrix](assemble-distributed-matrix.md) — using the communicator to build a `distributed::Matrix`.
+- [MPI layer](../../concepts/distributed/mpi-layer.md): the conceptual reference for the wrapper, request, and collective layer.
+- [Assemble a distributed matrix](assemble-distributed-matrix.md): using the communicator to build a `distributed::Matrix`.
 :::

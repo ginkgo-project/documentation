@@ -1,17 +1,17 @@
 # Matrix data and assembly
 
 Before a matrix lives in any specific sparse format (CSR, COO, ...), Ginkgo represents
-it as a list of `(row, column, value)` triples — `gko::matrix_data`. This page explains
+it as a list of `(row, column, value)` triples (`gko::matrix_data`). This page explains
 the host-side `matrix_data<V, I>` and its device counterpart `device_matrix_data<V, I>`,
 how to read and write Matrix Market files, and how to construct any matrix format from
 these structures. If you are assembling a matrix from scratch or reading one from disk,
 start here; the [matrix formats overview](matrix-formats.md) then guides you toward the
 right sparse format for your workload.
 
-## matrix_data — the format-agnostic representation
+## matrix_data: the format-agnostic representation
 
 `gko::matrix_data<V, I>` is a host-side structure that stores the dimensions and a list
-of non-zero entries. Value type `V` and index type `I` are both template parameters —
+of non-zero entries. Value type `V` and index type `I` are both template parameters;
 `double, int` is the most common combination.
 
 ```cpp
@@ -102,7 +102,7 @@ coo->read(data);
 ```
 
 After `read`, the matrix lives on `exec`. If `exec` is a GPU executor, `read` copies the
-data from host to device internally — no manual transfer is needed. The `data` object on
+data from host to device internally, so no manual transfer is needed. The `data` object on
 the host remains valid after `read` and can be reused or discarded.
 
 :::{attention}
@@ -116,7 +116,7 @@ from `matrix_data` take precedence.
 when a matrix's structural invariants are violated. Ginkgo never calls it for you; see
 [Validating matrix data](matrix-formats.md#validating-matrix-data) for what it covers.
 
-## device_matrix_data — assembly on the device
+## device_matrix_data: assembly on the device
 
 For large matrices assembled directly on a GPU (for example, from a stencil kernel
 applied to a GPU-resident mesh), `gko::device_matrix_data<V, I>` is the GPU-side
@@ -130,8 +130,8 @@ The two layouts differ deliberately:
   incremental assembly and for sorting / deduplication, but each access touches
   three fields adjacent in memory.
 - `device_matrix_data` holds a **struct of arrays**: three independent device-resident
-  arrays. Kernels that touch only one or two of them — say, just `row_idxs` and
-  `col_idxs` for sparsity-pattern analysis — read coalesced contiguous memory and
+  arrays. Kernels that touch only one or two of them (say, just `row_idxs` and
+  `col_idxs` for sparsity-pattern analysis) read coalesced contiguous memory and
   avoid pulling in the third array, which is essential for GPU memory-throughput
   performance.
 
@@ -145,7 +145,7 @@ gko::device_matrix_data<double, int> ddata{
 // inside a device kernel.
 ```
 
-After assembly, convert directly to a sparse format on the device — no host round-trip:
+After assembly, convert directly to a sparse format on the device, with no host round-trip:
 
 ```cpp
 auto csr = gko::matrix::Csr<double, int>::create(exec);
@@ -183,8 +183,8 @@ When in doubt, the host path is simpler and covers most use cases. Migrate to
 bottleneck.
 
 :::{seealso}
-- [Matrix formats — overview](matrix-formats.md) — which format to convert `matrix_data` into.
-- [Memory ownership and `gko::array`](memory-ownership.md) — the storage abstraction underneath.
-- [Validating matrix data](matrix-formats.md#validating-matrix-data) — the checks per format.
+- [Matrix formats](matrix-formats.md): which format to convert `matrix_data` into.
+- [Memory ownership and `gko::array`](memory-ownership.md): the storage abstraction underneath.
+- [Validating matrix data](matrix-formats.md#validating-matrix-data): the checks per format.
 - API reference: [`gko::matrix_data`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/structgko_1_1matrix__data.html)
 :::

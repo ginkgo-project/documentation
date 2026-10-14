@@ -14,14 +14,14 @@ auto factory = gko::solver::Cg<double>::build()
                    .on(exec);   // stops at ||r|| <= 1e-8 ||b||
 ```
 
-- `stop::Iteration` — hard cap on iterations. Always include one; it
+- `stop::Iteration`: hard cap on iterations. Always include one; it
   guards against runaway loops if convergence never triggers.
-- `stop::ResidualNorm` — stops when
+- `stop::ResidualNorm`: stops when
   $\lVert r_k \rVert \le \tau \, \beta$, where $\tau$ is
   `reduction_factor` and the baseline $\beta$ defaults to
   $\lVert b \rVert$ (`mode::rhs_norm`).
 
-These two together — a max-iter cap and a relative residual target —
+These two together (a max-iter cap and a relative residual target)
 cover most use cases.
 
 ### Criterion helpers
@@ -88,7 +88,7 @@ initial guess. The `initial_resnorm` baseline is fixed once per solve
 to $\lVert b - A x_0 \rVert$, so when you chain warm-started solves
 and feed each previous solution back as $x_0$, $\lVert r_0 \rVert$
 shrinks and the implied stopping target $\tau \, \lVert r_0 \rVert$
-shrinks with it — sometimes well below what the solver can actually
+shrinks with it, sometimes well below what the solver can actually
 reach in finite precision. `rhs_norm` fixes the baseline to
 $\lVert b \rVert$, which stays constant across the chain.
 
@@ -128,7 +128,7 @@ auto factory = gko::solver::Cg<double>::build()
                    .on(exec);
 ```
 
-`stop::Time` (`time_limit`) ends the solve after a wall-clock budget — useful for
+`stop::Time` (`time_limit`) ends the solve after a wall-clock budget, useful for
 real-time / latency-bounded applications.
 
 ## Custom criteria
@@ -152,6 +152,6 @@ for the interface.
   estimate (a preconditioned quantity for CG-type solvers).
 
 :::{seealso}
-- [Stopping criteria](../../concepts/stopping-criteria.md) — the conceptual reference.
-- [Log convergence](log-convergence.md) — collect per-iteration data while solving.
+- [Stopping criteria](../../concepts/stopping-criteria.md): the conceptual reference.
+- [Log convergence](log-convergence.md): collect per-iteration data while solving.
 :::

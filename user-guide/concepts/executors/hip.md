@@ -21,10 +21,10 @@ auto gpu   = gko::HipExecutor::create(0, host, alloc, stream.get());
 
 The HIP allocator family mirrors the CUDA family:
 
-- `HipAllocator` — `hipMalloc` (**default**).
-- `HipAsyncAllocator` — `hipMallocAsync` (stream-ordered).
-- `HipUnifiedAllocator` — `hipMallocManaged` (unified shared memory).
-- `HipHostAllocator` — `hipHostAlloc` (pinned host memory).
+- `HipAllocator`: `hipMalloc` (**default**).
+- `HipAsyncAllocator`: `hipMallocAsync` (stream-ordered).
+- `HipUnifiedAllocator`: `hipMallocManaged` (unified shared memory).
+- `HipHostAllocator`: `hipHostAlloc` (pinned host memory).
 
 See [Allocators](../executor-model.md#allocators) for guidance on picking one. If you don't pass an allocator argument, `HipExecutor::create(id, host)` constructs a `HipAllocator` (synchronous `hipMalloc`).
 

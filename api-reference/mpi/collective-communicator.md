@@ -12,9 +12,9 @@ off-diagonal SpMV consumes; the `RowGatherer` holds a `CollectiveCommunicator` a
 `i_all_to_all_v`. The exchange overlaps the diagonal SpMV (on host executors only when the exchange is non-blocking; see
 the Open MPI < 4.1 fallback of [`DenseCommunicator`](dense-communicator.md)) and completes before
 the off-diagonal SpMV starts. Two
-concrete implementations ship with Ginkgo —
+concrete implementations ship with Ginkgo:
 [`DenseCommunicator`](dense-communicator.md) and
-[`NeighborhoodCommunicator`](neighborhood-communicator.md) — and
+[`NeighborhoodCommunicator`](neighborhood-communicator.md);
 applications can supply their own by deriving from this interface.
 
 ```{doxygenclass} gko::experimental::mpi::CollectiveCommunicator

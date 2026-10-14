@@ -1,4 +1,4 @@
-# Rs — Ruge–Stüben coarsening
+# Rs: Ruge–Stüben coarsening
 
 `gko::multigrid::Rs` is the classical Ruge–Stüben algebraic-multigrid coarsening for
 M-matrices: matrices with a strictly positive diagonal and non-positive off-diagonal
@@ -64,8 +64,8 @@ A factory created with `.on(exec)` is a `std::unique_ptr`, so it is wrapped in
 `.on(exec)` works as well). `Multigrid` requires `with_criteria`.
 
 :::{seealso}
-- [Multigrid](../multigrid.md) — how Rs fits into the overall hierarchy.
-- [Pmis](pmis.md) — the parallel classical alternative.
+- [Multigrid](../multigrid.md): how Rs fits into the overall hierarchy.
+- [Pmis](pmis.md): the parallel classical alternative.
 - API reference: [`gko::multigrid::Rs`](../../../../api-reference/multigrid/rs.md)
 - J. W. Ruge, K. Stüben, [Algebraic multigrid](https://doi.org/10.1137/1.9781611971057.ch4), in Multigrid Methods, SIAM, 1987.
 :::

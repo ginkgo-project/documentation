@@ -8,7 +8,7 @@ the lower factor ($L$) followed by a backward solve on the upper factor ($U$ for
 Cholesky).
 
 The factorisation factory is provided as the `factorization` factory
-parameter — typically a built-in factorisation
+parameter, typically a built-in factorisation
 ([`Cholesky`](../factorization/cholesky.md),
 [`Lu`](../factorization/lu.md)) or a user-supplied one. The native
 Ginkgo triangular solvers

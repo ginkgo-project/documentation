@@ -10,31 +10,31 @@ to be passed to `preconditioner::Ilu` / `preconditioner::Ic`.
 
 ## Exact factorisations (experimental)
 
-- [`experimental::Cholesky`](cholesky.md) — sparse Cholesky for
+- [`experimental::Cholesky`](cholesky.md): sparse Cholesky for
   symmetric positive-definite systems.
-- [`experimental::Lu`](lu.md) — sparse LU for general systems.
+- [`experimental::Lu`](lu.md): sparse LU for general systems.
 
 ## Incomplete factorisations (exact IC(0) and ILU(0))
 
-- [`Ic`](ic.md) — IC(0): incomplete Cholesky with the same sparsity
+- [`Ic`](ic.md): IC(0), incomplete Cholesky with the same sparsity
   pattern as the input matrix.
-- [`Ilu`](ilu.md) — ILU(0): incomplete LU with the same sparsity pattern
+- [`Ilu`](ilu.md): ILU(0), incomplete LU with the same sparsity pattern
   as the input matrix.
 
 ## Incomplete factorisations (fine-grained parallel)
 
-- [`ParIc`](par-ic.md) — ParIC: asynchronous fixed-point iteration for
+- [`ParIc`](par-ic.md): ParIC, asynchronous fixed-point iteration for
   IC(0) (Chow & Patel).
-- [`ParIlu`](par-ilu.md) — ParILU: asynchronous fixed-point iteration
+- [`ParIlu`](par-ilu.md): ParILU, asynchronous fixed-point iteration
   for ILU(0) (Chow & Patel).
-- [`ParIct`](par-ict.md) — ParICT: threshold-based incomplete Cholesky
+- [`ParIct`](par-ict.md): ParICT, threshold-based incomplete Cholesky
   with sparsity-pattern refinement (Anzt et al.).
-- [`ParIlut`](par-ilut.md) — ParILUT: threshold-based incomplete LU
+- [`ParIlut`](par-ilut.md): ParILUT, threshold-based incomplete LU
   with sparsity-pattern refinement (Anzt et al.).
 
 ## The factor container
 
-- [`experimental::Factorization`](factorization.md) — the `LinOp` that
+- [`experimental::Factorization`](factorization.md): the `LinOp` that
   owns the factors, which `gko::experimental::solver::Direct` uses for its
   triangular solves; `apply` multiplies by the factors when they are kept as a
   composition.

@@ -20,34 +20,34 @@ For background and a worked example see the
 
 ## Distributed types
 
-- [`Matrix`](matrix.md) — distributed sparse matrix, stored as an
+- [`Matrix`](matrix.md): distributed sparse matrix, stored as an
   on-rank "diagonal" block plus a compressed "off-diagonal" block of
   remote columns.
-- [`Vector`](vector.md) — distributed dense vector; each rank owns the
+- [`Vector`](vector.md): distributed dense vector; each rank owns the
   rows that match the partition.
-- [`Partition`](partition.md) — ownership mapping: which global rows /
+- [`Partition`](partition.md): ownership mapping that records which global rows /
   columns belong to which rank.
-- [`index_map`](index-map.md) — translation between global and local
+- [`index_map`](index-map.md): translation between global and local
   indices for the partitioned space.
-- [`RowGatherer`](row-gatherer.md) — communication primitive that
+- [`RowGatherer`](row-gatherer.md): communication primitive that
   fetches remote rows for the off-diagonal SpMV.
-- [`DistributedBase`](distributed-base.md) — mixin that gives a type
+- [`DistributedBase`](distributed-base.md): mixin that gives a type
   access to its MPI communicator.
 
 ## Preconditioners
 
-- [`preconditioner::Schwarz`](schwarz.md) — additive Schwarz; applies
+- [`preconditioner::Schwarz`](schwarz.md): additive Schwarz; applies
   any local solver per subdomain (rank), optionally with an L1
   smoother and an algebraic coarse-grid correction.
 
 ## Free functions
 
-- [`assemble_rows_from_neighbors`](assembly.md) — sums up per-rank
+- [`assemble_rows_from_neighbors`](assembly.md): sums up per-rank
   contributions to globally-owned rows so a `matrix_data` assembled
   independently on each rank can be used to build a distributed
   matrix.
-- [`build_partition_from_local_range`, `build_partition_from_local_size`](partition.md)
-  — collective helpers that build a `Partition` from each rank's own
+- [`build_partition_from_local_range`, `build_partition_from_local_size`](partition.md):
+  collective helpers that build a `Partition` from each rank's own
   range or size.
 
 ```{toctree}

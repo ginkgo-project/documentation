@@ -38,12 +38,12 @@ that controls **how** the permutation is applied. The enum is a 3-bit mask combi
 | `permute_mode::none` | $A' = A$ | No-op (mask cleared). |
 | `permute_mode::rows` | $A' = P A$ | Permute rows only. |
 | `permute_mode::columns` | $A' = A P^T$ | Permute columns only. |
-| `permute_mode::symmetric` *(default)* | $A' = P A P^T$ | Symmetric reordering — the standard pre-factorisation transform. |
+| `permute_mode::symmetric` *(default)* | $A' = P A P^T$ | Symmetric reordering, the standard pre-factorisation transform. |
 | `permute_mode::inverse_rows` | $A' = P^{-1} A$ | Undo a previous row permutation. |
 | `permute_mode::inverse_columns` | $A' = A P^{-T}$ | Undo a previous column permutation. |
 | `permute_mode::inverse_symmetric` | $A' = P^{-1} A P^{-T}$ | Undo a symmetric reordering (e.g., to map a solution computed in the permuted system back to the original variable order). |
 
-The fundamental modes can be combined with the bitwise `|`, `&`, and `^` operators —
+The fundamental modes can be combined with the bitwise `|`, `&`, and `^` operators:
 `rows | inverse` is the same as `inverse_rows`, and so on.
 
 `gko::matrix::Permutation<IndexType>` exposes two more helpers for working with
@@ -56,7 +56,7 @@ auto comp = perm1->compose(perm2);           // P_2 * P_1 — apply perm1 first,
 
 `compute_inverse()` returns `P^{-1}` as a new `Permutation` object. `compose(other)`
 combines two permutations so that applying the result is equivalent to applying
-`this` first and then `other` — useful when you want to chain a fill-reducing
+`this` first and then `other`, which is useful when you want to chain a fill-reducing
 reordering with a separate parallel-partitioning reordering, for instance.
 
 For non-symmetric problems where rows and columns should be permuted by **different**
@@ -83,7 +83,7 @@ All five live in `gko::experimental::reorder`. The non-experimental
 version, which integrates more cleanly with the rest of the reordering API.
 
 :::{note}
-`Mc64` is technically a *scaling and matching*, not just a permutation — it produces a
+`Mc64` is technically a *scaling and matching*, not just a permutation: it produces a
 row permutation with row scaling and a column scaling, returned as a `Composition` of
 two `ScaledPermutation` operators, that together push large elements onto the
 diagonal. It is most useful as a preprocessing step before Ginkgo's `Lu`, which factorises
@@ -106,11 +106,11 @@ dissection) typically keeps the factorisation tractable.
 
 The recommended pre-processing recipe for a sparse direct solver is:
 
-1. **Match (optional)** — apply MC64 to push large entries onto the diagonal
+1. **Match (optional)**: apply MC64 to push large entries onto the diagonal
    (`Csr::scale_permute` applies its row and column scaled permutations).
-2. **Reorder** — apply AMD or nested dissection to reduce fill-in (`Csr::permute`).
-3. **Factorise** — pass the permuted matrix to the LU/Cholesky factorisation.
-4. **Solve** — permute `b` (and apply the MC64 row scaling) the same way, call `apply(b, x)` for the factorised triangular solves, then map `x` back with the inverse permutation (and column scaling); [Tune a direct solver](../how-to/using/tune-direct-solver.md) shows the full sequence.
+2. **Reorder**: apply AMD or nested dissection to reduce fill-in (`Csr::permute`).
+3. **Factorise**: pass the permuted matrix to the LU/Cholesky factorisation.
+4. **Solve**: permute `b` (and apply the MC64 row scaling) the same way, call `apply(b, x)` for the factorised triangular solves, then map `x` back with the inverse permutation (and column scaling); [Tune a direct solver](../how-to/using/tune-direct-solver.md) shows the full sequence.
 
 Without `ScaledReordered`, apply the transforms yourself with
 `Csr::permute` and `Csr::scale_permute` before handing the matrix to the
@@ -121,10 +121,10 @@ fixed diagonal scalings plus an RCM reordering around any inner solver.
 
 Reordering helps Krylov methods less directly, but is still useful in two scenarios:
 
-- **As a preprocessing step for an ILU/IC preconditioner** — incomplete factorisations
+- **As a preprocessing step for an ILU/IC preconditioner**: incomplete factorisations
   also benefit from fill-reducing reorderings; an RCM or AMD pass before computing
   the preconditioner can substantially change its quality.
-- **For cache locality on long triangular solves** — RCM compacts the bandwidth of the
+- **For cache locality on long triangular solves**: RCM compacts the bandwidth of the
   matrix, which can speed up the `LowerTrs` / `UpperTrs` kernels used inside ILU and
   direct solves on CPU.
 
@@ -142,7 +142,7 @@ reordering/scaled-reordered
 ```
 
 :::{seealso}
-- [Direct (LU / Cholesky)](solvers/direct.md) — the primary consumer of fill-reducing reorderings.
-- [Solvers — taxonomy](solvers.md) — where reordering fits relative to the solver families.
+- [Direct (LU / Cholesky)](solvers/direct.md): the primary consumer of fill-reducing reorderings.
+- [Solver taxonomy](solvers.md): where reordering fits relative to the solver families.
 - API reference: [`gko::experimental::reorder`](../../api-reference/reorder/index.md).
 :::

@@ -3,7 +3,7 @@
 `gko::preconditioner::Isai<IsaiType, ValueType, IndexType>` computes a
 **sparse approximation** $M_A \approx A^{-1}$ directly, then applies it as
 the preconditioner via a single sparse matrix-vector product. The apply step stays free of
-triangular solves — which is exactly the appeal on hardware
+triangular solves, which is exactly the appeal on hardware
 where triangular substitution serialises poorly.
 
 The trade-off is that the quality of the preconditioner is bounded by the
@@ -20,7 +20,7 @@ parameter:
 | `isai_type::general` | $M_A \approx A^{-1}$ | Standalone preconditioner for general $A$ where a triangular factorisation is unavailable. |
 | `isai_type::lower` | $M_L \approx L^{-1}$ | Replaces the lower-triangular solve in an ILU / IC pipeline. |
 | `isai_type::upper` | $M_U \approx U^{-1}$ | Replaces the upper-triangular solve in an ILU pipeline. |
-| `isai_type::spd` | $M_C^T M_C \approx C^{-1} C^{-T}$ for the Cholesky factor $C$ of $A$ | Symmetric variant — the *Factorized Sparse Approximate Inverse* (FSPAI). |
+| `isai_type::spd` | $M_C^T M_C \approx C^{-1} C^{-T}$ for the Cholesky factor $C$ of $A$ | Symmetric variant: the *Factorized Sparse Approximate Inverse* (FSPAI). |
 
 ## When to use ISAI
 
@@ -30,7 +30,7 @@ parameter:
   usual, then plug `Isai<lower>` and `Isai<upper>` in as the `l_solver` /
   `u_solver` factories.
 - **As a standalone preconditioner** for general $A$ when no factorisation
-  is available — ISAI's per-iteration cost is just an SpMV.
+  is available; ISAI's per-iteration cost is just an SpMV.
 - **For SPD systems** (`spd` flavour) where a triangular-solve-free
   preconditioner is preferred for parallelism reasons.
 
@@ -90,9 +90,9 @@ In the general case, $\mathrm{ISAI}(A)^T \ne \mathrm{ISAI}(A^T)$; only the
 $A^T$ directly.
 
 :::{seealso}
-- [IC family](ic.md) and [ILU family](ilu.md) — incomplete factorisations
+- [IC family](ic.md) and [ILU family](ilu.md): incomplete factorisations
   whose triangular solves ISAI can replace.
-- [Solvers — taxonomy](../solvers.md) — Krylov methods that pair with ISAI.
+- [Solver taxonomy](../solvers.md): Krylov methods that pair with ISAI.
 - API reference: [`gko::preconditioner::Isai`](../../../api-reference/preconditioner/isai.md).
 
 References:

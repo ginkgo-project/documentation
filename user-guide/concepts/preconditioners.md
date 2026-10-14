@@ -1,4 +1,4 @@
-# Preconditioners — taxonomy
+# Preconditioner taxonomy
 
 A preconditioner approximates the inverse of the system matrix to accelerate
 convergence of any iterative solver. Ginkgo's preconditioner catalog ranges from
@@ -8,7 +8,7 @@ they plug into solvers, and selection guidance.
 ## The role of a preconditioner
 
 Replacing $A x = b$ with $M^{-1} A x = M^{-1} b$, where $M$ approximates $A$,
-transforms the spectrum of the system so that eigenvalues cluster near 1 — which
+transforms the spectrum of the system so that eigenvalues cluster near 1, which
 is what every iterative method, not just Krylov subspace methods, wants. The
 preconditioner must be cheap to apply relative to the cost it saves in iteration
 count.
@@ -22,8 +22,8 @@ result to `with_pre_smoother`, `with_mid_smoother` or `with_post_smoother`.
 
 In Ginkgo, a preconditioner is a `LinOp` whose `apply(r, z)` computes $z \approx
 A^{-1} r$. Solvers call this in their inner iteration loop. Because it is a
-`LinOp`, a preconditioner can itself be a full solver — multigrid as a
-preconditioner inside GMRES is a natural example. See [Solvers — taxonomy](solvers.md)
+`LinOp`, a preconditioner can itself be a full solver: multigrid as a
+preconditioner inside GMRES is a natural example. See [Solver taxonomy](solvers.md)
 for the complementary view.
 
 ## Left, right, and split preconditioning
@@ -48,13 +48,13 @@ preconditioned formulation:
   search direction (`q = A p`). Operationally this is left preconditioning of the
   residual; mathematically, for SPD $M = L L^T$, it is identical to applying
   unpreconditioned CG/FCG to the symmetrically-preconditioned system
-  $L^{-1} A L^{-T} \tilde x = L^{-1} b$ — the factorisation of $M$ never has to
+  $L^{-1} A L^{-T} \tilde x = L^{-1} b$; the factorisation of $M$ never has to
   be formed explicitly. This split-preconditioning equivalence is what keeps CG
   applicable in the first place: an arbitrary non-symmetric left preconditioner
   would break the symmetry that CG relies on.
 - **BiCGSTAB** applies $M^{-1}$ to the search directions ($y = M^{-1} p$, $z = M^{-1} s$)
   and the SpMV runs against the preconditioned vectors ($v = A y$, $t = A z$).
-  This builds the Krylov subspace of $A M^{-1}$ — exactly the right-preconditioning
+  This builds the Krylov subspace of $A M^{-1}$, exactly the right-preconditioning
   pattern that GMRES uses.
 - **GMRES** applies $M^{-1}$ to the Arnoldi basis vector before the SpMV
   ($v_{\text{prec}} = M^{-1} v$, then `next_krylov = A v_{\text{prec}}`), and
@@ -64,7 +64,7 @@ preconditioned formulation:
   whatever the inner family above prescribes.
 
 With `ResidualNorm`, the convergence test sees the *unpreconditioned* residual
-$r = b - A x$ — the stopping criterion is not affected by the preconditioner
+$r = b - A x$; the stopping criterion is not affected by the preconditioner
 placement. `ImplicitResidualNorm` instead reads the solver's recurrence
 quantity, which for CG-type solvers is a preconditioned inner product. See [Stopping criteria](stopping-criteria.md) for how to control the
 convergence test independently.
@@ -108,9 +108,9 @@ Block Jacobi also supports per-block precision reduction via `with_storage_optim
 
 Incomplete LU factorisation computes approximate triangular factors `L` and `U` such that `L U ≈ A`, discarding fill-in according to a sparsity pattern rule. Ginkgo provides three flavours:
 
-- **ILU(0)** — `gko::factorization::Ilu`. No fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
-- **ParILU** — `gko::factorization::ParIlu`. A parallelizable ILU(0) suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than the exact elimination of `Ilu`.
-- **ParILUT** — `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
+- **ILU(0)**: `gko::factorization::Ilu`. No fill-in beyond the original sparsity pattern. The cheapest and most predictable option.
+- **ParILU**: `gko::factorization::ParIlu`. A parallelizable ILU(0) suitable for GPU execution. Approximates ILU(0) via Jacobi-style sweeps rather than the exact elimination of `Ilu`.
+- **ParILUT**: `gko::factorization::ParIlut`. Extends ParILU with **threshold-based** fill-in, giving control over the trade-off between factorisation quality and memory use via `with_fill_in_limit`.
 
 :::{note}
 `gko::factorization::Ilu` computes ILU(0): the factors keep the sparsity pattern of `A`, and the
@@ -148,7 +148,7 @@ auto ic = gko::preconditioner::Ic<double, int>::build()
               .on(exec);
 ```
 
-Pair IC with CG for SPD systems — the combination is robust and commonly outperforms ILU on elliptic problems where symmetry can be exploited.
+Pair IC with CG for SPD systems: the combination is robust and commonly outperforms ILU on elliptic problems where symmetry can be exploited.
 
 ### ISAI (Incomplete Sparse Approximate Inverse)
 
@@ -183,7 +183,7 @@ solver->apply(b, x);
 
 `mg_level` and `criteria` are required: `generate()` throws `NotSupported` without at least one multigrid level and one stopping criterion. The criterion `max_iters(1u)` makes each application of the preconditioner run one cycle.
 
-Setup cost is high — the coarsening hierarchy must be constructed — so AMG is most cost-effective when the same matrix is solved many times, or when the problem is large enough that the iteration savings justify the setup.
+Setup cost is high (the coarsening hierarchy must be constructed), so AMG is most cost-effective when the same matrix is solved many times, or when the problem is large enough that the iteration savings justify the setup.
 
 ### Nullspace projection
 
@@ -213,11 +213,11 @@ auto solver = solver_factory->generate(system_matrix);
 solver->apply(b, x);
 ```
 
-This design means you can reuse the same factory with different matrices — the preconditioner is rebuilt appropriately each time.
+This design means you can reuse the same factory with different matrices; the preconditioner is rebuilt appropriately each time.
 
 ## Selection guidance
 
-1. **Diagonally-dominant?** Start with scalar Jacobi — cost is near zero.
+1. **Diagonally-dominant?** Start with scalar Jacobi; cost is near zero.
 2. **Block structure?** Block Jacobi with `max_block_size` matching the block size.
 3. **General sparse, modest cost?** ILU(0) is the standard baseline.
 4. **SPD system?** IC + CG.
@@ -241,15 +241,15 @@ preconditioners/amg
 ### Publications
 
 - [Adaptive Precision Block-Jacobi for High Performance Preconditioning in the Ginkgo Linear Algebra Software](https://doi.org/10.1145/3441850)
-- [ParILUT — A New Parallel Threshold ILU Factorization](https://doi.org/10.1137/16M1079506)
-- [ParILUT — A Parallel Threshold ILU for GPUs](https://doi.org/10.1109/IPDPS.2019.00033)
+- [ParILUT: A New Parallel Threshold ILU Factorization](https://doi.org/10.1137/16M1079506)
+- [ParILUT: A Parallel Threshold ILU for GPUs](https://doi.org/10.1109/IPDPS.2019.00033)
 - [Incomplete Sparse Approximate Inverses for Parallel Preconditioning](https://doi.org/10.1016/j.parco.2017.10.003)
 - [Mixed Precision Incomplete and Factorized Sparse Approximate Inverse Preconditioning on GPUs](https://doi.org/10.1007/978-3-030-85665-6_34)
 - [Implementing Asynchronous Jacobi Iteration on GPUs](https://doi.org/10.1109/ScalAH56622.2022.00006)
 
 :::{seealso}
-- [Solvers — taxonomy](solvers.md) — what consumes preconditioners.
-- [Mixed-precision design](mixed-precision.md) — adaptive-precision block-Jacobi (`Jacobi` with `storage_optimization`) lives in this space.
-- [Singular systems and nullspaces](solvers/singular-systems.md) — `NullspaceProjection` in use.
+- [Solver taxonomy](solvers.md): what consumes preconditioners.
+- [Mixed-precision design](mixed-precision.md): adaptive-precision block-Jacobi (`Jacobi` with `storage_optimization`) lives in this space.
+- [Singular systems and nullspaces](solvers/singular-systems.md): `NullspaceProjection` in use.
 - API reference: [`gko::preconditioner`](../../api-reference/preconditioner/index.md)
 :::

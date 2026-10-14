@@ -5,7 +5,7 @@ A solver is *distributed-ready* when its implementation has been adapted to work
 matter of dispatching distributed vectors through the right helper, since the underlying
 operations (`apply`, `compute_dot`, `compute_norm`) already handle MPI internally. A few
 algorithms need explicit cross-rank reductions in places where the standard `compute_conj_dot`
-contract does not cover them — GMRES is the canonical example. This page covers which solvers
+contract does not cover them; GMRES is the canonical example. This page covers which solvers
 are distributed-ready today, what makes a solver need a specialised path, and how the
 distributed-specific preconditioners are configured.
 
@@ -24,7 +24,7 @@ The following solvers dispatch distributed inputs through
 | Polynomial        | `Chebyshev`                         | Applies the distributed matrix; its updates are rank-local.                    |
 | Multilevel        | `Multigrid`                         | Coarsening through distributed `Pgm` or `UniformCoarsening` (see below).       |
 
-The solver itself is unchanged in most cases — it does not know whether the matrix it operates
+The solver itself is unchanged in most cases; it does not know whether the matrix it operates
 on is distributed, because the distributed objects implement the same `LinOp` interface as any
 other Ginkgo type and route their reductions through MPI internally.
 
@@ -53,12 +53,12 @@ system matrix. See [Singular systems and nullspaces](../solvers/singular-systems
 
 ### Why GMRES needs a specialised path
 
-- **CGS / CGS2 paths** — fuse multiple dot products into a single
+- **CGS / CGS2 paths**: fuse multiple dot products into a single
   batched kernel and produce only **partial** Hessenberg columns per
   rank. A separate `finish_reduce` overload runs the missing
   `MPI_Allreduce`, staging through a host buffer when the MPI is not
   GPU-aware.
-- **MGS path** — doesn't need any of this; each `compute_conj_dot`
+- **MGS path**: doesn't need any of this; each `compute_conj_dot`
   already reduces across ranks.
 - **Custom `LinOp`** that do their own batched reductions on
   distributed vectors should follow the same pattern: compute locally,
@@ -75,8 +75,8 @@ means the preconditioner has its own cross-rank construction path.
 | ----------------------- | --------------------------------------------------------------- |
 | Jacobi (scalar or block) | Schwarz-wrapped (`Schwarz::build().with_local_solver(Jacobi::build())`); blocks stay within the rank's diagonal block. |
 | ILU / IC / ParILU       | Schwarz-wrapped (apply per-rank ILU/IC inside Schwarz).         |
-| Schwarz (one- or two-level) | Distributed-specific class — see below.                     |
-| AMG (`Multigrid` + `Pgm` or `UniformCoarsening`) | Distributed setup — see [Distributed Pgm](../solvers/multigrid/pgm.md#distributed-pgm) and [UniformCoarsening](../solvers/multigrid/uniform-coarsening.md#distributed-matrices). |
+| Schwarz (one- or two-level) | Distributed-specific class; see below.                     |
+| AMG (`Multigrid` + `Pgm` or `UniformCoarsening`) | Distributed setup; see [Distributed Pgm](../solvers/multigrid/pgm.md#distributed-pgm) and [UniformCoarsening](../solvers/multigrid/uniform-coarsening.md#distributed-matrices). |
 | AMG with `Pmis` / `Rs`  | Schwarz-wrapped (local AMG on each rank's diagonal block).      |
 | `NullspaceProjection`   | Works directly; an explicit nullspace basis is a `distributed::Vector` with the matrix's row partition. |
 
@@ -84,7 +84,7 @@ means the preconditioner has its own cross-rank construction path.
 
 `gko::experimental::distributed::preconditioner::Schwarz` is the canonical distributed
 preconditioner. In its simplest form it applies a single-rank preconditioner to the local block
-of the distributed matrix on each rank, ignoring off-rank coupling — this is **one-level
+of the distributed matrix on each rank, ignoring off-rank coupling; this is **one-level
 additive Schwarz**. It also supports a **two-level** variant that adds an algebraic coarse-grid
 correction.
 
@@ -113,7 +113,7 @@ auto solver = gko::solver::Cg<double>::build()
                   ->generate(distributed_matrix);
 ```
 
-`with_local_solver` accepts any preconditioner factory — Jacobi, ILU, IC, or AMG applied
+`with_local_solver` accepts any preconditioner factory: Jacobi, ILU, IC, or AMG applied
 locally. No MPI communication occurs during the preconditioner apply; each rank independently
 applies its local preconditioner to its local residual.
 
@@ -122,11 +122,11 @@ applies its local preconditioner to its local residual.
 To add a coarse-grid correction, configure two extra factory parameters on top of
 `with_local_solver`:
 
-- `with_coarse_level(...)` — a `LinOpFactory` that, when applied to the distributed system matrix,
+- `with_coarse_level(...)`: a `LinOpFactory` that, when applied to the distributed system matrix,
   produces the triplet $(R,\, A_c = R A P,\, P)$ with a distributed coarse matrix:
   `gko::multigrid::Pgm` (see [Distributed Pgm](../solvers/multigrid/pgm.md#distributed-pgm)) or
   `gko::multigrid::UniformCoarsening`.
-- `with_coarse_solver(...)` — a `LinOpFactory` that solves the coarse-level system
+- `with_coarse_solver(...)`: a `LinOpFactory` that solves the coarse-level system
   $A_c x_c = b_c$.
 
 ```cpp
@@ -159,7 +159,7 @@ generate the local solver: the row-wise absolute sum of the **off-diagonal matri
 added to the matrix-diagonal entries of the diagonal matrix before the local-solver factory is
 applied. This is the classical L1 smoother adaptation that improves stability of point-wise
 smoothers (Jacobi, ILU) in domain-decomposition contexts. The L1 update is applied only to the
-local solver — the coarse-level path uses the unmodified system matrix.
+local solver; the coarse-level path uses the unmodified system matrix.
 
 ### Limitations to be aware of
 
@@ -177,18 +177,18 @@ parameters) as `mg_level`. Use `gko::solver::build_smoother` around a Schwarz-wr
 smoother, as in `examples/distributed-multigrid-preconditioned-solver`. The distributed `Pgm` path
 is **algorithmically slightly different** from the single-rank path:
 
-- The aggregation step runs on each rank's diagonal matrix only — couplings to remote rows are
+- The aggregation step runs on each rank's diagonal matrix only; couplings to remote rows are
   ignored at the aggregation stage. This keeps coarsening communication-free at the cost of
   potentially weaker aggregations near rank boundaries (use a graph partitioner first if rank
   boundaries are arbitrary).
-- The coarse partition is built block-wise — one contiguous range per rank — so the coarse
+- The coarse partition is built block-wise (one contiguous range per rank), so the coarse
   matrix carries the same MPI communicator as the input.
 - A single `i_all_to_all_v` per coarsening step exchanges the cross-rank aggregate IDs so the
   coarse-level off-diagonal matrix can be assembled. The communication volume scales with the
   existing off-diagonal-matrix volume of the input, not the matrix size.
 
-The full protocol — including the build flag, executor compatibility, and the consequences for
-the multigrid hierarchy — is documented on the
+The full protocol (including the build flag, executor compatibility, and the consequences for
+the multigrid hierarchy) is documented on the
 [Distributed Pgm](../solvers/multigrid/pgm.md#distributed-pgm) page. Use AMG either stand-alone
 or as the local solver / coarse solver inside a Schwarz two-level preconditioner.
 
@@ -222,7 +222,7 @@ experimental and may change.
 
 For users implementing custom distributed `LinOp` operations, two codebase patterns matter.
 
-**Pattern 1 — `gko::experimental::precision_dispatch_real_complex_distributed`:**
+**Pattern 1 (`gko::experimental::precision_dispatch_real_complex_distributed`):**
 
 ```cpp
 template <typename ValueType>
@@ -237,7 +237,7 @@ A custom `apply_impl` uses the `_distributed` variant rather than `precision_dis
 The distributed variant handles down-casting of distributed vector types before dispatching on
 value type.
 
-**Pattern 2 — accessing the local block:**
+**Pattern 2 (accessing the local block):**
 
 ```cpp
 template <typename ValueType>
@@ -257,11 +257,11 @@ and distributed inputs without separate code paths. Ginkgo's own solvers use the
 `gko::detail::get_local` from `core/distributed/helpers.hpp` for this.
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — the solver families behind the table above.
-- [Preconditioners — taxonomy](../preconditioners.md) — local preconditioners that go inside the
+- [Solver taxonomy](../solvers.md): the solver families behind the table above.
+- [Preconditioner taxonomy](../preconditioners.md): local preconditioners that go inside the
   Schwarz wrapper.
-- [Distributed computing — overview](../distributed.md) — the assembly and executor pattern.
-- [UniformCoarsening](../solvers/multigrid/uniform-coarsening.md) — the index-based coarsening that
+- [Distributed computing](../distributed.md): the assembly and executor pattern.
+- [UniformCoarsening](../solvers/multigrid/uniform-coarsening.md): the index-based coarsening that
   also accepts distributed matrices.
 - API reference: [`gko::preconditioner::NullspaceProjection`](../../../api-reference/preconditioner/nullspace-projection.md)
 - API reference: [`gko::experimental::distributed::preconditioner::Schwarz`](../../../api-reference/distributed/schwarz.md)

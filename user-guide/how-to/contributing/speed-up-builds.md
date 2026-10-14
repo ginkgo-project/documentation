@@ -1,7 +1,7 @@
 # Speed up rebuilds
 
-A full Ginkgo build — every backend, full Jacobi optimisations, tests +
-examples + benchmarks — takes 20–40 minutes on a typical workstation and
+A full Ginkgo build (every backend, full Jacobi optimisations, tests +
+examples + benchmarks) takes 20–40 minutes on a typical workstation and
 significantly longer on shared HPC nodes. When you are iterating on the
 library you almost never need the full build. This page collects the
 levers that actually move the needle.
@@ -30,7 +30,7 @@ When you are actively touching the test suite, set
 ## Pin device architectures explicitly
 
 `GINKGO_CUDA_ARCHITECTURES=Auto` (the default) builds for whichever
-generations `CudaArchitectureSelector` discovers on the host — but
+generations `CudaArchitectureSelector` discovers on the host, but
 compiling for **one** target instead of every supported generation is
 typically 3–4× faster on the CUDA path. Pass the explicit architecture:
 
@@ -48,7 +48,7 @@ cmake .. -DCMAKE_HIP_ARCHITECTURES=gfx90a
 
 ## Use Ninja
 
-CMake's default generator on Linux is `Unix Makefiles`. Switch to Ninja —
+CMake's default generator on Linux is `Unix Makefiles`. Switch to Ninja;
 it tracks file dependencies more precisely, parallelises better across
 the link graph, and resumes incremental builds noticeably faster:
 
@@ -66,7 +66,7 @@ defaults to `ON` and sets the compiler launcher for you. For HIP, set
 `-DCMAKE_HIP_COMPILER_LAUNCHER=ccache` when you configure.
 
 If you build CUDA code regularly, raise the ccache size from the 5 GB
-default — CUDA object files are large and fill the cache fast:
+default; CUDA object files are large and fill the cache fast:
 
 ```sh
 ccache -M 50G
@@ -86,7 +86,7 @@ cmake --build . -j8     # roughly 16 GB peak
 ```
 
 When you have plenty of RAM (`> 128 GB`) but compute-bound CPUs, scale
-up gradually and watch `htop` — if memory pressure climbs you are
+up gradually and watch `htop`; if memory pressure climbs you are
 losing more time to swap than you are gaining from cores.
 
 ## Skip the most expensive switches
@@ -98,13 +98,13 @@ specifically need them:
 | Flag | Cost | Default |
 |---|---|---|
 | `GINKGO_JACOBI_FULL_OPTIMIZATIONS` | With this on, the build compiles every Jacobi block size (1 to 32 on CUDA, 1 to 64 on HIP) of the generated `jacobi_*_kernels.instantiate.<N>.cpp` files instead of the default subset, which adds many heavy template files and lengthens the build considerably. | `OFF` |
-| `GINKGO_ENABLE_HALF` / `GINKGO_ENABLE_BFLOAT16` | Each adds another precision instantiation across every templated kernel. | `ON` — turn off only if you don't touch fp16 / bf16 in this iteration. |
+| `GINKGO_ENABLE_HALF` / `GINKGO_ENABLE_BFLOAT16` | Each adds another precision instantiation across every templated kernel. | `ON`; turn off only if you don't touch fp16 / bf16 in this iteration. |
 | `GINKGO_MIXED_PRECISION` | Compiles dedicated mixed-precision kernels instead of converting on the fly. | `OFF` |
 
 ## Pick the right build type
 
-`RelWithDebInfo` is usually the best balance for iteration — full
-optimisations but with line-number debug info — and rebuilds faster than
+`RelWithDebInfo` is usually the best balance for iteration (full
+optimisations but with line-number debug info) and rebuilds faster than
 `Debug` because optimisation kicks in early. Reserve `Debug` for
 stepping through actual bugs:
 
@@ -137,6 +137,6 @@ and a single-file edit from 90 s to a few seconds once ccache is warm
 (ccache is picked up automatically when it is installed).
 
 :::{seealso}
-- [Build options](../../../getting-started/build-options.md) — every CMake flag in detail.
-- [Set up a development environment](setup-dev-environment.md) — formatters, hooks, sanitizers.
+- [Build options](../../../getting-started/build-options.md): every CMake flag in detail.
+- [Set up a development environment](setup-dev-environment.md): formatters, hooks, sanitizers.
 :::

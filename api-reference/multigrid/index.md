@@ -4,7 +4,7 @@ Building blocks for the algebraic-multigrid hierarchy that
 [`gko::solver::Multigrid`](../solver/multigrid.md) drives. A
 `MultigridLevel` represents the (restriction, coarse-operator,
 prolongation) triple at one level of the hierarchy, and the concrete
-classes here are the level generators — they take a fine-level system
+classes here are the level generators: they take a fine-level system
 matrix and produce the next coarser level.
 
 For the high-level multigrid picture, see the
@@ -13,24 +13,24 @@ this section covers the per-level interfaces.
 
 ## The level interface
 
-- [`MultigridLevel`](multigrid-level.md) — abstract interface for one
-  level of the hierarchy: exposes the fine operator, the restriction, the
+- [`MultigridLevel`](multigrid-level.md): abstract interface for one
+  level of the hierarchy that exposes the fine operator, the restriction, the
   coarse operator and the prolongation.
 
 ## Level generators
 
-- [`Pgm`](pgm.md) — Parallel Graph Matching aggregation, the standard
+- [`Pgm`](pgm.md): Parallel Graph Matching aggregation, the standard
   algebraic-coarsening choice in Ginkgo. Aggregates fine-level rows
   based on matrix values (strongest-neighbour pairing).
-- [`Pmis`](pmis.md) — classical C/F splitting by a parallel modified
+- [`Pmis`](pmis.md): classical C/F splitting by a parallel modified
   independent set, with direct interpolation and $R = P^T$.
-- [`Rs`](rs.md) — Ruge-Stueben classical coarsening for M-matrices:
+- [`Rs`](rs.md): Ruge-Stueben classical coarsening for M-matrices, with
   greedy C/F splitting by strong-neighbour counts and classical interpolation.
-- [`UniformCoarsening`](uniform-coarsening.md) — index-based coarsening that
+- [`UniformCoarsening`](uniform-coarsening.md): index-based coarsening that
   keeps every `coarse_skip`-th row, either aggregating each fine row onto its
   coarse row or injecting only the selected rows; also accepts distributed
   matrices.
-- [`FixedCoarsening`](fixed-coarsening.md) — pick coarse-level rows by
+- [`FixedCoarsening`](fixed-coarsening.md): pick coarse-level rows by
   user-supplied index list, restricting by selection and
   prolonging by injection. Useful when the application already knows a good
   coarsening (e.g. from a structured mesh).

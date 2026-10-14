@@ -54,9 +54,9 @@ When every rank only knows its own share of the rows, two collective helpers bui
 without gathering the sizes by hand. Both live in `gko::experimental::distributed` and are
 collective over the communicator:
 
-- `build_partition_from_local_size(exec, comm, local_size)` — rank $r$ owns `local_size`
+- `build_partition_from_local_size(exec, comm, local_size)`: rank $r$ owns `local_size`
   consecutive rows, and the ranges follow in rank order. The sizes may differ between ranks.
-- `build_partition_from_local_range(exec, comm, local_range)` — each rank passes the
+- `build_partition_from_local_range(exec, comm, local_range)`: each rank passes the
   `gko::span` of global rows it owns; the ranges may be given by the ranks in any order, as long
   as together they cover the index space without gaps (otherwise it throws [`gko::InvalidStateError`](../../../api-reference/base/exceptions.md)).
 
@@ -97,7 +97,7 @@ non-contiguous.
 
 `index_map<L, G>` is the per-rank mapping between local indices and global indices. It holds the
 partition it was built from (`get_partition()`) and this rank's id. The distributed `Matrix` uses it
-to translate between indexing schemes for the halo exchange — determining which remote global
+to translate between indexing schemes for the halo exchange, determining which remote global
 indices this rank's off-diagonal matrix references, and which remote ranks need values from this
 rank.
 
@@ -131,14 +131,14 @@ volume. Practical guidelines:
 
 :::{tip}
 For a quick start or a test, `build_from_global_size_uniform` is the least code. For production
-runs on unstructured meshes, invest in a graph-partitioner-based mapping — the convergence benefit
+runs on unstructured meshes, invest in a graph-partitioner-based mapping; the convergence benefit
 from a smaller off-diagonal matrix typically outweighs the setup cost.
 :::
 
 :::{seealso}
-- [Distributed computing — overview](../distributed.md) — the assembly pattern that uses a
+- [Distributed computing](../distributed.md): the assembly pattern that uses a
   `Partition`.
-- [Communication primitives](communication-primitives.md) — what the index map drives during
+- [Communication primitives](communication-primitives.md): what the index map drives during
   the distributed apply.
 - API reference: [`gko::experimental::distributed::Partition`](../../../api-reference/distributed/partition.md)
 :::

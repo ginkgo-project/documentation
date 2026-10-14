@@ -2,8 +2,8 @@
 
 `gko::experimental::solver::Direct` is Ginkgo's sparse direct solver. It computes a
 sparse LU or Cholesky factorisation once at `generate()` time and reuses the
-factors across `apply()` calls. The factorisation lives in two `LinOp`s — a lower
-and an upper triangular solver — so the cost of a solve is two triangular sweeps,
+factors across `apply()` calls. The factorisation lives in two `LinOp`s (a lower
+and an upper triangular solver), so the cost of a solve is two triangular sweeps,
 not a re-factorisation.
 
 ## Construction
@@ -22,8 +22,8 @@ solver->apply(b, x);
 The `with_factorization` parameter accepts any factorisation factory whose output is
 a `gko::experimental::factorization::Factorization`. In practice that means:
 
-- `gko::experimental::factorization::Lu` — general unsymmetric matrices.
-- `gko::experimental::factorization::Cholesky` — symmetric positive-definite matrices.
+- `gko::experimental::factorization::Lu`: general unsymmetric matrices.
+- `gko::experimental::factorization::Cholesky`: symmetric positive-definite matrices.
 
 Both factories produce a sparse factorisation, not a dense one. The cost and memory
 footprint depend on the matrix's sparsity and the row/column ordering.
@@ -42,8 +42,8 @@ The recommended preprocessing recipe is:
    factorisation.
 2. **Reorder**: apply `Amd` (default for small / medium matrices) or
    `NestedDissection` (for large structured systems; requires METIS) to reduce
-   fill-in. As an alternative — particularly when the triangular solves are
-   bandwidth-bound on CPU — `Rcm` minimises bandwidth/profile instead of fill;
+   fill-in. As an alternative (particularly when the triangular solves are
+   bandwidth-bound on CPU), `Rcm` minimises bandwidth/profile instead of fill;
    it can produce different (sometimes better) cache behaviour than the
    fill-reducers but is not a fill-reducing reordering itself.
 3. **Factorise** with `Direct` on the permuted matrix.
@@ -68,8 +68,8 @@ construct `LowerTrs` and `UpperTrs` directly from the CSR matrices.
 On the CUDA backend, both triangular solvers expose two algorithm choices via
 `with_algorithm`:
 
-- `trisolve_algorithm::sparselib` — cuSPARSE's triangular solve (default).
-- `trisolve_algorithm::syncfree` — Ginkgo's own sync-free implementation, often
+- `trisolve_algorithm::sparselib`: cuSPARSE's triangular solve (default).
+- `trisolve_algorithm::syncfree`: Ginkgo's own sync-free implementation, often
   faster for highly parallel triangular structures.
 
 The triangular solvers run on the Reference, OpenMP, CUDA, HIP and DPC++
@@ -77,26 +77,26 @@ executors; on DPC++ they use oneMKL.
 
 ## cuDSS on NVIDIA GPUs
 
-For CUDA workloads where Ginkgo's own factorisation is the bottleneck — typically
-large unstructured systems — the
+For CUDA workloads where Ginkgo's own factorisation is the bottleneck (typically
+large unstructured systems), the
 [`gko::ext::cuda::solver::Cudss`](../extensions/cudss.md) extension wraps NVIDIA's
 cuDSS sparse direct solver. cuDSS supports unsymmetric and symmetric factorisations,
 applies its own reordering and pivoting heuristics, and exposes a `refactorize` entry
 point that reuses both the symbolic analysis and the factorization data structures
 when only the numerical values change. The extension is built automatically when
-CUDA support is enabled and CMake discovers a cuDSS installation — see
+CUDA support is enabled and CMake discovers a cuDSS installation; see
 [Build-time enablement](../extensions/cudss.md#build-time-enablement) for details.
 
 ## When sparse direct is (and is not) appropriate
 
 Sparse direct solvers can handle large systems when paired with a fill-reducing
-reordering — that is exactly what production sparse-direct packages (SuperLU, MUMPS,
+reordering; that is exactly what production sparse-direct packages (SuperLU, MUMPS,
 cuDSS) do for million-degree-of-freedom problems. They are particularly attractive
 when:
 
-- The same matrix is used for many right-hand sides — the factorisation is amortised.
+- The same matrix is used for many right-hand sides: the factorisation is amortised.
 - Numerical robustness matters more than peak iteration speed.
-- The sparsity pattern is fixed across many solves with changing values — passing
+- The sparsity pattern is fixed across many solves with changing values: passing
   a precomputed `symbolic_factorization` to the `Lu` / `Cholesky` factory lets
   subsequent `generate()` calls skip the symbolic step. On CUDA, the
   [cuDSS extension](../extensions/cudss.md) goes further with an in-place
@@ -116,7 +116,7 @@ The classical caveats:
   vendor-tuned cuDSS alternative is CUDA-only.
 
 When the system is too large for a direct factorisation, switch to a Krylov solver
-with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.md).
+with an ILU/IC or AMG preconditioner; see [Solver taxonomy](../solvers.md).
 
 ## Publications
 
@@ -124,8 +124,8 @@ with an ILU/IC or AMG preconditioner — see [Solvers — taxonomy](../solvers.m
 - [Parallel Symbolic Cholesky Factorization](https://doi.org/10.1145/3624062.3624253)
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where direct fits among the families.
-- [Reordering and permutations](../reordering.md) — fill-reducing preprocessing.
-- [cuDSS direct solver](../extensions/cudss.md) — CUDA-specific sparse direct alternative.
+- [Solver taxonomy](../solvers.md): where direct fits among the families.
+- [Reordering and permutations](../reordering.md): fill-reducing preprocessing.
+- [cuDSS direct solver](../extensions/cudss.md): CUDA-specific sparse direct alternative.
 - API reference: [`gko::experimental::solver::Direct`](../../../api-reference/solver/direct.md), [`gko::solver::LowerTrs`](../../../api-reference/solver/lower-trs.md), [`gko::solver::UpperTrs`](../../../api-reference/solver/upper-trs.md)
 :::

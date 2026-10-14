@@ -1,7 +1,7 @@
 # ScaledReordered
 
-`ScaledReordered` is a `LinOp` wrapper that bundles up to three transforms — a row
-scaling, a column scaling, and a reordering — together with an inner solver, so the
+`ScaledReordered` is a `LinOp` wrapper that bundles up to three transforms (a row
+scaling, a column scaling, and a reordering) together with an inner solver, so the
 whole pipeline looks like one operator to the caller. The user passes the **original**
 system matrix and right-hand side; the wrapper applies the transforms internally,
 runs the inner solve on the transformed system, and maps the solution back to the
@@ -75,12 +75,12 @@ standalone reordering; `ScaledReordered`'s `reordering` parameter takes the
 
 `ScaledReordered` itself is just a thin orchestrator: it composes the cached
 permutation and scaling objects with the inner solver's `apply`. The runtime cost
-of the transforms is comparable to a sparse `apply` of similar size — the heavy
+of the transforms is comparable to a sparse `apply` of similar size; the heavy
 lifting is in the inner solver.
 
 :::{seealso}
 - API reference: [`gko::experimental::reorder::ScaledReordered`](../../../api-reference/reorder/scaled-reordered.md).
-- [Direct (LU / Cholesky)](../solvers/direct.md) — the typical inner operator.
-- [RCM](rcm.md) — the standalone `gko::experimental::reorder::Rcm` reordering.
-- [Reordering and permutations](../reordering.md) — overview and comparison table.
+- [Direct (LU / Cholesky)](../solvers/direct.md): the typical inner operator.
+- [RCM](rcm.md): the standalone `gko::experimental::reorder::Rcm` reordering.
+- [Reordering and permutations](../reordering.md): overview and comparison table.
 :::

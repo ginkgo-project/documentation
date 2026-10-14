@@ -6,7 +6,7 @@ Ginkgo's `config` namespace lets an application load a complete solver or precon
 
 File-based config is the right tool when *runtime* selection of the solver setup matters:
 
-- **Parameter sweeps.** Try fifty solver and preconditioner combinations without recompiling — write a loop over JSON files.
+- **Parameter sweeps.** Try fifty solver and preconditioner combinations without recompiling: write a loop over JSON files.
 - **Application-supplied config.** End users choose a solver in a config file; your application code stays generic and recompile-free.
 - **Reproducibility.** The exact solver setup is stored alongside results in a text file.
 
@@ -22,7 +22,7 @@ A `gko::config::pnode` is the in-memory representation of a parsed config tree. 
 gko::config::pnode root = gko::ext::config::parse_json_string(json_string);
 ```
 
-The readers are described in [Config file readers](../../api-reference/extensions/config-readers.md). You typically do not construct `pnode` objects by hand — they are produced by a parser. The node tree captures the full structure of the config file and is independent of any particular Ginkgo type, making it easy to inspect or serialize back out.
+The readers are described in [Config file readers](../../api-reference/extensions/config-readers.md). You typically do not construct `pnode` objects by hand; they are produced by a parser. The node tree captures the full structure of the config file and is independent of any particular Ginkgo type, making it easy to inspect or serialize back out.
 
 ## The registry
 
@@ -112,8 +112,8 @@ The solver factory produced this way is reusable. Call `generate(matrix)` multip
 - **Parser library required.** The JSON and YAML readers are header-only (`<ginkgo/extensions/config/json_config.hpp>` and `yaml_config.hpp`) and separate from `ginkgo/ginkgo.hpp`. Link your target against `nlohmann_json::nlohmann_json` (JSON) or `yaml-cpp::yaml-cpp` (YAML) alongside `Ginkgo::ginkgo`. Failures while reading or parsing throw an exception derived from `std::exception`.
 
 :::{seealso}
-- [Solvers — taxonomy](solvers.md) — what you typically configure from a file.
-- [Preconditioners — taxonomy](preconditioners.md) — what plugs into a solver.
-- [LinOp and composition](linop-and-composition.md) — the same composition model in C++.
+- [Solver taxonomy](solvers.md): what you typically configure from a file.
+- [Preconditioner taxonomy](preconditioners.md): what plugs into a solver.
+- [LinOp and composition](linop-and-composition.md): the same composition model in C++.
 - API reference: [`gko::config`](https://ginkgo-project.github.io/ginkgo-generated-documentation/doc/develop/namespacegko_1_1config.html)
 :::

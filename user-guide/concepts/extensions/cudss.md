@@ -16,7 +16,7 @@ cuDSS is appropriate when:
   heuristics.
 - You need to **refactorize** repeatedly with the same sparsity pattern but different
   numerical values (e.g., a Newton iteration that updates Jacobian values without
-  reshaping the system) — cuDSS reuses both the symbolic analysis and the
+  reshaping the system); cuDSS reuses both the symbolic analysis and the
   factorization data structures across `refactorize` calls, updating only the
   numerical values in place. Ginkgo's own `experimental::solver::Direct` can skip
   the symbolic step (by passing a previously computed `symbolic_factorization` to
@@ -68,9 +68,9 @@ Storage-format mismatch between Ginkgo and cuDSS:
 
 Two correct paths:
 
-- **Fully-stored matrix** — `matrix_type = 0` (GENERAL),
+- **Fully-stored matrix**: `matrix_type = 0` (GENERAL),
   `matrix_view = 0` (FULL).
-- **Symmetric factorisation** — extract one triangle into a new CSR
+- **Symmetric factorisation**: extract one triangle into a new CSR
   first, then construct the solver with the symmetric mode.
 :::
 
@@ -119,7 +119,7 @@ target_link_libraries(app PRIVATE Ginkgo::ginkgo Ginkgo::ginkgo_cudss)
 ```
 
 If cuDSS is not found, the build emits a `STATUS` message and silently skips the
-extension — `gko::ext::cuda::solver::Cudss` will not be available, but the rest of
+extension: `gko::ext::cuda::solver::Cudss` will not be available, but the rest of
 Ginkgo continues to build normally.
 
 ## Configuration files
@@ -143,15 +143,15 @@ Keys other than `type` and the factory parameters above raise an error; the entr
 
 ## Limitations
 
-- **CUDA only** — the extension targets NVIDIA GPUs through the `CudaExecutor`.
-- **Opaque factorization** — the L and U factors are stored in cuDSS-native format and
+- **CUDA only**: the extension targets NVIDIA GPUs through the `CudaExecutor`.
+- **Opaque factorization**: the L and U factors are stored in cuDSS-native format and
   cannot be extracted as Ginkgo `LinOp`s.
-- **Build-time discovery** — requires CUDA support plus a CMake-discoverable cuDSS
+- **Build-time discovery**: requires CUDA support plus a CMake-discoverable cuDSS
   0.8.0+ installation.
 
 :::{seealso}
-- [Direct (LU / Cholesky)](../solvers/direct.md) — the cross-backend Ginkgo direct solver.
-- [Solvers — taxonomy](../solvers.md) — where direct solvers fit in the broader picture.
-- [Reordering and permutations](../reordering.md) — apply a fill-reducing reordering before factorization.
+- [Direct (LU / Cholesky)](../solvers/direct.md): the cross-backend Ginkgo direct solver.
+- [Solver taxonomy](../solvers.md): where direct solvers fit in the broader picture.
+- [Reordering and permutations](../reordering.md): apply a fill-reducing reordering before factorization.
 - API reference: [`gko::ext::cuda::solver::Cudss`](../../../api-reference/extensions/cudss.md)
 :::

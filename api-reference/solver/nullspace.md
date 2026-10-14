@@ -17,6 +17,6 @@ and partition.
 ```
 
 :::{seealso}
-- [Singular systems and nullspaces](../../user-guide/concepts/solvers/singular-systems.md) — concept page.
-- [`gko::preconditioner::NullspaceProjection`](../preconditioner/nullspace-projection.md) — the preconditioner wrapper that applies the projection.
+- [Singular systems and nullspaces](../../user-guide/concepts/solvers/singular-systems.md): concept page.
+- [`gko::preconditioner::NullspaceProjection`](../preconditioner/nullspace-projection.md): the preconditioner wrapper that applies the projection.
 :::

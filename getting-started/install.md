@@ -8,7 +8,7 @@ The canonical, exhaustively-maintained install guide is the upstream
 [`INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md)
 in the Ginkgo repository. This page summarises the most common paths and
 links into the conceptual documentation, but it can lag the upstream guide
-when the build system changes — when in doubt, follow upstream `INSTALL.md`.
+when the build system changes; when in doubt, follow upstream `INSTALL.md`.
 :::
 
 ## Prerequisites
@@ -40,7 +40,7 @@ turns on Reference, OpenMP (when the compiler supports it), and CUDA;
 on a ROCm host it picks up HIP; on an oneAPI host with `icpx` set as
 `CMAKE_CXX_COMPILER` it picks up SYCL; with MPI on the path it enables the
 distributed module. Pass the explicit flags only to **override** the
-auto-detection — for example to force a backend off on a host where the
+auto-detection, for example to force a backend off on a host where the
 toolchain is installed but you don't want to build it:
 
 ```sh
@@ -57,8 +57,8 @@ cmake .. -DGINKGO_BUILD_OMP=OFF -DGINKGO_BUILD_CUDA=OFF \
 ```
 
 To enable the distributed module, also keep `GINKGO_BUILD_MPI=ON` (the
-default when MPI is detected) and — if your MPI implementation is GPU-aware
-— add the GPU-aware-MPI flag so Ginkgo can pass device pointers directly
+default when MPI is detected) and, if your MPI implementation is GPU-aware,
+add the GPU-aware-MPI flag so Ginkgo can pass device pointers directly
 into MPI calls instead of staging through host buffers:
 
 ```sh
@@ -93,7 +93,7 @@ cmake --install .
 | [Spack](https://packages.spack.io/package.html?name=ginkgo) | `spack install ginkgo` | Variants for `+cuda`, `+rocm`, `+sycl`, `+openmp`, `+mpi` plus version pins. Recommended on HPC systems. See the [Spack package page](https://packages.spack.io/package.html?name=ginkgo) for the full variant matrix. |
 | [PyPI: pyGinkgo](https://pypi.org/project/pyginkgo/) | `pip install pyginkgo` | Python bindings for Ginkgo. A separate project with its own releases; CUDA and ROCm wheels are on the [pyGinkgo releases page](https://github.com/Helmholtz-AI-Energy/pyGinkgo/releases). |
 
-Pre-built packages are convenient but lag the development branch — for the
+Pre-built packages are convenient but lag the development branch; for the
 latest features build from source.
 
 ## Verify the install
@@ -128,7 +128,7 @@ cmake --build .
 ./hello
 ```
 
-If this prints a Ginkgo version banner, the install is working — head to
+If this prints a Ginkgo version banner, the install is working; head to
 [Your first solver in 10 minutes](first-solver.md).
 
 If `find_package` fails to find Ginkgo, point CMake at the install directory
@@ -154,7 +154,7 @@ as an environment variable or as a CMake `-D` flag. To target NVIDIA GPUs
 through HIP, set `HIPCXX=nvcc`.
 
 :::{seealso}
-- [Build options](build-options.md) — every CMake flag, organised by purpose.
-- [Your first solver in 10 minutes](first-solver.md) — verify everything works end-to-end.
-- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md) — the source-of-truth install guide.
+- [Build options](build-options.md): every CMake flag, organised by purpose.
+- [Your first solver in 10 minutes](first-solver.md): verify everything works end-to-end.
+- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md): the source-of-truth install guide.
 :::

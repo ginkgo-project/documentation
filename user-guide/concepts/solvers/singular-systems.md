@@ -101,7 +101,7 @@ solver->apply(b, x);
 See [Configuration files](../config-files.md) for the general mechanics of the registry.
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — the Krylov solvers that accept a nullspace.
-- [CG](cg.md), [GMRES](gmres.md) — factory-parameter tables with `nullspace` and `left_nullspace`.
+- [Solver taxonomy](../solvers.md): the Krylov solvers that accept a nullspace.
+- [CG](cg.md), [GMRES](gmres.md): factory-parameter tables with `nullspace` and `left_nullspace`.
 - API reference: [`gko::solver::Nullspace`](../../../api-reference/solver/nullspace.md), [`gko::preconditioner::NullspaceProjection`](../../../api-reference/preconditioner/nullspace-projection.md)
 :::

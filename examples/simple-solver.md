@@ -13,10 +13,10 @@ criterion, apply it, and print the residual.
 If you've never written a Ginkgo program, start here. The walkthrough below
 covers the four ingredients that every solve needs:
 
-- An `Executor` — where the computation runs (CPU, GPU, ...).
-- A `LinOp` — the system matrix, usually `gko::matrix::Csr` for sparse
+- An `Executor`: where the computation runs (CPU, GPU, ...).
+- A `LinOp`: the system matrix, usually `gko::matrix::Csr` for sparse
   problems.
-- A right-hand-side vector and a solution vector — `gko::matrix::Dense`.
+- A right-hand-side vector and a solution vector, both `gko::matrix::Dense`.
 - A solver factory and a stopping criterion.
 
 Once you have those four, the apply is one line. The same pattern scales up
@@ -54,7 +54,7 @@ using cg       = gko::solver::Cg<ValueType>;
 
 `gko::matrix::Csr` is the recommended sparse format for SPD problems like
 this one. Swap to `Coo`, `Ell`, `Sellp`, `Hybrid`, `Fbcsr`, etc. and the
-rest of the program is unchanged — every matrix format implements the same
+rest of the program is unchanged: every matrix format implements the same
 `LinOp` interface. See
 [Matrix formats](../user-guide/concepts/matrix-formats.md).
 
@@ -119,14 +119,14 @@ auto solver_gen =
 
 For other Krylov methods (`Bicgstab`, `Gmres`, `Fcg`, …) just swap the
 factory; the criteria don't change. See
-[Solvers — taxonomy](../user-guide/concepts/solvers.md).
+[Solver taxonomy](../user-guide/concepts/solvers.md).
 
 ### Solve and verify
 
 `generate(A)` returns a `unique_ptr<cg>` (the bound solver); `apply(b, x)`
 runs the iteration and writes the result into `x`. The residual check uses
 Ginkgo's own SpMV via `A->apply(one, x, neg_one, b)`, which computes
-$b \leftarrow A x - b$ in place — then `compute_norm2` gives us
+$b \leftarrow A x - b$ in place; then `compute_norm2` gives us
 $\lVert A x - b \rVert_2$.
 
 ```cpp
@@ -147,7 +147,7 @@ write(std::cout, res);
 ```
 
 The `one` / `neg_one` scalars are themselves stored on `exec` so the
-expression doesn't trigger a host round-trip on a GPU executor — see
+expression doesn't trigger a host round-trip on a GPU executor. See
 [Cross-executor data movement](../user-guide/how-to/using/move-data-between-executors.md)
 for the broader pattern.
 
@@ -193,7 +193,7 @@ Residual norm sqrt(r^T r):
 2.10788e-15
 ```
 
-The exact final digit varies with compiler / backend / scheduling — any
+The exact final digit varies with compiler / backend / scheduling; any
 residual below ~$10^{-13}$ on this problem means CG converged to round-off.
 
 ## Variations to try
@@ -204,7 +204,7 @@ residual below ~$10^{-13}$ on this problem means CG converged to round-off.
 - **Different matrix format.** Change `using mtx = gko::matrix::Csr<...>;`
   to `Coo`, `Ell`, `Sellp`, `Hybrid`, or `Fbcsr`; everything else stays
   the same.
-- **Add a preconditioner.** Drop in a `.with_preconditioner(...)` call —
+- **Add a preconditioner.** Drop in a `.with_preconditioner(...)` call;
   the [Preconditioned solver](preconditioned-solver.md) example does
   exactly that.
 - **Larger problem.** Read your own Matrix Market file. The

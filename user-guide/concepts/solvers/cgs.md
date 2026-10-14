@@ -22,7 +22,7 @@ more erratic residuals when $\psi_k$ is not small).
 ## When to use CGS
 
 - **Non-symmetric systems where $A^H$ is expensive or unavailable.** CGS
-  needs only $A$, never the adjoint — convenient when the matrix is given
+  needs only $A$, never the adjoint, which is convenient when the matrix is given
   matrix-free or when $A^H$ would double the assembly cost.
 - **Well-conditioned non-symmetric problems** where the residual polynomial
   shrinks monotonically. In this regime CGS can reach a given tolerance
@@ -32,7 +32,7 @@ more erratic residuals when $\psi_k$ is not small).
 CGS is **not** a robust default. The residual can oscillate by orders of
 magnitude on ill-conditioned matrices, and finite-precision arithmetic
 amplifies that noise. If you find yourself reaching for CGS, also benchmark
-[BiCGSTAB](bicgstab.md) — it smooths the same squared-polynomial idea by
+[BiCGSTAB](bicgstab.md); it smooths the same squared-polynomial idea by
 combining each step with a one-dimensional GMRES minimisation, at the same
 per-iteration cost of two matvecs and two preconditioner applies.
 
@@ -63,7 +63,7 @@ CGS inherits its factory-parameter surface from
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
+| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required; see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()` call. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner. Bypasses the factory and is used directly. |
 
@@ -77,11 +77,11 @@ into fused kernels (`make_step_1`, `make_step_2`, `make_step_3` in
 `core/solver/cgs.cpp`) to reduce memory traffic.
 
 :::{seealso}
-- [Solvers — taxonomy](../solvers.md) — where CGS fits among the families.
-- [BiCGSTAB](bicgstab.md) — the stabilised cousin; usually a better default
+- [Solver taxonomy](../solvers.md): where CGS fits among the families.
+- [BiCGSTAB](bicgstab.md): the stabilised cousin; usually a better default
   for non-symmetric problems.
-- [BiCG](../solvers.md) — the parent method (CGS is the squared-polynomial
+- [BiCG](../solvers.md): the parent method (CGS is the squared-polynomial
   rewrite of BiCG).
-- [Preconditioners — taxonomy](../preconditioners.md) — what to pair with CGS.
+- [Preconditioner taxonomy](../preconditioners.md): what to pair with CGS.
 - API reference: [`gko::solver::Cgs`](../../../api-reference/solver/cgs.md).
 :::

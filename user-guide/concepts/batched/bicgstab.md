@@ -7,7 +7,7 @@ synchronisation.
 
 ## When to use
 
-Batched BiCGSTAB is the safe default for batches whose items are **general** — non-symmetric or
+Batched BiCGSTAB is the safe default for batches whose items are **general**: non-symmetric or
 indefinite. It uses two SpMVs and two preconditioner applies per iteration (about twice the
 work of CG), so prefer [Batched CG](cg.md) when every item in the batch is symmetric
 positive-definite.
@@ -49,14 +49,14 @@ the algorithm differs.
 
 ## Stopping rule and breakdown
 
-BiCGSTAB monitors the **implicit** residual (the same caveat as CG — see
+BiCGSTAB monitors the **implicit** residual (the same caveat as CG, see
 [Stopping rule](cg.md#stopping-rule-and-the-implicit-residual)). The algorithm can also
 break down when the inner $\omega$ scalar in the stabilisation step gets close to zero; in
 practice this manifests as a per-item iteration that stalls without reaching the requested
 tolerance. Run an a-posteriori check on the returned solution if your batch contains
 near-singular or strongly non-normal items.
 
-Each item in the batch exits the inner loop independently — a converged item is flagged and
+Each item in the batch exits the inner loop independently; a converged item is flagged and
 skipped on subsequent iterations while the others continue.
 
 ## Per-iteration cost
@@ -72,7 +72,7 @@ preconditioner apply happens *before* the SpMV that builds the next Krylov direc
 ## Runtime setters
 
 `BatchSolver` exposes `reset_tolerance(tol)`, `reset_max_iterations(n)` and
-`reset_tolerance_type(t)` — the same surface as Batched CG. To use a different
+`reset_tolerance_type(t)`, the same surface as Batched CG. To use a different
 preconditioner, generate a new solver with `with_generated_preconditioner`.
 
 ## Inspecting per-item convergence
@@ -81,11 +81,11 @@ Attach a [`BatchConvergence`](convergence.md) logger before `apply` to retrieve 
 iteration counts and final residual norms after the solve.
 
 :::{seealso}
-- [Batched solvers — overview](../batched.md) — the uniform-batch constraint and storage layout.
-- [Batched CG](cg.md) — the cheaper alternative for SPD batches.
-- [Batched convergence logger](convergence.md) — extracting per-item iteration counts and
+- [Batched solvers](../batched.md): the uniform-batch constraint and storage layout.
+- [Batched CG](cg.md): the cheaper alternative for SPD batches.
+- [Batched convergence logger](convergence.md): extracting per-item iteration counts and
   residuals.
-- [Single-system BiCGSTAB](../solvers/bicgstab.md) — the same algorithm without the batch
+- [Single-system BiCGSTAB](../solvers/bicgstab.md): the same algorithm without the batch
   dimension.
 - API reference: [`gko::batch::solver::Bicgstab`](../../../api-reference/batch/solver-bicgstab.md)
 :::

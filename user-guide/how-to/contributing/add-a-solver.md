@@ -85,7 +85,7 @@ protected:
 Key pieces:
 
 - `LinOp` provides the public `apply` overloads and the executor and size
-  bookkeeping — you only implement the two `apply_impl` overrides. Keep
+  bookkeeping: you only implement the two `apply_impl` overrides. Keep
   the executor-only constructor, as `Cg` does (if you add
   `EnableCloneable`, its `create_default` and `clone` use it); the
   second constructor is the one the factory's `generate` uses. A class that also needs `clone` and
@@ -104,7 +104,7 @@ Key pieces:
   `parameters_type` struct above is the one place you decide what new
   knobs the solver exposes.
 
-## workspace_traits — the typed scratch pool
+## workspace_traits: the typed scratch pool
 
 Iterative solvers allocate the same temporary vectors and scalars every
 iteration. To avoid reallocating on every `apply`, the base
@@ -153,7 +153,7 @@ when to reallocate and when to reuse.
 ## apply_impl and the precision dispatch
 
 The two `apply_impl` overrides dispatch precision and then delegate to
-the templated `apply_dense_impl`. Use the distributed-aware variant —
+the templated `apply_dense_impl`. Use the distributed-aware variant;
 it accepts both `experimental::distributed::Vector` and `matrix::Dense`, so the same code
 path works in serial and MPI builds:
 
@@ -187,10 +187,10 @@ void MySolver<ValueType>::apply_impl(const LinOp* alpha, const LinOp* b,
 ```
 
 If your solver is not distributed-ready, use
-`precision_dispatch_real_complex<ValueType>` instead — it accepts only
+`precision_dispatch_real_complex<ValueType>` instead; it accepts only
 `matrix::Dense`.
 
-## apply_dense_impl — the iteration loop
+## apply_dense_impl: the iteration loop
 
 This is the actual algorithm. The boilerplate macros from
 `core/solver/solver_boilerplate.hpp` allocate the workspace slots into
@@ -274,7 +274,7 @@ Boilerplate macros (from `core/solver/solver_boilerplate.hpp`):
 
 `gko::detail::get_local(v)` is the internal helper (in
 `core/distributed/helpers.hpp`) that Ginkgo's own solvers use. It
-extracts the rank-local `matrix::Dense<V>*` from a vector pointer — works for both `experimental::distributed::Vector`
+extracts the rank-local `matrix::Dense<V>*` from a vector pointer; it works for both `experimental::distributed::Vector`
 and ordinary `matrix::Dense`, so the same iteration body covers both
 cases.
 
@@ -331,14 +331,14 @@ Copy all three from `core/solver/cg.cpp`.
 To make the solver constructible from a `pnode` / JSON tree, three
 edits are needed:
 
-1. **`core/config/config_helper.hpp`** — append `MySolver` to the
+1. In **`core/config/config_helper.hpp`**, append `MySolver` to the
    `LinOpFactoryType` enum.
-2. **`core/config/registry.cpp`** — add an entry to
+2. In **`core/config/registry.cpp`**, add an entry to
    `generate_config_map()`:
    ```cpp
    {"solver::MySolver", parse<LinOpFactoryType::MySolver>},
    ```
-3. **`core/config/solver_config.cpp`** — add the parse specialisation:
+3. In **`core/config/solver_config.cpp`**, add the parse specialisation:
    ```cpp
    GKO_PARSE_VALUE_TYPE(MySolver, gko::solver::MySolver);
    ```
@@ -348,7 +348,7 @@ edits are needed:
    triangular solvers are the existing precedents.
 
 The corresponding `MySolver::parse(...)` body inside `core/solver/my_solver.cpp`
-is one-liner — let `common_solver_parse` do the work:
+is one-liner; let `common_solver_parse` do the work:
 
 ```cpp
 template <typename ValueType>
@@ -379,7 +379,7 @@ GKO_INSTANTIATE_FOR_EACH_VALUE_TYPE(GKO_DECLARE_MY_SOLVER);
 GKO_INSTANTIATE_FOR_EACH_VALUE_TYPE(GKO_DECLARE_MY_SOLVER_TRAITS);
 ```
 
-Both lines are required — the second is what makes
+Both lines are required: the second is what makes
 `workspace_traits<MySolver<double>>::num_vectors(...)` actually link.
 
 ## Reference-parity test
@@ -387,17 +387,17 @@ Both lines are required — the second is what makes
 The full test plan is covered in [Write tests](write-tests.md). For a
 new solver you write three files:
 
-- `core/test/solver/my_solver.cpp` — pure-C++ tests on the factory:
+- `core/test/solver/my_solver.cpp`: pure-C++ tests on the factory, covering
   `parameters_type` defaults, `with_*` setters, `build()` accepting
   generated preconditioners, `transpose()` returning a valid object.
   These don't need a system matrix or iteration. Registered with
   `ginkgo_create_test(my_solver)` in `core/test/solver/CMakeLists.txt`.
-- `reference/test/solver/my_solver_kernels.cpp` — Reference-only
+- `reference/test/solver/my_solver_kernels.cpp`: Reference-only
   convergence and correctness tests on a small SPD or general system
   (depending on the solver class). Registered with
   `ginkgo_create_test(my_solver_kernels)` in
   `reference/test/solver/CMakeLists.txt`.
-- `test/solver/my_solver_kernels.cpp` — the **cross-backend parity
+- `test/solver/my_solver_kernels.cpp`: the **cross-backend parity
   test**. Same source file compiled once per enabled backend (`omp`,
   `cuda`, `hip`, `dpcpp`) by `ginkgo_create_common_test`, using
   `CommonTestFixture` (from `test/utils/common_fixture.hpp`) which
@@ -411,9 +411,9 @@ new solver you write three files:
 to copy from.
 
 :::{seealso}
-- [Add a new kernel](add-a-kernel.md) — for the iteration-step kernels.
-- [Add a new preconditioner](add-a-preconditioner.md) — the simpler
+- [Add a new kernel](add-a-kernel.md): for the iteration-step kernels.
+- [Add a new preconditioner](add-a-preconditioner.md): the simpler
   no-workspace variant of this pattern.
-- [Configure via JSON](../using/configure-via-json.md) — what the
+- [Configure via JSON](../using/configure-via-json.md): what the
   registry edits above unlock for the end user.
 :::

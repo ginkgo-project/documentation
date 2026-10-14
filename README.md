@@ -77,7 +77,7 @@ is a Doxygen input filter that repairs a few doc comments in released
 Ginkgo headers that Doxygen would otherwise misparse; on current headers it
 changes nothing.
 
-If `_doxygen/xml/` is missing, `make html` still succeeds — only pages
+If `_doxygen/xml/` is missing, `make html` still succeeds; only pages
 that contain Breathe directives emit warnings about unresolved entities.
 A self-contained smoke-test page lives at `_doxygen/smoke-test.md`
 (orphan, not in any toctree) and renders only when the XML is present.

@@ -1,8 +1,8 @@
 # `gko::multigrid::MultigridLevel`
 
 Abstract interface for a single level of an algebraic-multigrid
-hierarchy. Exposes the fine operator $A$ and three derived `LinOp`s — the
-restriction $R$, the coarse operator $A_c$, and the prolongation $P$ — so that
+hierarchy. Exposes the fine operator $A$ and three derived `LinOp`s (the
+restriction $R$, the coarse operator $A_c$, and the prolongation $P$) so that
 [`gko::solver::Multigrid`](../solver/multigrid.md) can drive any
 generator that implements this interface without knowing how the level
 was assembled.

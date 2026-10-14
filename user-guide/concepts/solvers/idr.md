@@ -1,9 +1,9 @@
-# IDR(s) — Induced Dimension Reduction
+# IDR(s): Induced Dimension Reduction
 
 `gko::solver::Idr<ValueType>` is a short-recurrence Krylov method for
 **general non-symmetric** systems. Unlike [GMRES](gmres.md), whose memory
 grows linearly with the iteration count, IDR(s) keeps a fixed shadow
-subspace of size $s$ throughout the run — giving GMRES-like convergence
+subspace of size $s$ throughout the run, giving GMRES-like convergence
 robustness with bounded memory.
 
 The method is built around the *induced dimension reduction* theorem.
@@ -18,12 +18,12 @@ $$
 
 each strictly contained in its predecessor. IDR(s) forces successive
 residuals into these shrinking spaces; in exact arithmetic they become
-identically zero after at most $N + N/s$ iterations — substantially fewer
+identically zero after at most $N + N/s$ iterations, substantially fewer
 matrix-vector products than the $2N$ BiCG would require.
 
 ## When to use IDR(s)
 
-- **Non-symmetric problems where bounded memory matters** — large 3D
+- **Non-symmetric problems where bounded memory matters**: large 3D
   unsteady flow simulations, time-stepping with millions of unknowns,
   contexts where restarted GMRES stalls but explicit memory budgets rule
   out keeping a growing Krylov basis.
@@ -66,7 +66,7 @@ four IDR-specific knobs:
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required — see [Stopping criteria](../stopping-criteria.md). |
+| `criteria` | vector of `stop::CriterionFactory` | Stopping criteria. Required; see [Stopping criteria](../stopping-criteria.md). |
 | `preconditioner` | `LinOpFactory` | Preconditioner factory; rebuilt each `generate()` call. Defaults to identity. |
 | `generated_preconditioner` | `LinOp` | An already-generated preconditioner. Bypasses the factory. |
 | `subspace_dim` | `size_type` | Shadow-space dimension $s$. Default `2`. Larger $s$ improves convergence at the cost of more inner products and storage per iteration. Typical choices: `2`, `4`, `8`. |
@@ -76,7 +76,7 @@ four IDR-specific knobs:
 
 ## Memory footprint
 
-IDR(s) stores $O(s)$ vectors at fixed cost throughout the run — the
+IDR(s) stores $O(s)$ vectors at fixed cost throughout the run: the
 shadow space $R$, $s$ search-direction vectors, $s$ "subspace-update"
 vectors, plus a few iteration-state vectors. Total: roughly $4s + 4$
 vectors of length $n$. The memory cost is independent of iteration count.
@@ -90,11 +90,11 @@ block form gives noticeably better arithmetic intensity than per-vector
 inner products.
 
 :::{seealso}
-- [GMRES](gmres.md) — residual-minimising alternative with growing memory.
-- [BiCGSTAB](bicgstab.md) — short-recurrence non-symmetric alternative;
+- [GMRES](gmres.md): residual-minimising alternative with growing memory.
+- [BiCGSTAB](bicgstab.md): short-recurrence non-symmetric alternative;
   usually cheaper per iteration but less robust on hard problems.
-- [Solvers — taxonomy](../solvers.md) — where IDR(s) fits among the families.
-- [Preconditioners — taxonomy](../preconditioners.md) — what to pair with IDR(s).
+- [Solver taxonomy](../solvers.md): where IDR(s) fits among the families.
+- [Preconditioner taxonomy](../preconditioners.md): what to pair with IDR(s).
 - API reference: [`gko::solver::Idr`](../../../api-reference/solver/idr.md).
 
 Reference:

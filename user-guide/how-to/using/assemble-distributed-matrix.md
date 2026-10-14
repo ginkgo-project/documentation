@@ -43,7 +43,7 @@ by `partition`. Within that block-row, the matrix is split by column
 ownership into a *diagonal matrix* (this rank also owns the column) and
 an *off-diagonal matrix* (the column is owned by some other rank).
 A worked 4 × 4 example with the resulting per-rank storage is in
-[Distributed Computing — Block-structured view across
+[Distributed Computing: Block-structured view across
 ranks](../../concepts/distributed.md#a-worked-example); the short
 version:
 
@@ -67,11 +67,11 @@ not to the diagonal of the matrix in the linear-algebra sense.
 
 | Builder | Use when |
 |---|---|
-| `Partition::build_from_global_size_uniform(exec, num_parts, global_n)` | Rows have no strong locality — short-range or no remote coupling — so a uniform block partition is good enough. |
+| `Partition::build_from_global_size_uniform(exec, num_parts, global_n)` | Rows have no strong locality (short-range or no remote coupling), so a uniform block partition is good enough. |
 | `Partition::build_from_contiguous(exec, ranges)` | You want explicit per-rank row ranges (e.g. load-balanced manually, or matching an existing application-side decomposition). |
 | `Partition::build_from_mapping(exec, mapping, num_parts)` | You have a per-row owner mapping from an external graph partitioner (e.g. ParMETIS / Scotch output). |
 
-`Partition` works on any executor — backend kernels exist for Reference, OMP, CUDA, HIP, and
+`Partition` works on any executor: backend kernels exist for Reference, OMP, CUDA, HIP, and
 SYCL. Building on the host is the conventional choice for small partitions; building on the
 matrix's device avoids a host round-trip if the input arrays already live there. When passed to
 `read_distributed`, the matrix transparently clones the partition to its own executor through
@@ -101,7 +101,7 @@ respectively.
 ## Solve
 
 Distributed-ready solvers (`Cg`, `Fcg`, `PipeCg`, `Cgs`, `Bicgstab`, `Gcr`, `Gmres`, `Minres`,
-`Ir`, `Chebyshev`, `Multigrid` — see
+`Ir`, `Chebyshev`, `Multigrid`; see
 [Distributed solvers and preconditioners](../../concepts/distributed/solvers-and-preconditioners.md))
 work without modification:
 
@@ -122,7 +122,7 @@ solver->apply(b, x);
 ## Common pitfalls
 
 - **`matrix_data` is host-only.** It's a host-side incremental-assembly
-  type. The `Partition`, by contrast, is fine on any executor —
+  type. The `Partition`, by contrast, is fine on any executor:
   `read_distributed` clones it to the matrix's executor automatically
   if needed.
 - **Use a 64-bit global index type** (`long` / `int64`) when
@@ -133,11 +133,11 @@ solver->apply(b, x);
   different partitions and applying one through the other's solver
   silently produces wrong answers.
 - **`MPI_Init` first.** Ginkgo's distributed types require MPI to be
-  initialised — either call `MPI_Init` yourself or use
+  initialised: either call `MPI_Init` yourself or use
   `gko::experimental::mpi::environment` (RAII).
 
 :::{seealso}
-- [Use an existing MPI communicator](use-existing-mpi-communicator.md) — wrap an `MPI_Comm` rather than using `MPI_COMM_WORLD`.
-- [Distributed Ginkgo](../../concepts/distributed.md) — the conceptual reference.
-- [Partitions and index maps](../../concepts/distributed/partition-and-index-map.md) — partition options in detail.
+- [Use an existing MPI communicator](use-existing-mpi-communicator.md): wrap an `MPI_Comm` rather than using `MPI_COMM_WORLD`.
+- [Distributed Ginkgo](../../concepts/distributed.md): the conceptual reference.
+- [Partitions and index maps](../../concepts/distributed/partition-and-index-map.md): partition options in detail.
 :::

@@ -1,13 +1,13 @@
 # The Executor model
 
-In Ginkgo, the *executor* is the central abstraction that decides where memory lives and where computation happens. Every object that holds data — an array, a matrix, a solver — is bound to an executor at construction time. Choosing your executor is therefore the first decision you make when setting up any Ginkgo computation. The same high-level code works unchanged across CPU and GPU backends; only the executor selection changes.
+In Ginkgo, the *executor* is the central abstraction that decides where memory lives and where computation happens. Every object that holds data (an array, a matrix, a solver) is bound to an executor at construction time. Choosing your executor is therefore the first decision you make when setting up any Ginkgo computation. The same high-level code works unchanged across CPU and GPU backends; only the executor selection changes.
 
 ## What is an executor?
 
 An `Executor` represents a compute device: a thread pool on the host, a CUDA GPU, a SYCL queue. It has two responsibilities:
 
-1. **Memory allocation** — all memory acquired by a Ginkgo object lives in the address space the executor manages.
-2. **Kernel dispatch** — compute operations (matrix-vector products, solver iterations, preconditioner applications) execute on that device.
+1. **Memory allocation**: all memory acquired by a Ginkgo object lives in the address space the executor manages.
+2. **Kernel dispatch**: compute operations (matrix-vector products, solver iterations, preconditioner applications) execute on that device.
 
 The executor abstraction is *runtime*, not compile-time. A single binary can create a `CudaExecutor` or a `ReferenceExecutor` depending on a command-line argument or a configuration file, and every Ginkgo type adapts automatically. This matters in practice: you can debug numerical issues on CPU with the `ReferenceExecutor`, then switch to `CudaExecutor` for production without changing any core algorithmic code.
 
@@ -33,7 +33,7 @@ Detailed coverage of each backend lives in the per-executor sub-pages below.
 
 ## The master/host hierarchy
 
-GPU executors require a *master* executor — a host-side executor that handles host resources and orchestrates CPU-side work (such as setting up host-pinned staging buffers, launching kernels, and reading scalar results). The master is always a `ReferenceExecutor` or an `OmpExecutor`.
+GPU executors require a *master* executor, a host-side executor that handles host resources and orchestrates CPU-side work (such as setting up host-pinned staging buffers, launching kernels, and reading scalar results). The master is always a `ReferenceExecutor` or an `OmpExecutor`.
 
 ```cpp
 auto host = gko::OmpExecutor::create();
@@ -53,7 +53,7 @@ The GPU executor does not manage host memory at all. Most cross-executor copies 
 
 ## Memory and synchronization
 
-Memory belongs to exactly one executor. Allocations live in that executor's address space — GPU memory for `CudaExecutor`, host memory for `ReferenceExecutor` and `OmpExecutor`.
+Memory belongs to exactly one executor. Allocations live in that executor's address space: GPU memory for `CudaExecutor`, host memory for `ReferenceExecutor` and `OmpExecutor`.
 
 Cross-executor copies are explicit:
 
@@ -66,11 +66,11 @@ The cross-executor constructor is the standard idiom. For matrices and vectors, 
 
 A few situations involve host/device transfers that are easy to miss:
 
-- **Reading a device-side scalar to host** — e.g., reading the residual norm from a `Convergence` logger triggers a device→host copy.
-- **Element accessors on a device-resident matrix or array** — `Dense::at()` and other per-entry accessors need host-accessible memory (calling `at()` on a device matrix from the host is a runtime error), so copy the matrix to a host executor first, for example with `gko::clone(exec->get_master(), mtx)`.
-- **Reading `matrix_data` from a device-resident matrix** — copies the entries back to host before sorting or writing.
+- **Reading a device-side scalar to host**: for example, reading the residual norm from a `Convergence` logger triggers a device→host copy.
+- **Element accessors on a device-resident matrix or array**: `Dense::at()` and other per-entry accessors need host-accessible memory (calling `at()` on a device matrix from the host is a runtime error), so copy the matrix to a host executor first, for example with `gko::clone(exec->get_master(), mtx)`.
+- **Reading `matrix_data` from a device-resident matrix**: copies the entries back to host before sorting or writing.
 
-Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier — for example, before timing a kernel sequence with a wall clock.
+Ginkgo synchronizes automatically when crossing executor boundaries, so you do not normally call `exec->synchronize()` explicitly. Call it when you need a hard barrier, for example before timing a kernel sequence with a wall clock.
 
 :::{tip}
 If you suspect unexpected host↔device traffic is slowing your code, attach a `gko::log::PerformanceHint` logger to the executor (`exec->add_logger(gko::log::PerformanceHint::create(std::cerr));`, see [Logging](logging.md)). It reports repeated cross-executor copies of the same buffer and repeated allocate/free pairs of the same size, the usual signs of a transfer or allocation in an inner loop. For per-operation timings use `gko::log::ProfilerHook::create_summary()`.
@@ -96,10 +96,10 @@ auto alloc  = std::make_shared<gko::CudaAsyncAllocator>(stream.get());
 auto gpu    = gko::CudaExecutor::create(0, host, alloc, stream.get());
 ```
 
-The `HipExecutor` follows the same pattern with `gko::hip_stream` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase` — the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
+The `HipExecutor` follows the same pattern with `gko::hip_stream` and `gko::HipAsyncAllocator`. The unified-memory allocators (`CudaUnifiedAllocator`, `HipUnifiedAllocator`) inherit from both `Cuda/HipAllocatorBase` *and* `CpuAllocatorBase`; the same memory address is valid on both the host master and the GPU device, and the corresponding executors are *memory-accessible* to each other (see next section).
 
 :::{note}
-Executors take the raw runtime stream type — `CUstream_st*` (identical to `cudaStream_t`) for CUDA and `GKO_HIP_STREAM_STRUCT*` (identical to `hipStream_t`) for HIP — so a stream from `cudaStreamCreate` / `hipStreamCreate` works directly. Ginkgo also provides RAII wrappers in `<ginkgo/core/base/stream.hpp>`: `gko::cuda_stream{device_id, non_blocking}` and `gko::hip_stream{device_id, non_blocking}` create a stream on construction, destroy it with the wrapper, and expose the handle via `get()`. Pass `non_blocking = true` for a stream created with `cudaStreamNonBlocking` / `hipStreamNonBlocking`, which does not synchronize implicitly with the legacy default stream. Keep the wrapper alive as long as the executor uses the stream.
+Executors take the raw runtime stream type, `CUstream_st*` (identical to `cudaStream_t`) for CUDA and `GKO_HIP_STREAM_STRUCT*` (identical to `hipStream_t`) for HIP, so a stream from `cudaStreamCreate` / `hipStreamCreate` works directly. Ginkgo also provides RAII wrappers in `<ginkgo/core/base/stream.hpp>`: `gko::cuda_stream{device_id, non_blocking}` and `gko::hip_stream{device_id, non_blocking}` create a stream on construction, destroy it with the wrapper, and expose the handle via `get()`. Pass `non_blocking = true` for a stream created with `cudaStreamNonBlocking` / `hipStreamNonBlocking`, which does not synchronize implicitly with the legacy default stream. Keep the wrapper alive as long as the executor uses the stream.
 :::
 
 ## Memory accessibility between executors
@@ -110,13 +110,13 @@ Two executors are *memory-accessible* if a pointer allocated by one can be used 
 gpu->memory_accessible(host);   // bool
 ```
 
-This is normally `false` (a CUDA device pointer cannot be dereferenced from host code) — but it is `true` when:
+This is normally `false` (a CUDA device pointer cannot be dereferenced from host code), but it is `true` when:
 
 - Both executors are the same instance.
 - The GPU executor uses a unified-memory allocator (`CudaUnifiedAllocator` / `HipUnifiedAllocator`), which makes its pointers valid on the host master too.
 - The GPU executor uses a pinned-host allocator (`CudaHostAllocator` / `HipHostAllocator`), which produces memory mapped into both spaces.
 
-When `memory_accessible` returns `true`, cross-executor copies degenerate into pointer aliasing — Ginkgo skips the redundant copy. This is why the choice of allocator subtly affects performance characteristics, not just memory locality.
+When `memory_accessible` returns `true`, cross-executor copies degenerate into pointer aliasing: Ginkgo skips the redundant copy. This is why the choice of allocator subtly affects performance characteristics, not just memory locality.
 
 ## Selecting an executor at runtime
 
@@ -143,9 +143,9 @@ User code should hold a `std::shared_ptr<const gko::Executor>` and pass it to al
 
 The `ReferenceExecutor` is single-threaded, non-optimized, and entirely predictable. Use it for:
 
-- **Unit tests** — deterministic results, no parallel non-determinism, no GPU required.
-- **Debugging numerical issues** — step through kernels in a plain C++ debugger.
-- **CI smoke tests** — verify correctness in an environment without GPUs.
+- **Unit tests**: deterministic results, no parallel non-determinism, no GPU required.
+- **Debugging numerical issues**: step through kernels in a plain C++ debugger.
+- **CI smoke tests**: verify correctness in an environment without GPUs.
 
 Do not use `ReferenceExecutor` for benchmarking or production. It makes no attempt to use hardware resources efficiently. For host-side performance, use `OmpExecutor`.
 
@@ -163,7 +163,7 @@ executors/dpcpp
 ```
 
 :::{seealso}
-- [LinOp and composition](linop-and-composition.md) — what runs *on* the executor.
-- [Memory ownership and `gko::array`](memory-ownership.md) — what the executor owns.
+- [LinOp and composition](linop-and-composition.md): what runs *on* the executor.
+- [Memory ownership and `gko::array`](memory-ownership.md): what the executor owns.
 - API reference: [`gko::Executor`](../../api-reference/executors/executor.md)
 :::

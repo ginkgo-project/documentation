@@ -1,4 +1,4 @@
-# Pgm — parallel graph match
+# Pgm: parallel graph match
 
 `gko::multigrid::Pgm` is Ginkgo's aggregation-based AMG coarsening. It implements the
 parallel graph matching algorithm from NVIDIA's AmgX paper (Naumov et al., 2015) and
@@ -9,7 +9,7 @@ is the recommended starting point for algebraic multigrid on most problems.
 Pgm groups fine-level rows into aggregates, where each aggregate becomes a single
 row in the coarse matrix. The current implementation produces aggregates of size two
 (one-phase handshaking) and uses **values, not just structure**, to decide which
-neighbour to match each row with — strong coupling makes a stronger pairing
+neighbour to match each row with; strong coupling makes a stronger pairing
 candidate.
 
 The procedure for each iteration:
@@ -56,16 +56,16 @@ The reuse interface is experimental and may change.
 
 Pgm is the right starting choice when:
 - You are setting up `Multigrid` for the first time on a new problem class.
-- The matrix is symmetric or near-symmetric — the value-based matching assumes the
+- The matrix is symmetric or near-symmetric; the value-based matching assumes the
   off-diagonal magnitudes are meaningful.
 - You have no special knowledge of the unknown ordering or geometry.
 
 Pgm may underperform when:
-- The matrix is strongly non-symmetric — value-based matching can pair unrelated
+- The matrix is strongly non-symmetric; value-based matching can pair unrelated
   rows.
 - The problem has no clear notion of "strong coupling" between unknowns (purely
   combinatorial problems, for instance).
-- Reproducibility across runs matters but performance does not — set
+- Reproducibility across runs matters but performance does not: set
   `deterministic = true`, but expect a slowdown.
 
 ## Construction example
@@ -92,7 +92,7 @@ producing the level hierarchy.
 ## Distributed Pgm
 
 Pgm and [UniformCoarsening](uniform-coarsening.md) are the coarsening methods that
-accept distributed matrices —
+accept distributed matrices:
 `gko::experimental::distributed::Matrix<V, L, G>`. The same `Pgm` factory accepts
 both single-rank `gko::matrix::Csr` and the distributed matrix type; `generate()`
 detects which is which at runtime and takes one of two branches
@@ -105,7 +105,7 @@ stitches the results together with a single all-to-all communication. The proced
 
 1. **Local aggregation.** Each rank runs the standard one-phase handshaking
    algorithm on the *diagonal matrix* (`get_diag_matrix()`) of its share of the
-   matrix. Off-diagonal entries — couplings to rows owned by other ranks — are
+   matrix. Off-diagonal entries (couplings to rows owned by other ranks) are
    ignored at this step. Each rank ends up with a local-aggregate index per local
    row.
 2. **Coarse-partition setup.** Pgm constructs a block-wise coarse partition where
@@ -126,7 +126,7 @@ stitches the results together with a single all-to-all communication. The proced
    input matrix.
 
 The communication cost per coarsening step is one `i_all_to_all_v` whose payload
-size is the total number of off-diagonal column connections — i.e. it scales with
+size is the total number of off-diagonal column connections, i.e. it scales with
 the existing communication volume of the matrix, not with the matrix size.
 
 ### What this means for the hierarchy
@@ -139,7 +139,7 @@ the existing communication volume of the matrix, not with the matrix size.
 - The aggregation is purely local at the row-aggregate-decision level. Couplings
   across ranks affect only the coarse operator's off-diagonal matrix, not which
   rows get grouped together. This means the quality of the coarsening can degrade
-  near rank boundaries on poorly-partitioned matrices — apply a graph partitioner
+  near rank boundaries on poorly-partitioned matrices; apply a graph partitioner
   first if rank boundaries are arbitrary.
 - The two value-vs-structure parameters (`max_iterations`,
   `max_unassigned_ratio`) and the `deterministic` parameter have the same meaning
@@ -154,9 +154,9 @@ Distributed Pgm requires Ginkgo to have been built with
 matrices.
 
 :::{seealso}
-- [Multigrid](../multigrid.md) — how Pgm fits into the overall hierarchy.
-- [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md) — the other automatic coarsenings.
-- [FixedCoarsening](fixed-coarsening.md) — coarse rows chosen by the caller.
+- [Multigrid](../multigrid.md): how Pgm fits into the overall hierarchy.
+- [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md): the other automatic coarsenings.
+- [FixedCoarsening](fixed-coarsening.md): coarse rows chosen by the caller.
 - Publications: [Three-Precision Algebraic Multigrid on GPUs](https://doi.org/10.1016/j.future.2023.07.024), [Mixed Precision Algebraic Multigrid on GPUs](https://doi.org/10.1007/978-3-031-30442-2_9)
 - API reference: [`gko::multigrid::Pgm`](../../../../api-reference/multigrid/pgm.md)
 :::

@@ -9,14 +9,14 @@ For the user-facing walk-through of each extension, see
 
 ## Available extensions
 
-- [`Cudss`](cudss.md) — wraps NVIDIA's cuDSS sparse direct solver as
+- [`Cudss`](cudss.md): wraps NVIDIA's cuDSS sparse direct solver as
   a Ginkgo `LinOp`. Lives in `gko::ext::cuda::solver` and requires
   a CUDA build with cuDSS available.
-- [Config file readers](config-readers.md) — `gko::ext::config::parse_json`,
+- [Config file readers](config-readers.md): `gko::ext::config::parse_json`,
   `parse_json_file` and `parse_json_string` (nlohmann_json), and
   `parse_yaml` and `parse_yaml_file` (yaml-cpp), turn a configuration file
   into the `gko::config::pnode` that `gko::config::parse` consumes.
-- [`Kokkos interop`](kokkos.md) — helpers for round-tripping
+- [`Kokkos interop`](kokkos.md): helpers for round-tripping
   Ginkgo's `array`, `Dense`, and executor types through Kokkos views
   and execution spaces. Lives in `gko::ext::kokkos`; requires Kokkos
   in your application's build.

@@ -5,7 +5,7 @@ system on the CPU, solve it with conjugate gradients, and print the result. By
 the end you will have written and run real Ginkgo code, and you will know
 where the building blocks come from.
 
-The example uses the **Reference** executor — the single-threaded CPU backend
+The example uses the **Reference** executor, the single-threaded CPU backend
 that Ginkgo enables by default. No GPU is required. Once it works, switching
 to OpenMP / CUDA / HIP / SYCL is a one-line change covered in the
 [Switch executor](../user-guide/how-to/using/switch-executor.md) how-to.
@@ -125,8 +125,8 @@ cmake --build .
 ./cg_demo
 ```
 
-You should see 16 solution components — increasing from the boundary toward
-the centre — printed to the terminal:
+You should see 16 solution components, increasing from the boundary toward
+the centre, printed to the terminal:
 
 ```text
 Solution x:
@@ -158,25 +158,25 @@ Six steps, each mapping to a Ginkgo concept worth knowing:
 
 1. **`ReferenceExecutor::create()`.** Every allocation, kernel launch, and
    data transfer in Ginkgo flows through an `Executor`. The Reference
-   executor runs on the host with a single thread — the simplest possible
+   executor runs on the host with a single thread: the simplest possible
    choice and the correctness baseline for every other backend.
 
 2. **`Csr::read(matrix_data)`.** `matrix_data` is the format-agnostic
    coordinate-list representation. Any Ginkgo matrix type can be populated
-   from it — switching to `Coo` or `Ell` later is a one-line type change. The entries are listed in row-major order with each (row, column) pair
+   from it; switching to `Coo` or `Ell` later is a one-line type change. The entries are listed in row-major order with each (row, column) pair
    appearing once, which is what Ginkgo expects of `matrix_data`.
 
 3. **`Dense::create(exec, dim<2>{N, 1})`.** The `Dense` type is Ginkgo's
    column-vector container (a Dense matrix with one column). `create`
    allocates `N` uninitialised entries; the loop then writes through
-   `at(i, 0)`, which is a host-side accessor — valid here because the
+   `at(i, 0)`, which is a host-side accessor, valid here because the
    Reference executor's storage *is* host memory. (For `gko::initialize`
    with literal values use `gko::initialize<Dense>({v0, v1, ...}, exec)`,
    which takes an `initializer_list` directly.)
 
 4. **The solver factory.** `Cg::build()` returns a builder, configured with
    `with_*` chained methods. Stopping criteria are themselves factories
-   you build the same way — Ginkgo composes them rather than baking them
+   you build the same way; Ginkgo composes them rather than baking them
    into the solver. See [Stopping criteria](../user-guide/concepts/stopping-criteria.md)
    for the full taxonomy.
 
@@ -197,7 +197,7 @@ Six steps, each mapping to a Ginkgo concept worth knowing:
 - Read a matrix from a Matrix Market file instead of building it inline → [Read and write matrices](../user-guide/how-to/using/read-write-matrices.md).
 
 :::{seealso}
-- [Install](install.md) — set up Ginkgo if you haven't already.
-- [Build options](build-options.md) — every CMake flag.
-- [User Guide](../user-guide/index.md) — tutorials, how-to recipes, and conceptual reference.
+- [Install](install.md): set up Ginkgo if you haven't already.
+- [Build options](build-options.md): every CMake flag.
+- [User Guide](../user-guide/index.md): tutorials, how-to recipes, and conceptual reference.
 :::

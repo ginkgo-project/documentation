@@ -2,7 +2,7 @@
 
 The simplest possible level generator: select coarse-level rows by a
 user-supplied index list, then build the level from that
-selection. No interpolation, no weighting — restriction selects those rows and
+selection. No interpolation, no weighting; restriction selects those rows and
 prolongation injects by transposition ($R$ holds the selected rows of the
 identity, $P = R^T$).
 

@@ -15,6 +15,6 @@ has to be square.
 ```
 
 :::{seealso}
-- [Singular systems and nullspaces](../../user-guide/concepts/solvers/singular-systems.md) — concept page.
-- [`gko::solver::Nullspace`](../solver/nullspace.md) — the projector passed as `nullspace`.
+- [Singular systems and nullspaces](../../user-guide/concepts/solvers/singular-systems.md): concept page.
+- [`gko::solver::Nullspace`](../solver/nullspace.md): the projector passed as `nullspace`.
 :::

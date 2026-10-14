@@ -1,4 +1,4 @@
-# FixedCoarsening — user-specified coarse rows
+# FixedCoarsening: user-specified coarse rows
 
 `gko::multigrid::FixedCoarsening` is a deterministic coarsening method where the
 caller picks which fine-level rows survive into the coarse level. The selection is purely the caller's: no aggregation, no matching, no
@@ -11,7 +11,7 @@ This makes it a niche choice, but the right one in two scenarios:
    pass them in directly without going through an algebraic coarsening that would
    recompute the hierarchy.
 2. **Reproducible test cases.** Because the coarse rows are fixed, the resulting
-   multigrid hierarchy is bitwise reproducible across runs and platforms — useful
+   multigrid hierarchy is bitwise reproducible across runs and platforms, useful
    for regression testing and for isolating multigrid issues from coarsening
    issues.
 
@@ -36,24 +36,24 @@ interpolation weights.
 
 | Parameter | Type | Purpose |
 |---|---|---|
-| `coarse_rows` | `array<IndexType>` | The required input — global row indices of the fine matrix to keep as coarse rows. Must be non-empty (debug builds assert on a missing or empty array). Default `nullptr`. |
-| `skip_sorting` | `bool` | If you can guarantee that the input system matrix is sorted (first by row, then by column index), set `true` to skip the internal sort. Wrong-setting silently corrupts the coarsening — see [`csr.md`'s sorted-column-indices section](../../formats/csr.md#sorted-column-indices) for context on when sortedness can or cannot be assumed. Default `false`. |
+| `coarse_rows` | `array<IndexType>` | The required input: global row indices of the fine matrix to keep as coarse rows. Must be non-empty (debug builds assert on a missing or empty array). Default `nullptr`. |
+| `skip_sorting` | `bool` | If you can guarantee that the input system matrix is sorted (first by row, then by column index), set `true` to skip the internal sort. Wrong-setting silently corrupts the coarsening; see [`csr.md`'s sorted-column-indices section](../../formats/csr.md#sorted-column-indices) for context on when sortedness can or cannot be assumed. Default `false`. |
 
 ## When to use FixedCoarsening
 
 Choose FixedCoarsening when:
-- You have explicit knowledge of which DOFs should appear at each coarse level —
+- You have explicit knowledge of which DOFs should appear at each coarse level,
   typically from a geometric or hierarchical mesh.
-- You want reproducibility above performance — tests, debugging, didactic uses.
+- You want reproducibility above performance: tests, debugging, didactic uses.
 - You are experimenting with custom coarsening strategies and want a
   deterministic baseline.
 
 Avoid FixedCoarsening when:
 - You are setting up multigrid on a generic matrix without prior knowledge of the
-  unknown structure — [Pgm](pgm.md), [Pmis](pmis.md) and [Rs](rs.md) choose the coarse
+  unknown structure: [Pgm](pgm.md), [Pmis](pmis.md) and [Rs](rs.md) choose the coarse
   level algebraically from the matrix values, and
   [UniformCoarsening](uniform-coarsening.md) picks it by a constant index stride.
-- The problem requires interpolation (smoothed prolongation) for accuracy —
+- The problem requires interpolation (smoothed prolongation) for accuracy;
   FixedCoarsening's pure-injection prolongation is too coarse for many AMG
   use-cases.
 
@@ -80,7 +80,7 @@ fixed coarsening, supply multiple `mg_level` factories and use a `level_selector
 pick the right indices per level.
 
 :::{seealso}
-- [Multigrid](../multigrid.md) — how FixedCoarsening fits into the overall hierarchy.
-- [Pgm](pgm.md), [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md) — the automatic alternatives for generic matrices.
+- [Multigrid](../multigrid.md): how FixedCoarsening fits into the overall hierarchy.
+- [Pgm](pgm.md), [Pmis](pmis.md), [Rs](rs.md), [UniformCoarsening](uniform-coarsening.md): the automatic alternatives for generic matrices.
 - API reference: [`gko::multigrid::FixedCoarsening`](../../../../api-reference/multigrid/fixed-coarsening.md)
 :::

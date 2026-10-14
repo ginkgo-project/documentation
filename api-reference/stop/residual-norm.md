@@ -2,16 +2,16 @@
 
 Residual-norm tolerance criteria. The `baseline` factory parameter
 picks how the threshold is interpreted (relative to the right-hand
-side, relative to the initial residual, or absolute) — see the class
+side, relative to the initial residual, or absolute); see the class
 docstring for the three modes.
 
 Two flavours:
 
-- `ResidualNorm` — uses the 2-norm of the residual, taken from the norm
+- `ResidualNorm`: uses the 2-norm of the residual, taken from the norm
   the solver provides or computed from the solver's residual vector with
   one global reduction per check. Solvers that pass neither (MINRES,
   Multigrid) make it compute $b - A x$, an extra SpMV per check.
-- `ImplicitResidualNorm` — uses the squared-norm estimate the solver
+- `ImplicitResidualNorm`: uses the squared-norm estimate the solver
   maintains internally (typically an inner product that is already
   computed each iteration), avoiding that reduction at the cost of a
   quantity that can drift from the true residual norm on long runs.

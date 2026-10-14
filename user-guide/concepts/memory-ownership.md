@@ -1,13 +1,13 @@
 # Memory ownership and gko::array
 
-`gko::array<T>` is the basic owning container for contiguous data in Ginkgo. Every higher-level container — vectors, matrices, solver workspaces — is built on it. This page explains how `array` owns memory, what its copy and move semantics are, and how it interacts with executors. View semantics — wrapping memory you do not own — are covered separately in [Views and zero-copy wrapping](views-zero-copy.md).
+`gko::array<T>` is the basic owning container for contiguous data in Ginkgo. Every higher-level container (vectors, matrices, solver workspaces) is built on it. This page explains how `array` owns memory, what its copy and move semantics are, and how it interacts with executors. View semantics (wrapping memory you do not own) are covered separately in [Views and zero-copy wrapping](views-zero-copy.md).
 
 ## What gko::array stores
 
-`array<T>` is templated by the storage type. The type must be a POD type (plain old data): a built-in type, or a struct of built-in types. Examples include `double`, `float`, `int`, `std::complex<double>`. The type **may not** be const-qualified — use a `const array<T>` to express read-only access to the whole container, rather than `array<const T>`.
+`array<T>` is templated by the storage type. The type must be a POD type (plain old data): a built-in type, or a struct of built-in types. Examples include `double`, `float`, `int`, `std::complex<double>`. The type **may not** be const-qualified; use a `const array<T>` to express read-only access to the whole container, rather than `array<const T>`.
 
 :::{attention}
-Some functionality — notably `fill` — is not available for all storage types. The restriction is enforced at link time. If you use an unsupported type, the error message will look like:
+Some functionality (notably `fill`) is not available for all storage types. The restriction is enforced at link time. If you use an unsupported type, the error message will look like:
 
 ```
 undefined reference to gko::array<T>::fill(T)
@@ -75,7 +75,7 @@ const double* const_ptr = a.get_const_data();  // always available
 `get_data()` is unavailable on `const` arrays. Both return `nullptr` if the array is empty.
 
 :::{note}
-The pattern of having `get_<something>` and `get_const_<something>` — mutable and const accessors — is standard throughout Ginkgo. For `const` objects, only the const accessor is callable, making accidental mutation near-impossible.
+The pattern of having `get_<something>` and `get_const_<something>` (mutable and const accessors) is standard throughout Ginkgo. For `const` objects, only the const accessor is callable, making accidental mutation near-impossible.
 :::
 
 :::{attention}
@@ -96,7 +96,7 @@ A key rule: **copy and move assignment never change the executor of the destinat
 | Operation                                   | Behaviour                                                        |
 | ------------------------------------------- | ---------------------------------------------------------------- |
 | `array<T> b = a;`                           | Copy. `b` shares `a`'s executor; data is copied.                 |
-| `array<T> b{other_exec, a};`                | Cross-executor copy — copies `a`'s data into `other_exec`.       |
+| `array<T> b{other_exec, a};`                | Cross-executor copy: copies `a`'s data into `other_exec`.       |
 | `array<T> b = std::move(a);`                | Move construction. `a` becomes empty; no data is copied.         |
 
 The executor-conservation rule means that assigning across executors performs a cross-device copy automatically:
@@ -129,7 +129,7 @@ a.set_executor(hip_exec);   // values [1.0, 2.0, 3.0] are now in GPU memory
 
 ## Const-correctness
 
-Prefer `const array<T>` over `array<const T>`. A `const array<T>` disables `get_data()`, `fill()`, `resize_and_reset()`, and `set_executor()` — enforcing the read-only contract at compile time. `array<const T>` is not supported.
+Prefer `const array<T>` over `array<const T>`. A `const array<T>` disables `get_data()`, `fill()`, `resize_and_reset()`, and `set_executor()`, enforcing the read-only contract at compile time. `array<const T>` is not supported.
 
 ## Resizing and filling
 
@@ -165,15 +165,15 @@ Using `fill` with any other type results in a link-time error. This restriction 
 
 ## What array does not do
 
-`array` provides raw contiguous storage, not arithmetic. It does not support element-wise addition, scaling, or dot products. For arithmetic on numeric vectors, use `gko::matrix::Dense<T>` — a `LinOp` built on top of `array` that exposes full linear algebra operations.
+`array` provides raw contiguous storage, not arithmetic. It does not support element-wise addition, scaling, or dot products. For arithmetic on numeric vectors, use `gko::matrix::Dense<T>`, a `LinOp` built on top of `array` that exposes full linear algebra operations.
 
 `array` does not support copy-on-write semantics, reference counting of the stored data, or RAII for non-POD types. For owning `LinOp` objects, use `std::shared_ptr<gko::LinOp>`.
 
 ## Wrapping memory you do not own
 
 Owning memory is the common case, but `array` also supports a non-owning *view*
-mode that wraps memory you already control — a buffer from deal.II, MFEM, Kokkos,
-or a raw user pointer — without copying it. The lifetime contract, integration
+mode that wraps memory you already control (a buffer from deal.II, MFEM, Kokkos,
+or a raw user pointer) without copying it. The lifetime contract, integration
 patterns (deal.II distributed vector, raw user buffers, Kokkos `View`,
 zero-copy CSR construction), and "when to copy instead of view" guidance live on
 their own page:
@@ -184,6 +184,6 @@ views-zero-copy
 ```
 
 :::{seealso}
-- [The Executor model](executor-model.md) — what an `array` is bound to.
+- [The Executor model](executor-model.md): what an `array` is bound to.
 - API reference: [`gko::array`](../../api-reference/base/array.md)
 :::

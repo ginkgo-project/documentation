@@ -1,7 +1,7 @@
 # Concepts
 
 These pages explain Ginkgo's design and architecture. Pick them when you want
-to *understand* — for "how do I do X", see the How-To guides; for "walk me
+to *understand*. For "how do I do X", see the How-To guides; for "walk me
 through a worked example", see the Tutorials.
 
 ## Foundation

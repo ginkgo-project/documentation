@@ -8,7 +8,7 @@ inside the cuDSS handle.
 Only runs on `CudaExecutor`, and only supports `float`, `double`,
 `std::complex<float>`, and `std::complex<double>` value types. The
 `matrix_type` and `matrix_view` factory parameters must be set
-consistently with how the input CSR is stored — see the parameter
+consistently with how the input CSR is stored; see the parameter
 docs below for the details and the `matrix_type` warning.
 
 For an introduction to the extension, see the

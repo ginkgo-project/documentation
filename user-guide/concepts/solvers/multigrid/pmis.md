@@ -1,4 +1,4 @@
-# Pmis — parallel modified independent set
+# Pmis: parallel modified independent set
 
 `gko::multigrid::Pmis` is a classical algebraic-multigrid coarsening. Instead of
 merging rows into aggregates, it splits the unknowns into *coarse* (C) points that
@@ -78,8 +78,8 @@ used as a preconditioner; `max_iters(1u)` makes it apply one cycle per outer
 iteration.
 
 :::{seealso}
-- [Multigrid](../multigrid.md) — how Pmis fits into the overall hierarchy.
-- [Rs](rs.md) — the sequential classical alternative for M-matrices.
+- [Multigrid](../multigrid.md): how Pmis fits into the overall hierarchy.
+- [Rs](rs.md): the sequential classical alternative for M-matrices.
 - API reference: [`gko::multigrid::Pmis`](../../../../api-reference/multigrid/pmis.md)
 - H. De Sterck, U. M. Yang, J. J. Heys, [Reducing complexity in parallel algebraic multigrid preconditioners](https://doi.org/10.1137/040615729), SIAM J. Matrix Anal. Appl. 27 (4), 2006.
 :::

@@ -2,10 +2,10 @@
 
 Distributed sparse-matrix kernels need two symmetric pieces of MPI bookkeeping. To compute
 $y = A x$ where $A$ is row-distributed, every rank must **pull in** the entries of $x$ that its
-off-diagonal matrix references but does not own — a halo gather. To compute $y = A^T x$ (or any
+off-diagonal matrix references but does not own (a halo gather). To compute $y = A^T x$ (or any
 operation that builds $y$ from contributions on multiple ranks), every rank must **push out**
 locally-computed contributions to the ranks that own the corresponding rows of $y$, where they are
-accumulated — a halo scatter.
+accumulated (a halo scatter).
 
 `gko::experimental::distributed::RowGatherer<L>` is the helper object that encapsulates the gather
 pattern and drives the halo exchange in distributed `Matrix::apply`. It packs the rows of a
@@ -16,7 +16,7 @@ just the all-to-all itself. The scatter pattern is
 the gather pattern with send and receive roles swapped, which is exactly what
 `CollectiveCommunicator::create_inverse()` produces.
 
-Most user code does not interact with these helpers directly — the distributed `Matrix` constructs
+Most user code does not interact with these helpers directly; the distributed `Matrix` constructs
 and uses them internally. They are exposed publicly for users implementing custom distributed
 `LinOp` operations that need to drive their own asynchronous halo exchanges.
 
@@ -25,7 +25,7 @@ and uses them internally. They are exposed publicly for users implementing custo
 The mathematical operation is the row-selection map $x_\text{halo} = R_\text{halo}\, x$, where
 $R_\text{halo}$ is the indicator that picks out the global rows of $x$ that this rank's
 off-diagonal matrix needs. In distributed terms each rank owns a contiguous block of $x$, so satisfying
-$x_\text{halo}$ requires **other** ranks to send their owned values to this rank — i.e. an
+$x_\text{halo}$ requires **other** ranks to send their owned values to this rank, i.e. an
 all-to-all. `RowGatherer` is the object that owns the index list ("which local rows of *my* $x$
 do I need to send out, and to whom") plus the send-side buffer.
 
@@ -101,7 +101,7 @@ unless the destination's executor is the host executor. Internally, `RowGatherer
 
 | Method | Returns |
 |---|---|
-| `get_size()` | `dim<2>` — rows: total received rows summed over all ranks; cols: global size of the gathered index space |
+| `get_size()` | `dim<2>` (rows: total received rows summed over all ranks; cols: global size of the gathered index space) |
 | `get_collective_communicator()` | The shared `CollectiveCommunicator` driving the exchange |
 | `get_const_send_idxs()` | Pointer to the local row indices being sent |
 | `get_num_send_idxs()` | Length of the send-index array |
@@ -121,7 +121,7 @@ calls into it in this order (step names from the 6-step trace in
    not wait for the gather event.
 3. `rg->apply_finalize(b, x_halo, prepare_event)` waits on the gather event, issues the all-to-all
    and returns the `mpi::request` (trace step 2, Exchange).
-4. `req.wait()` — `x_halo` is now populated (trace step 4).
+4. `req.wait()`: `x_halo` is now populated (trace step 4).
 5. The off-diagonal-matrix kernel applies to `x_halo`.
 6. The diagonal-matrix result and the off-diagonal-matrix result are summed into `y_local`.
 
@@ -133,10 +133,10 @@ via the `detail` friend interface for testing and for advanced users who want fi
 over when the exchange is launched relative to other work.
 
 :::{seealso}
-- [Communication primitives](communication-primitives.md) — the SpMV pipeline that consumes the
+- [Communication primitives](communication-primitives.md): the SpMV pipeline that consumes the
   row gatherer.
-- [Collective communicators](collective-communicator.md) — the layer beneath the gatherer.
-- [Partitions and index maps](partition-and-index-map.md) — the bookkeeping that defines which
+- [Collective communicators](collective-communicator.md): the layer beneath the gatherer.
+- [Partitions and index maps](partition-and-index-map.md): the bookkeeping that defines which
   rows get gathered.
 - API reference: [`gko::experimental::distributed::RowGatherer`](../../../api-reference/distributed/row-gatherer.md)
 :::

@@ -1,4 +1,4 @@
-# Matrix formats — an overview
+# Matrix formats: overview
 
 Ginkgo supports several sparse-matrix storage formats, each tuned for a different memory
 access pattern and workload. This page introduces the format zoo, explains the trade-off
@@ -20,7 +20,7 @@ Detailed coverage of individual formats lives in the `formats/` sub-pages.
 All seven implement the `LinOp` interface: every format supports `apply(b, x)` for SpMV,
 and most support `copy_from` conversions to and from the other formats.
 
-In addition to these seven, Ginkgo also provides `gko::matrix::SparsityCsr` — a
+In addition to these seven, Ginkgo also provides `gko::matrix::SparsityCsr`, a
 **pattern-only** representation that stores row pointers and column indices but no
 per-entry values (a single shared scalar, default `1.0`, is applied to every
 non-zero). It is not a value-bearing format and so does not appear in the table
@@ -35,7 +35,7 @@ irrelevant. SparsityCsr converts directly to and from CSR and Dense and reads fr
 The table above reduces each format to one line. Five axes give a fuller picture:
 
 **Assembly cost.** How cheaply can you build the matrix from random `(row, col, value)`
-triples? COO wins — it stores triples directly. CSR requires a prefix-sum over row
+triples? COO wins; it stores triples directly. CSR requires a prefix-sum over row
 counts; ELL and Sellp require knowing the longest row up front. If your application
 assembles incrementally (adding contributions from element matrices), use COO or
 `matrix_data` first, then convert.
@@ -45,11 +45,11 @@ workhorse on CPU. ELL and Sellp can outperform CSR on GPU for matrices with
 near-uniform row lengths because they eliminate the indirect row-pointer read.
 Hybrid covers the case where some rows are long outliers.
 
-**Memory footprint.** ELL pads every row to the same length as the longest row —
+**Memory footprint.** ELL pads every row to the same length as the longest row, which is
 catastrophic for highly skewed row-length distributions. Sellp mitigates by grouping
 rows into slabs and padding only within a slab. Hybrid offloads overflow rows to COO.
 
-**Conversion cost.** Converting between formats is a device kernel — fast, but not free.
+**Conversion cost.** Converting between formats is a device kernel: fast, but not free.
 CSR and Dense are the two "hubs" with direct converters to every other format; the
 remaining sparse formats (COO, ELL, Sellp, Hybrid) reach each other indirectly via
 CSR. If you convert repeatedly inside a tight loop, profile whether the conversion
@@ -202,8 +202,8 @@ When choosing a format, work through these questions in order:
    short rows in ELL and overflows long rows into COO.
 
 5. **Use Fbcsr for block-structured matrices.** If your matrix has a natural block
-   structure — for example, `k` degrees of freedom per finite-element node, producing
-   `k×k` dense blocks — Fbcsr stores those blocks explicitly and exploits their dense
+   structure (for example, `k` degrees of freedom per finite-element node, producing
+   `k×k` dense blocks), Fbcsr stores those blocks explicitly and exploits their dense
    structure in SpMV.
 
 6. **Dense is not a sparse format.** Use `gko::matrix::Dense` for multi-vectors (the
@@ -232,8 +232,8 @@ formats/sparsity-csr
 - [Balanced and Compressed Coordinate Layout for the Sparse Matrix-Vector Product on GPUs](https://doi.org/10.1007/978-3-030-71593-9_7)
 
 :::{seealso}
-- [Matrix data and assembly](matrix-data.md) — getting data into a format.
-- [CSR](formats/csr.md), [COO](formats/coo.md) — the two filled format pages.
-- [Polymorphic objects](../../api-reference/base/polymorphic-object.md) — `validate_data()`.
+- [Matrix data and assembly](matrix-data.md): getting data into a format.
+- [CSR](formats/csr.md), [COO](formats/coo.md): the two filled format pages.
+- [Polymorphic objects](../../api-reference/base/polymorphic-object.md): `validate_data()`.
 - API reference: [`gko::matrix`](../../api-reference/matrix/index.md), [device views](../../api-reference/matrix/device-views.md)
 :::

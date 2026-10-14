@@ -3,7 +3,7 @@
 Ginkgo ships a set of benchmark drivers under `benchmark/`:
 
 - **Coverage**: SpMV, BLAS, conversions, solvers, preconditioners,
-  sparse BLAS, matrix statistics — single-device and distributed.
+  sparse BLAS, matrix statistics, both single-device and distributed.
 - **I/O**: each driver reads a JSON case list on stdin and emits a JSON
   result list on stdout.
 - **Composable**: SpMV's "fastest format per matrix" output feeds
@@ -18,23 +18,23 @@ cmake .. \
 cmake --build . -j
 ```
 
-`Release` matters — performance numbers from a `RelWithDebInfo` build
+`Release` matters: performance numbers from a `RelWithDebInfo` build
 underreport throughput by 10–30 % depending on backend. Distributed
 benchmarks additionally need `-DGINKGO_BUILD_MPI=ON`.
 
 Two optional helpers are worth installing alongside:
 
-- [`ssget`](https://github.com/ginkgo-project/ssget) — fetches matrices
+- [`ssget`](https://github.com/ginkgo-project/ssget): fetches matrices
   from the SuiteSparse collection by ID / name. Required by
   `run_all_benchmarks.sh`. Either install it to a directory on `PATH`
   or invoke it inline with `-a <archive-dir>`.
-- `gflags` — the benchmark drivers use it for command-line parsing; if
+- `gflags`: the benchmark drivers use it for command-line parsing; if
   the system version is too old, CMake fetches it for you.
 
 ## Drivers
 
 After build, each benchmark area produces an executable in the build
-tree. Always use `--help` for the authoritative option list — it
+tree. Always use `--help` for the authoritative option list; it
 documents the expected JSON shape in addition to the flags:
 
 | Build path | What it benchmarks |
@@ -81,7 +81,7 @@ matrix format to use:
 ]
 ```
 
-When you chain the benchmarks, you don't author this field yourself —
+When you chain the benchmarks, you don't author this field yourself;
 the SpMV benchmark finds the fastest format and writes
 `"optimal.spmv"` into its output, so:
 
@@ -143,7 +143,7 @@ in each driver's `--help` output.
 
 ## Best practice for representative numbers
 
-The `BENCHMARKING.md` guide spells these out — they are *not*
+The `BENCHMARKING.md` guide spells these out; they are *not*
 optional if you intend to publish the numbers:
 
 - Compile in `Release` mode.
@@ -154,11 +154,11 @@ optional if you intend to publish the numbers:
   repetition for the longer solver benchmarks (`SOLVER_REPETITIONS`).
   Override the counts with these flags if you need different ones.
 - For the adaptive block Jacobi preconditioner specifically, enable
-  `-DGINKGO_JACOBI_FULL_OPTIMIZATIONS=ON` — the gain is large, but the
+  `-DGINKGO_JACOBI_FULL_OPTIMIZATIONS=ON`; the gain is large, but the
   build time also goes up materially (see [Speed up rebuilds](speed-up-builds.md)).
 - The `overhead` LinOp, selected with `--preconditioners=overhead` or
   `--solvers=overhead`, measures Ginkgo's framework overhead without
-  doing any real work — useful to characterise the library's own cost
+  doing any real work, which is useful to characterise the library's own cost
   relative to the kernels.
 
 ## Adding a benchmark for a new operator
@@ -183,10 +183,10 @@ example `FORMATS=csr,my_format` for `run_all_benchmarks.sh`, to include
 it in the comparison.
 
 :::{seealso}
-- `BENCHMARKING.md` in the Ginkgo source tree — the authoritative
+- `BENCHMARKING.md` in the Ginkgo source tree: the authoritative
   reference, including the full SuiteSparse setup loop.
-- [Speed up rebuilds](speed-up-builds.md) — for getting the suite
+- [Speed up rebuilds](speed-up-builds.md): for getting the suite
   built quickly.
-- [Submit a pull request](submit-a-pr.md) — the CI stages and labels
+- [Submit a pull request](submit-a-pr.md): the CI stages and labels
   for a change.
 :::

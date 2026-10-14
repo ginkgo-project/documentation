@@ -1,6 +1,6 @@
 # `gko::config::pnode`
 
-Property-tree node — the in-memory representation of a parsed
+Property-tree node: the in-memory representation of a parsed
 configuration document. Each node is either a scalar (string,
 integer, real, boolean), an array of nodes, or a map from string keys
 to nodes, mirroring the structure of JSON.

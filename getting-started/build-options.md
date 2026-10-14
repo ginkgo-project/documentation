@@ -18,7 +18,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - Purpose
 * - `GINKGO_BUILD_REFERENCE`
   - `ON` / `OFF`
-  - Single-threaded CPU reference kernels — the correctness baseline. Defaults to `ON` and is required if you want to run reference-parity tests.
+  - Single-threaded CPU reference kernels: the correctness baseline. Defaults to `ON` and is required if you want to run reference-parity tests.
 * - `GINKGO_BUILD_OMP`
   - `ON` / `OFF`
   - OpenMP-parallel CPU kernels. Defaults to `ON` when the C++ compiler advertises OpenMP support.
@@ -33,7 +33,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - SYCL kernels for Intel GPUs (and other SYCL-enabled hardware). Defaults to `ON` when `CMAKE_CXX_COMPILER` is `dpcpp` / `icpx`. Replaces the legacy `GINKGO_BUILD_DPCPP` flag.
 * - `GINKGO_BUILD_MPI`
   - `ON` / `OFF`
-  - The distributed module — `experimental::distributed::Matrix`, the MPI communicator wrappers, and distributed solvers. Defaults to `ON` when MPI is detected.
+  - The distributed module: `experimental::distributed::Matrix`, the MPI communicator wrappers, and distributed solvers. Defaults to `ON` when MPI is detected.
 * - `GINKGO_FORCE_GPU_AWARE_MPI`
   - `ON` / `OFF`
   - **Asserts** (does not detect) that the linked MPI build accepts device pointers directly. When `ON`, Ginkgo skips the host-buffer staging fallback used in distributed halo exchanges. Faster, but fails catastrophically if the MPI implementation is not actually GPU-aware. Defaults to `OFF`. Only enable after confirming GPU-awareness in your MPI build.
@@ -50,7 +50,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - Purpose
 * - `GINKGO_CUDA_ARCHITECTURES`
   - list
-  - Semicolon-separated CUDA target architectures. Accepts `Auto` (default — detect installed GPUs), generation names (`Kepler`, `Maxwell`, `Pascal`, `Volta`, `Turing`, `Ampere`), or explicit `CODE` / `CODE(COMPUTE)` entries.
+  - Semicolon-separated CUDA target architectures. Accepts `Auto` (default: detect installed GPUs), generation names (`Kepler`, `Maxwell`, `Pascal`, `Volta`, `Turing`, `Ampere`), or explicit `CODE` / `CODE(COMPUTE)` entries.
 * - `CMAKE_CUDA_HOST_COMPILER`
   - path
   - Forces CUDA's host compiler. Useful when ABI mismatches cause linker errors.
@@ -108,7 +108,7 @@ correctness baseline; the others are auto-detected from the toolchain.
   - Reduce input sizes for a few slow tests. Defaults to `OFF`.
 * - `GINKGO_BUILD_EXAMPLES`
   - `ON` / `OFF`
-  - Build the `examples/` programs. Defaults to `ON`. Some examples need OpenCV — they are silently skipped when OpenCV is missing.
+  - Build the `examples/` programs. Defaults to `ON`. Some examples need OpenCV; they are silently skipped when OpenCV is missing.
 * - `GINKGO_BUILD_EXTLIB_EXAMPLE`
   - `ON` / `OFF`
   - Build the deal.II interfacing example. Defaults to `OFF`.
@@ -225,8 +225,8 @@ package is not found:
 
 | Component | Required for | Discovery |
 |---|---|---|
-| [METIS](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview) | `reorder::NestedDissection` | `find_package` — disabled if absent. |
-| [PAPI](https://icl.utk.edu/papi/) ≥ 7.1.0 | `log::Papi` logger | `find_package` — disabled if absent. |
+| [METIS](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview) | `reorder::NestedDissection` | `find_package`; disabled if absent. |
+| [PAPI](https://icl.utk.edu/papi/) ≥ 7.1.0 | `log::Papi` logger | `find_package`; disabled if absent. |
 | [cuDSS](https://developer.nvidia.com/cudss) ≥ 0.8.0 | `gko::ext::cuda::solver::Cudss` (library target `Ginkgo::ginkgo_cudss`), with `GINKGO_BUILD_CUDA=ON` | `find_package(cudss 0.8.0 CONFIG)`; point `cudss_DIR` or `CMAKE_PREFIX_PATH` at its install. |
 | [Kokkos](https://kokkos.org) ≥ 4.1 | `<ginkgo/extensions/kokkos.hpp>` (header-only) | Found and linked by your application. |
 | nlohmann-json / yaml-cpp | `<ginkgo/extensions/config/json_config.hpp>` / `yaml_config.hpp` (header-only) | Found and linked by your application. |
@@ -259,7 +259,7 @@ cmake --build . -j
 ```
 
 :::{seealso}
-- [Install](install.md) — prerequisites and the standard install path.
-- [Your first solver in 10 minutes](first-solver.md) — verify the build.
-- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md) — the canonical, exhaustive build documentation.
+- [Install](install.md): prerequisites and the standard install path.
+- [Your first solver in 10 minutes](first-solver.md): verify the build.
+- [Upstream `INSTALL.md`](https://github.com/ginkgo-project/ginkgo/blob/develop/INSTALL.md): the canonical, exhaustive build documentation.
 :::

@@ -3,9 +3,9 @@
 Abstract base for every linear operator in Ginkgo. A `LinOp` exposes
 the action $x \leftarrow A b$ through `apply(b, x)` (and the scaled
 form $x \leftarrow \alpha A b + \beta x$ through the four-argument
-overload). Everything that behaves like an operator — sparse and dense
+overload). Everything that behaves like an operator (sparse and dense
 matrices, factorisations, Krylov solvers, preconditioners, composed
-operators — is a `LinOp`, so callers can treat them uniformly: feed any
+operators) is a `LinOp`, so callers can treat them uniformly: feed any
 of them to a Krylov solver as the system matrix, the preconditioner,
 or both.
 

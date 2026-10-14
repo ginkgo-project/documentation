@@ -6,7 +6,7 @@ An iterative solver needs a way to decide when to stop. Ginkgo's stopping criter
 
 A stopping criterion factory produces a runtime criterion object that the solver calls after each iteration. The criterion sees the current iteration count, the current residual, and the current solution vector; it returns a per-right-hand-side converged flag. When all right-hand sides are flagged, the solver stops.
 
-Because criteria are factories — the same pattern as solvers and preconditioners — they plug into solver factories via `with_criteria(...)` and are constructed together with the solver at `generate` time. This keeps criterion configuration independent of the solver algorithm.
+Because criteria are factories (the same pattern as solvers and preconditioners), they plug into solver factories via `with_criteria(...)` and are constructed together with the solver at `generate` time. This keeps criterion configuration independent of the solver algorithm.
 
 ## Built-in criteria
 
@@ -35,10 +35,10 @@ gko::stop::Time::build()
     .on(exec);
 ```
 
-- **`Iteration`** — unconditionally stops after `max_iters` iterations. A safety net that prevents infinite loops regardless of convergence.
-- **`ResidualNorm`** — stops when `‖r‖ ≤ reduction_factor × baseline`. The `baseline` can be `rhs_norm` (the default, relative to `‖b‖`), `initial_resnorm` (relative to the initial residual), or `absolute` (no normalisation). Each check uses the residual norm the solver already provides (GMRES, CB-GMRES, GCR and IDR do) or takes the 2-norm of the residual vector the solver maintains, which costs one global reduction per check. Solvers that pass neither (MINRES, Multigrid) make it compute $b - A x$, an extra SpMV per check.
-- **`ImplicitResidualNorm`** — checks the squared-norm estimate the solver maintains as a by-product of its recurrence (for CG-type solvers $\rho = r^H z$, a preconditioned quantity), which saves that reduction. Solvers that provide the estimate are CG, FCG, BiCG, BiCGSTAB, CGS, MINRES and PipeCG. See the *Implicit vs explicit residual norms* section below for the trade-off.
-- **`Time`** — stops after a wall-clock duration regardless of convergence. Useful for anytime algorithms or hard latency budgets.
+- **`Iteration`**: unconditionally stops after `max_iters` iterations. A safety net that prevents infinite loops regardless of convergence.
+- **`ResidualNorm`**: stops when `‖r‖ ≤ reduction_factor × baseline`. The `baseline` can be `rhs_norm` (the default, relative to `‖b‖`), `initial_resnorm` (relative to the initial residual), or `absolute` (no normalisation). Each check uses the residual norm the solver already provides (GMRES, CB-GMRES, GCR and IDR do) or takes the 2-norm of the residual vector the solver maintains, which costs one global reduction per check. Solvers that pass neither (MINRES, Multigrid) make it compute $b - A x$, an extra SpMV per check.
+- **`ImplicitResidualNorm`**: checks the squared-norm estimate the solver maintains as a by-product of its recurrence (for CG-type solvers $\rho = r^H z$, a preconditioned quantity), which saves that reduction. Solvers that provide the estimate are CG, FCG, BiCG, BiCGSTAB, CGS, MINRES and PipeCG. See the *Implicit vs explicit residual norms* section below for the trade-off.
+- **`Time`**: stops after a wall-clock duration regardless of convergence. Useful for anytime algorithms or hard latency budgets.
 
 ### Shorthand helpers
 
@@ -92,7 +92,7 @@ auto criteria = gko::stop::Combined::build()
                     .on(exec);
 ```
 
-This stops when either 1000 iterations have run *or* the residual has reduced by a factor of 1e-8 — whichever comes first. Using at least an `Iteration` bound together with a `ResidualNorm` criterion is good practice: the iteration bound guards against divergence, while the norm criterion avoids unnecessary extra work after convergence.
+This stops when either 1000 iterations have run *or* the residual has reduced by a factor of 1e-8, whichever comes first. Using at least an `Iteration` bound together with a `ResidualNorm` criterion is good practice: the iteration bound guards against divergence, while the norm criterion avoids unnecessary extra work after convergence.
 
 ## Plugging into a solver
 
@@ -146,6 +146,6 @@ The two norm-based criteria reflect an accuracy-vs-cost trade-off:
 Prefer `ResidualNorm` in production runs where correctness is paramount. Use `ImplicitResidualNorm` in performance-sensitive inner solves with loose tolerances, paired with an `Iteration` cap.
 
 :::{seealso}
-- [Solvers — taxonomy](solvers.md) — what consumes stopping criteria.
+- [Solver taxonomy](solvers.md): what consumes stopping criteria.
 - API reference: [`gko::stop`](../../api-reference/stop/index.md)
 :::

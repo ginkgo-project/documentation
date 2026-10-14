@@ -1,7 +1,7 @@
 # SparsityCsr (sparsity-pattern only)
 
 `gko::matrix::SparsityCsr<ValueType, IndexType>` stores **only the sparsity pattern**
-of a sparse matrix — the row pointers and column indices in the standard CSR layout —
+of a sparse matrix (the row pointers and column indices in the standard CSR layout)
 with no per-entry value array. Every non-zero entry is treated as having the same
 shared scalar value (default `1.0`, settable through the constructor). This makes it
 the natural representation for graph-style algorithms, symbolic factorisation
@@ -9,20 +9,20 @@ preparation, and any analysis that depends on *where* the non-zeros live rather 
 their numerical magnitudes.
 
 It is not part of the value-bearing matrix-format taxonomy on the
-[overview page](../matrix-formats.md) for that reason — it does not store enough
+[overview page](../matrix-formats.md) for that reason; it does not store enough
 information to participate in a meaningful SpMV against a general right-hand side.
 
 ## Storage layout
 
 SparsityCsr uses two index arrays plus a single shared scalar:
 
-- **`row_ptrs`** — length `n_rows + 1`. Same semantics as in CSR: `row_ptrs[i]` is the
+- **`row_ptrs`**: length `n_rows + 1`. Same semantics as in CSR: `row_ptrs[i]` is the
   starting index (into `col_idxs`) of row `i`.
-- **`col_idxs`** — length `nnz`. The column indices of the non-zeros.
-- **`value`** — a single scalar (one element). Every non-zero entry is treated as
+- **`col_idxs`**: length `nnz`. The column indices of the non-zeros.
+- **`value`**: a single scalar (one element). Every non-zero entry is treated as
   taking this value during apply. Defaults to `1.0` if not set.
 
-The total storage footprint is `(n_rows + 1) + nnz` index slots plus one scalar —
+The total storage footprint is `(n_rows + 1) + nnz` index slots plus one scalar,
 strictly smaller than CSR for the same sparsity pattern, since the per-entry value
 array is gone.
 
@@ -37,7 +37,7 @@ SparsityCsr is appropriate when one of the following is true:
   factorisation depends only on the sparsity pattern. SparsityCsr is the right
   representation to feed into such an analysis.
 - **Reordering input.** Partitioners and reordering algorithms operate on the graph
-  structure of the matrix. SparsityCsr (especially via `to_adjacency_matrix()` —
+  structure of the matrix. SparsityCsr (especially via `to_adjacency_matrix()`,
   see below) is the canonical form to hand to them.
 - **Pattern-comparison or test scaffolding.** When you want to assert that a
   computed matrix has a specific non-zero pattern but do not care about values,
@@ -65,14 +65,14 @@ auto from_arrays = gko::matrix::SparsityCsr<double, int>::create(
 ```
 
 Like the other CSR-family formats, SparsityCsr accepts rvalue arrays in the
-explicit constructor and moves them in — passing views of user-owned buffers
+explicit constructor and moves them in; passing views of user-owned buffers
 gives a zero-copy wrapper. See [Views and zero-copy wrapping](../views-zero-copy.md)
 for the lifetime contract.
 
 ## Conversion to and from other formats
 
 SparsityCsr converts directly to and from CSR and Dense, and accepts `matrix_data`
-through the standard `read()` interface. Fbcsr also converts directly to SparsityCsr —
+through the standard `read()` interface. Fbcsr also converts directly to SparsityCsr, which is
 useful for extracting the block-level graph of a block-structured matrix:
 
 ```cpp
@@ -97,7 +97,7 @@ auto adj = sp->to_adjacency_matrix();
 `to_adjacency_matrix()` returns a square SparsityCsr representing the *graph*
 underlying the matrix: the original sparsity pattern with the diagonal removed
 (self-loops dropped). The input must be square. This is the form expected by graph
-libraries such as METIS for partitioning and reordering — feeding the adjacency
+libraries such as METIS for partitioning and reordering: feeding the adjacency
 matrix rather than the original lets the partitioner ignore the diagonal entries
 that would otherwise be treated as self-loops.
 
@@ -118,8 +118,8 @@ not, so callers building SparsityCsr from raw arrays should sort if the consumer
 expects it.
 
 :::{seealso}
-- [Matrix formats — overview](../matrix-formats.md) — where SparsityCsr fits relative to the value-bearing formats.
-- [CSR](csr.md) — the value-bearing format SparsityCsr converts to and from.
-- [Reordering and permutations](../reordering.md) — the typical consumer of `to_adjacency_matrix()`.
+- [Matrix formats](../matrix-formats.md): where SparsityCsr fits relative to the value-bearing formats.
+- [CSR](csr.md): the value-bearing format SparsityCsr converts to and from.
+- [Reordering and permutations](../reordering.md): the typical consumer of `to_adjacency_matrix()`.
 - API reference: [`gko::matrix::SparsityCsr`](../../../api-reference/matrix/sparsity-csr.md)
 :::

@@ -6,7 +6,7 @@ host-side method on a `LinOp` (e.g. `Csr::compute_something()`) packages
 arguments into an `Operation` via `GKO_REGISTER_OPERATION`, hands that to
 `exec->run(...)`, and the executor selects the right backend implementation.
 
-This page walks through the chain end to end on a real, minimal kernel —
+This page walks through the chain end to end on a real, minimal kernel:
 `csr::row_wise_absolute_sum`. The kernel is part of the source tree today:
 `core/distributed/preconditioner/schwarz.cpp` registers it and uses it to
 build an $\ell_1$ diagonal for the off-diagonal block. The walkthrough
@@ -30,7 +30,7 @@ other backend test compares against. The second performance implementation
 can either be backend-portable (one entry in `common/unified/`, compiled
 once per backend through the `kernel_launch` macros) or backend-specific.
 
-You do **not** edit `CMakeLists.txt` for a new kernel — every file in the
+You do **not** edit `CMakeLists.txt` for a new kernel; every file in the
 table above is already wired into each backend's compile list.
 
 ### Kernel arguments
@@ -138,7 +138,7 @@ Reference kernels:
 
 - Live inside `namespace gko::kernels::reference::csr`. The macro
   `GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE` expands the template into
-  every supported `(ValueType, IndexType)` combination — invoke it once at
+  every supported `(ValueType, IndexType)` combination; invoke it once at
   the bottom of the implementation.
 - Should be the simplest possible serial code. Reviewers cross-check the
   results against e.g. a few lines of MATLAB, so keep test inputs small
@@ -182,8 +182,8 @@ macros it uses lower to the right primitives per executor:
 | HIP | `hipLaunchKernelGGL` |
 | DPC++ | `sycl::parallel_for` |
 
-If your kernel needs hand-tuned parallelism — coalesced loads, sub-warp
-reductions, shared-memory tiling — put it in a backend-specific file
+If your kernel needs hand-tuned parallelism (coalesced loads, sub-warp
+reductions, shared-memory tiling), put it in a backend-specific file
 instead. CUDA and HIP share one source under `common/cuda_hip/`
 (`common/cuda_hip/matrix/csr_kernels.template.cpp`, with shared code in
 `csr_common.hpp.inc`); the existing CMake lists already compile it, so
@@ -197,7 +197,7 @@ disabled, its symbols still have to link. The `core/device_hooks/`
 tree provides placeholder libraries that:
 
 - expose the same kernel symbols as the real backend,
-- have function bodies of `GKO_NOT_COMPILED(<backend>)` — calling one
+- have function bodies of `GKO_NOT_COMPILED(<backend>)`, so calling one
   at runtime throws `NotCompiled` immediately.
 
 Each per-backend hooks file pulls in `common_kernels.inc.cpp` once with
@@ -232,7 +232,7 @@ For the `row_wise_absolute_sum` example, the corresponding line in
 GKO_STUB_VALUE_AND_INDEX_TYPE(GKO_DECLARE_CSR_ROW_WISE_ABSOLUTE_SUM);
 ```
 
-Place it next to the other `csr` entries — the file groups stubs by
+Place it next to the other `csr` entries; the file groups stubs by
 module to mirror the kernel-header layout.
 
 Forgetting this step:
@@ -275,10 +275,10 @@ reductions on dense input.
 Inside any kernel module (`reference/`, `omp/`, `cuda/`, `hip/`,
 `dpcpp/`, `common/unified/`):
 
-- **Allowed**: calling other kernels in the same backend namespace —
+- **Allowed**: calling other kernels in the same backend namespace,
   e.g. `cuda::dense::add_scaled(...)` from another `cuda` kernel.
-- **Forbidden**: instantiating a polymorphic Ginkgo class — no
-  `Csr::create`, no `Dense::create`, no `Cg::build()`. That creates a
+- **Forbidden**: instantiating a polymorphic Ginkgo class (no
+  `Csr::create`, no `Dense::create`, no `Cg::build()`). That creates a
   circular dependency between the kernel module and `core/`.
 
 The `no-circular-deps` CI job catches violations; enable it locally
@@ -292,9 +292,9 @@ files only consume the already-instantiated objects.
 
 Two companion test files, both covered by [Write tests](write-tests.md):
 
-- **`reference/test/matrix/csr_kernels.cpp`** — small, hand-verifiable
+- **`reference/test/matrix/csr_kernels.cpp`**: small, hand-verifiable
   inputs on the Reference executor.
-- **`test/matrix/csr_kernels.cpp`** — cross-backend parity test using
+- **`test/matrix/csr_kernels.cpp`**: cross-backend parity test using
   `CommonTestFixture`, compiled once per enabled backend, asserting
   agreement with the Reference within tolerance.
 
@@ -309,8 +309,8 @@ boilerplate skeleton with the kernels marked `GKO_NOT_IMPLEMENTED`. Run
 list.
 
 :::{seealso}
-- [Add a matrix format](add-a-matrix-format.md) — the `LinOp` skeleton
+- [Add a matrix format](add-a-matrix-format.md): the `LinOp` skeleton
   that holds the data the kernels operate on.
-- [Write tests](write-tests.md) — the reference-parity test pattern.
-- [Submit a pull request](submit-a-pr.md) — what CI will run before merge.
+- [Write tests](write-tests.md): the reference-parity test pattern.
+- [Submit a pull request](submit-a-pr.md): what CI will run before merge.
 :::

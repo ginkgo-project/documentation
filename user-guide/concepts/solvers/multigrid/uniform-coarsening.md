@@ -1,4 +1,4 @@
-# UniformCoarsening — constant-stride coarsening
+# UniformCoarsening: constant-stride coarsening
 
 `gko::multigrid::UniformCoarsening` selects coarse rows by a constant stride over the
 row index space. Neither the matrix values nor any mesh geometry are consulted, which
@@ -60,8 +60,8 @@ The `UniformCoarsening` builder is handed to `with_mg_level` directly. `Multigri
 requires `with_criteria`, even when it is used as a preconditioner.
 
 :::{seealso}
-- [Multigrid](../multigrid.md) — how UniformCoarsening fits into the overall hierarchy.
-- [Pgm](pgm.md) — the value-based aggregation that also supports distributed matrices.
-- [FixedCoarsening](fixed-coarsening.md) — coarse rows chosen by the caller.
+- [Multigrid](../multigrid.md): how UniformCoarsening fits into the overall hierarchy.
+- [Pgm](pgm.md): the value-based aggregation that also supports distributed matrices.
+- [FixedCoarsening](fixed-coarsening.md): coarse rows chosen by the caller.
 - API reference: [`gko::multigrid::UniformCoarsening`](../../../../api-reference/multigrid/uniform-coarsening.md)
 :::

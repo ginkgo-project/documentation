@@ -36,7 +36,7 @@ any other published spec. It starts with an 8-byte magic prefix
 `GINKGO__` (the trailing two bytes encode the value and index types)
 followed by `num_rows`, `num_cols`, `num_entries` as little-endian
 `uint64_t`s and the raw triplet payload. Files produced by other
-tools — even other "binary `.mtx`" producers — will fail with
+tools (even other "binary `.mtx`" producers) will fail with
 `GKO_STREAM_ERROR: invalid header magic number` from
 `read_binary_raw` (`core/base/mtx_io.cpp`). Always pair a `read_binary`
 on one end with a `write_binary` on the other.
@@ -64,7 +64,7 @@ csr->copy_from(coo);                                // COO → CSR
 gko::write(out_stream, csr);
 ```
 
-CSR and Dense are conversion hubs — every other format has a direct
+CSR and Dense are conversion hubs: every other format has a direct
 edge to/from both. From any other pair you may need two hops (e.g.
 `Ell → CSR → Hybrid`). See [Matrix formats](../../concepts/matrix-formats.md)
 for the full conversion graph.
@@ -101,7 +101,7 @@ matrix's executor.
   into a matrix whose executor is wherever you want the data to end up.
 
 :::{seealso}
-- [Matrix data](../../concepts/matrix-data.md) — what `matrix_data` is and when to use it.
-- [Matrix formats](../../concepts/matrix-formats.md) — the conversion graph.
+- [Matrix data](../../concepts/matrix-data.md): what `matrix_data` is and when to use it.
+- [Matrix formats](../../concepts/matrix-formats.md): the conversion graph.
 - [Matrix Market format spec](https://math.nist.gov/MatrixMarket/formats.html).
 :::
